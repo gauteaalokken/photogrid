@@ -1,597 +1,400 @@
-
 <!DOCTYPE html>
 <html lang="no">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Photo Grid Layout Creator</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Photo Grid — Exporter</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    
-    .app-container { min-height: 100vh; background-color: #f9fafb; display: flex; }
-    
-    .sidebar { width: 320px; background-color: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; }
-    .sidebar-header { padding: 24px; border-bottom: 1px solid #e5e7eb; }
-    .sidebar-header h1 { font-size: 24px; font-weight: 600; color: #111827; margin-bottom: 4px; }
-    .sidebar-header p { font-size: 14px; color: #6b7280; }
-    .sidebar-content { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
-    .sidebar-footer { padding: 24px; border-top: 1px solid #e5e7eb; }
-    
-    .control-group { display: flex; flex-direction: column; gap: 8px; }
-    .control-group label { font-size: 14px; font-weight: 500; color: #374151; }
-    .photo-count { font-size: 12px; color: #6b7280; margin-top: 8px; }
-    
-    .btn-primary { width: 100%; padding: 12px 16px; background-color: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background-color 0.2s; }
-    .btn-primary:hover { background-color: #1d4ed8; }
-    .btn-danger { width: 100%; padding: 8px 16px; color: #dc2626; background-color: white; border: 1px solid #fca5a5; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; }
-    .btn-danger:hover { background-color: #fef2f2; }
-    .btn-export { width: 100%; padding: 12px 16px; background-color: #111827; color: white; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background-color 0.2s; }
-    .btn-export:hover { background-color: #1f2937; }
-    .btn-export:disabled { opacity: 0.5; cursor: not-allowed; }
-    
-    .button-group { display: flex; gap: 8px; }
-    .button-group button { flex: 1; padding: 8px 16px; background-color: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-    .button-group button:hover { border-color: #9ca3af; }
-    .button-group button.active { background-color: #eff6ff; border-color: #2563eb; color: #1d4ed8; }
-    
-    select, input[type="text"] { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
-    select:focus, input[type="text"]:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
-    input[type="range"] { width: 100%; }
-    
-    .color-input-group { display: flex; gap: 8px; }
-    .color-input-group input[type="color"] { width: 48px; height: 40px; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; }
-    .color-input-group input[type="text"] { flex: 1; font-family: 'Courier New', monospace; }
-    
-    .main-canvas { flex: 1; padding: 48px; display: flex; align-items: center; justify-content: center; overflow: auto; }
-    .canvas-wrapper { display: flex; gap: 24px; align-items: center; }
-    .canvas { position: relative; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); flex-shrink: 0; }
-    
-    .dropzone { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; border: 2px dashed #d1d5db; border-radius: 8px; }
-    .dropzone svg { stroke-width: 1; }
-    .dropzone-title { margin-top: 16px; font-size: 18px; font-weight: 500; }
-    .dropzone-subtitle { font-size: 14px; }
-    
-    .grid-container { position: absolute; }
-    .photo-cell { position: absolute; overflow: hidden; background-color: #f3f4f6; }
-    .photo-cell img { width: 100%; height: 100%; object-fit: cover; }
-    .photo-cell:hover .remove-btn { opacity: 1; }
-    .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background-color: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; }
-    .remove-btn:hover { background-color: #dc2626; }
+    :root{
+      --bg:#f7f8fb;--card:#fff;--muted:#6b7280;--accent:#2563eb;--text:#111827;
+    }
+    [data-theme="dark"]{
+      --bg:#0b1020;--card:#0f1724;--muted:#9ca3b3;--accent:#60a5fa;--text:#eef2ff;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; margin:0; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased;}
+    .topbar{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);border-bottom:1px solid rgba(0,0,0,0.04);position:sticky;top:0;z-index:20;}
+    .brand{font-weight:700;font-size:16px}
+    .controls{display:flex;gap:8px;align-items:center;margin-left:auto}
+    .btn{background:var(--accent);color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+    .btn.ghost{background:transparent;color:var(--text);border:1px solid rgba(0,0,0,0.06)}
+    .container{display:flex;gap:24px;padding:20px;align-items:flex-start;max-width:1200px;margin:0 auto}
+    .sidebar{width:320px;background:var(--card);padding:16px;border-radius:12px;box-shadow:0 6px 20px rgba(2,6,23,0.06)}
+    .section{margin-bottom:14px}
+    label{display:block;font-weight:600;margin-bottom:6px}
+    input[type="range"]{width:100%}
+    input[type="number"],select,input[type="text"]{width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ef;background:transparent}
+    .photo-count{font-size:13px;color:var(--muted);margin-top:6px}
+    .main{flex:1;display:flex;flex-direction:column;gap:12px}
+    .canvas-wrapper{display:flex;flex-direction:column;gap:16px;align-items:center}
+    .canvas{background:var(--card);border-radius:10px;box-shadow:0 10px 30px rgba(2,6,23,0.06);overflow:hidden;position:relative}
+    .dropzone{padding:60px 40px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted)}
+    .grid-container{position:relative}
+    .photo-cell{position:absolute;overflow:hidden;border-radius:6px;background:#eee}
+    .photo-cell img{width:100%;height:100%;object-fit:cover;display:block}
+    .remove-btn{position:absolute;right:8px;top:8px;background:rgba(0,0,0,0.6);color:white;border:none;padding:6px;border-radius:8px;cursor:pointer;z-index:5}
+    .footer-actions{display:flex;gap:8px;align-items:center}
+    .small{font-size:13px;color:var(--muted)}
+    /* responsive: sidebar top on small screens */
+    @media (max-width:900px){
+      .container{flex-direction:column;padding:12px}
+      .sidebar{width:100%;order:0}
+      .main{order:1}
+      .canvas{width:100%}
+    }
+    /* small mobile tuning */
+    @media (max-width:420px){
+      .dropzone{padding:40px 16px}
+      .topbar{padding:10px}
+      .brand{font-size:14px}
+    }
+    /* switch style */
+    .switch{display:inline-flex;align-items:center;gap:8px}
+    .toggle{width:44px;height:26px;background:#cbd5e1;border-radius:999px;position:relative;cursor:pointer}
+    .toggle .knob{position:absolute;top:3px;left:3px;width:20px;height:20px;background:white;border-radius:50%;transition:all .18s}
+    .toggle.on{background:var(--accent)}
+    .toggle.on .knob{left:21px}
   </style>
 </head>
-<body>
-  <div class="app-container">
-    <div class="sidebar">
-      <div class="sidebar-header">
-        <h1>Photo Grid</h1>
-        <p>Create print-ready layouts</p>
+<body data-theme="light">
+  <div class="topbar">
+    <div class="brand">Photo Grid</div>
+    <div class="small">Create printable layouts — export pages & download originals</div>
+
+    <div class="controls">
+      <div class="switch" title="Light / Dark">
+        <div id="themeToggle" class="toggle" role="button" aria-pressed="false"><div class="knob"></div></div>
       </div>
-
-      <div class="sidebar-content">
-        <div class="control-group">
-          <label>Photos</label>
-          <input type="file" id="fileInput" accept="image/*" multiple style="display: none">
-          <button class="btn-primary" onclick="document.getElementById('fileInput').click()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            Upload Photos
-          </button>
-          <p class="photo-count"><span id="photoCount">0</span> photos added</p>
-        </div>
-
-        <div class="control-group">
-          <label>Photos per Page</label>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="range" id="photosPerPage" min="1" max="20" value="10" oninput="updatePhotosPerPage()" style="flex: 1;">
-            <input type="number" id="photosPerPageInput" min="1" max="50" value="10" oninput="updatePhotosPerPageFromInput()" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px;">
-          </div>
-          <p class="photo-count"><span id="photosPerPageValue">10</span> photos per page · <span id="pageCount">0</span> page(s)</p>
-        </div>
-
-        <div class="control-group">
-          <label>Paper Size</label>
-          <select id="paperSize" onchange="renderGrid()">
-            <option value="A4">A4 (210×297mm)</option>
-            <option value="A3">A3 (297×420mm)</option>
-            <option value="A2">A2 (420×594mm)</option>
-            <option value="LETTER">Letter (8.5×11")</option>
-            <option value="INSTASTORY">Instagram Story (1080×1920px)</option>
-            <option value="INSTAINLEGG">Instagram Post (1080×1350px)</option>
-          </select>
-        </div>
-
-        <div class="control-group">
-          <label>Orientation</label>
-          <div class="button-group">
-            <button id="portraitBtn" class="active" onclick="setOrientation('portrait')">Portrait</button>
-            <button id="landscapeBtn" onclick="setOrientation('landscape')">Landscape</button>
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label>Margin: <span id="marginValue">10</span>mm</label>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="range" id="margin" min="0" max="50" value="10" oninput="document.getElementById('marginValue').textContent = this.value; document.getElementById('marginInput').value = this.value; renderGrid()" style="flex: 1;">
-            <input type="number" id="marginInput" min="0" max="50" value="10" oninput="document.getElementById('marginValue').textContent = this.value; document.getElementById('margin').value = this.value; renderGrid()" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px;">
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label>Gap: <span id="gapValue">5</span>mm</label>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="range" id="gap" min="0" max="20" value="5" oninput="document.getElementById('gapValue').textContent = this.value; document.getElementById('gapInput').value = this.value; renderGrid()" style="flex: 1;">
-            <input type="number" id="gapInput" min="0" max="20" value="5" oninput="document.getElementById('gapValue').textContent = this.value; document.getElementById('gap').value = this.value; renderGrid()" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px;">
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label>Background</label>
-          <div class="color-input-group">
-            <input type="color" id="bgColorPicker" value="#FFFFFF" oninput="document.getElementById('bgColorText').value = this.value; document.getElementById('canvas').style.backgroundColor = this.value">
-            <input type="text" id="bgColorText" value="#FFFFFF" oninput="document.getElementById('bgColorPicker').value = this.value; document.getElementById('canvas').style.backgroundColor = this.value">
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label>Export DPI: <span id="dpiValue">300</span></label>
-          <select id="dpi" onchange="document.getElementById('dpiValue').textContent = this.value">
-            <option value="150">150 DPI (Draft)</option>
-            <option value="300" selected>300 DPI (Standard)</option>
-            <option value="600">600 DPI (High Quality)</option>
-          </select>
-        </div>
-
-        <button id="clearBtn" class="btn-danger" onclick="clearAll()" style="display:none">Clear All Photos</button>
-      </div>
-
-      <div class="sidebar-footer">
-        <button id="exportBtn" class="btn-export" onclick="exportGrid()" disabled>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
-          Export Grid
-        </button>
-      </div>
-    </div>
-
-    <div class="main-canvas">
-      <div id="canvasWrapper" class="canvas-wrapper">
-        <!-- Pages will be added here dynamically -->
-      </div>
+      <input id="fileInput" type="file" accept="image/*" multiple style="display:none"/>
+      <button class="btn" id="uploadBtn">Upload</button>
+      <button class="btn ghost" id="downloadAllBtn" title="Download all original images as ZIP" disabled>Download All</button>
+      <button class="btn" id="exportBtn" disabled>Export Pages</button>
     </div>
   </div>
 
+  <div class="container">
+    <aside class="sidebar">
+      <div class="section">
+        <label>Photos</label>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="document.getElementById('fileInput').click()">Choose</button>
+          <button class="btn ghost" onclick="clearAll()" id="clearBtn" style="display:none">Clear</button>
+        </div>
+        <div class="photo-count"><span id="photoCount">0</span> photos</div>
+      </div>
+
+      <div class="section">
+        <label>Photos per page: <span id="photosPerPageValue">12</span></label>
+        <input id="photosPerPage" type="range" min="1" max="36" value="12" oninput="syncPhotosPerPage(this.value)"/>
+        <input id="photosPerPageInput" type="number" min="1" max="36" value="12" oninput="syncPhotosPerPage(this.value)" style="margin-top:6px"/>
+      </div>
+
+      <div class="section">
+        <label>Paper Size</label>
+        <select id="paperSize" onchange="renderGrid()">
+          <option value="A4">A4 (210×297mm)</option>
+          <option value="A3">A3 (297×420mm)</option>
+          <option value="A2">A2 (420×594mm)</option>
+          <option value="LETTER">Letter (8.5×11")</option>
+        </select>
+      </div>
+
+      <div class="section">
+        <label>Orientation</label>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="portraitBtn" onclick="setOrientation('portrait')">Portrait</button>
+          <button class="btn ghost" id="landscapeBtn" onclick="setOrientation('landscape')">Landscape</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <label>Margin (mm)</label>
+        <input id="margin" type="number" min="0" max="50" value="10" onchange="renderGrid()" />
+      </div>
+
+      <div class="section">
+        <label>Gap (mm)</label>
+        <input id="gap" type="number" min="0" max="30" value="5" onchange="renderGrid()" />
+      </div>
+
+      <div class="section">
+        <label>Background</label>
+        <input id="bgColor" type="color" value="#ffffff" onchange="renderGrid()" />
+      </div>
+
+      <div class="section">
+        <label>Export DPI</label>
+        <select id="dpi">
+          <option value="150">150 (draft)</option>
+          <option value="300" selected>300 (standard)</option>
+          <option value="600">600 (high)</option>
+        </select>
+      </div>
+
+      <div class="section small">
+        <div>Pages: <span id="pageCount">0</span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div id="canvasWrapper" class="canvas-wrapper">
+        <div class="canvas" id="previewCanvas" style="width:820px;height:1160px;background:#fff">
+          <div class="dropzone" id="dropzone">
+            <div style="font-size:40px;opacity:.9">📁</div>
+            <div style="margin-top:12px;font-weight:600">Drop or upload images</div>
+            <div class="small" style="margin-top:6px">Max images per page: 36 · Mobile friendly</div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-actions" style="justify-content:center">
+        <div class="small">Tip: drag & drop images onto the preview area</div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Load JSZip from CDN for ZIP downloads -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
   <script>
     const PAPER_SIZES = {
-      A4: { width: 210, height: 297 },
-      A3: { width: 297, height: 420 },
-      A2: { width: 420, height: 594 },
-      LETTER: { width: 216, height: 279 },
-      INSTASTORY: { width: 108, height: 192 },
-      INSTAINLEGG: { width: 108, height: 135 }
+      A4:{width:210,height:297},
+      A3:{width:297,height:420},
+      A2:{width:420,height:594},
+      LETTER:{width:216,height:279}
     };
-
-    let photos = [];
+    let photos = []; // {id, src (dataURL), name, width, height, aspectRatio}
     let orientation = 'portrait';
 
-    function updatePhotosPerPage() {
-      const value = parseInt(document.getElementById('photosPerPage').value);
-      document.getElementById('photosPerPageValue').textContent = value;
-      document.getElementById('photosPerPageInput').value = value;
-      updatePageCount();
-      renderGrid();
-    }
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const downloadAllBtn = document.getElementById('downloadAllBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const dropzone = document.getElementById('dropzone');
 
-    function updatePhotosPerPageFromInput() {
-      let value = parseInt(document.getElementById('photosPerPageInput').value);
-      if (isNaN(value) || value < 1) value = 1;
-      if (value > 50) value = 50;
-      document.getElementById('photosPerPageInput').value = value;
-      document.getElementById('photosPerPageValue').textContent = value;
-      document.getElementById('photosPerPage').value = value;
-      updatePageCount();
-      renderGrid();
-    }
+    uploadBtn.addEventListener('click', ()=>fileInput.click());
+    fileInput.addEventListener('change', (e)=>handleFiles(Array.from(e.target.files)));
 
-    function updatePageCount() {
-      const photosPerPage = parseInt(document.getElementById('photosPerPage').value) || 1;
-      const totalPages = photos.length > 0 ? Math.ceil(photos.length / photosPerPage) : 0;
-      document.getElementById('pageCount').textContent = totalPages;
-    }
+    // Drag & drop
+    const previewCanvas = document.getElementById('previewCanvas');
+    previewCanvas.addEventListener('dragover', e=>{e.preventDefault(); previewCanvas.style.opacity=0.9});
+    previewCanvas.addEventListener('dragleave', e=>{previewCanvas.style.opacity=1});
+    previewCanvas.addEventListener('drop', e=>{e.preventDefault(); previewCanvas.style.opacity=1; handleFiles(Array.from(e.dataTransfer.files))});
 
-    document.getElementById('fileInput').addEventListener('change', handleFileUpload);
-    const canvasWrapper = document.getElementById('canvasWrapper');
-    canvasWrapper.addEventListener('dragover', (e) => e.preventDefault());
-    canvasWrapper.addEventListener('drop', (e) => {
-      e.preventDefault();
-      handleFiles(Array.from(e.dataTransfer.files));
-    });
-
-    function handleFileUpload(e) {
-      handleFiles(Array.from(e.target.files));
-    }
-
-    function handleFiles(files) {
-      const loadPromises = [];
-      
-      files.forEach(file => {
-        if (file.type.startsWith('image/')) {
-          const promise = new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              const img = new Image();
-              img.onload = () => {
-                resolve({
-                  id: Date.now() + Math.random(),
-                  src: e.target.result,
-                  name: file.name,
-                  width: img.width,
-                  height: img.height,
-                  aspectRatio: img.width / img.height
-                });
-              };
-              img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-          });
-          loadPromises.push(promise);
-        }
-      });
-      
-      Promise.all(loadPromises).then(newPhotos => {
-        newPhotos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+    function handleFiles(files){
+      const promises = files.filter(f=>f.type && f.type.startsWith('image/')).map(file=>new Promise(resolve=>{
+        const reader = new FileReader();
+        reader.onload = (ev)=>{
+          const img = new Image();
+          img.onload = ()=>{
+            resolve({id:Date.now()+Math.random(), src:ev.target.result, name:file.name, width:img.width, height:img.height, aspectRatio: img.width/img.height});
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      }));
+      Promise.all(promises).then(newPhotos=>{
+        newPhotos.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true, sensitivity:'base'}));
         photos.push(...newPhotos);
         updateUI();
       });
     }
 
-    function setOrientation(ori) {
-      orientation = ori;
-      document.getElementById('portraitBtn').className = ori === 'portrait' ? 'active' : '';
-      document.getElementById('landscapeBtn').className = ori === 'landscape' ? 'active' : '';
-      renderGrid();
-    }
-
-    function clearAll() {
-      photos = [];
-      updateUI();
-    }
-
-    function updateUI() {
+    function updateUI(){
       document.getElementById('photoCount').textContent = photos.length;
-      document.getElementById('exportBtn').disabled = photos.length === 0;
-      document.getElementById('clearBtn').style.display = photos.length > 0 ? 'block' : 'none';
+      document.getElementById('clearBtn').style.display = photos.length? 'inline-block':'none';
+      downloadAllBtn.disabled = photos.length===0;
+      exportBtn.disabled = photos.length===0;
       renderGrid();
     }
 
-    function getPaperDimensions() {
-      const paperSize = document.getElementById('paperSize').value;
-      const size = PAPER_SIZES[paperSize];
-      return orientation === 'landscape' 
-        ? { width: size.height, height: size.width } 
-        : { width: size.width, height: size.height };
+    function clearAll(){ if(confirm('Clear all photos?')){ photos=[]; updateUI(); } }
+
+    function syncPhotosPerPage(val){
+      const v = Math.max(1, Math.min(36, Number(val)||1));
+      document.getElementById('photosPerPage').value = v;
+      document.getElementById('photosPerPageInput').value = v;
+      document.getElementById('photosPerPageValue').textContent = v;
+      renderGrid();
     }
 
-    function calculateAdaptiveGrid(photos, width, height, gap) {
-      if (photos.length === 0) return { cells: [] };
-      
-      // Calculate total aspect ratio area
-      const totalAspectRatio = photos.reduce((sum, p) => sum + p.aspectRatio, 0);
-      const avgAspectRatio = totalAspectRatio / photos.length;
-      
-      let bestLayout = null;
-      let minWaste = Infinity;
-      
-      // Try different row configurations
-      for (let rows = 1; rows <= Math.min(photos.length, 10); rows++) {
-        const avgRowHeight = height / rows;
-        const gapTotal = (rows - 1) * gap;
-        const availableHeight = height - gapTotal;
-        const rowHeight = availableHeight / rows;
-        
-        // Distribute photos across rows based on aspect ratios
-        const rowsData = [];
-        let photoIndex = 0;
-        let totalRowWidths = 0;
-        
-        for (let r = 0; r < rows && photoIndex < photos.length; r++) {
-          const photosInRow = [];
-          let rowAspectSum = 0;
-          
-          // Calculate how many photos fit in this row
-          const photosLeft = photos.length - photoIndex;
-          const rowsLeft = rows - r;
-          const minPhotosThisRow = Math.floor(photosLeft / rowsLeft);
-          const maxPhotosThisRow = Math.ceil(photosLeft / rowsLeft);
-          
-          // Try to fill row with photos that maintain good proportions
-          for (let p = 0; p < maxPhotosThisRow && photoIndex < photos.length; p++) {
-            const photo = photos[photoIndex];
-            const photoWidth = rowHeight * photo.aspectRatio;
-            
-            if (rowAspectSum + photo.aspectRatio <= width / rowHeight + 1 || photosInRow.length < minPhotosThisRow) {
-              photosInRow.push(photo);
-              rowAspectSum += photo.aspectRatio;
-              photoIndex++;
-            } else {
-              break;
-            }
-          }
-          
-          if (photosInRow.length > 0) {
-            const rowWidth = rowHeight * rowAspectSum;
-            rowsData.push({ photos: photosInRow, aspectSum: rowAspectSum });
-            totalRowWidths += rowWidth;
-          }
-        }
-        
-        // Calculate waste for this configuration
-        const avgRowWidth = totalRowWidths / rowsData.length;
-        const waste = Math.abs(width - avgRowWidth) + Math.abs(photoIndex - photos.length) * 1000;
-        
-        if (waste < minWaste && photoIndex === photos.length) {
-          minWaste = waste;
-          bestLayout = { rows: rowsData, rowHeight };
-        }
-      }
-      
-      if (!bestLayout) {
-        // Fallback to simple grid
-        const cols = Math.ceil(Math.sqrt(photos.length));
-        const rows = Math.ceil(photos.length / cols);
-        const cellWidth = (width - (cols - 1) * gap) / cols;
-        const cellHeight = (height - (rows - 1) * gap) / rows;
-        
-        const cells = [];
-        photos.forEach((photo, i) => {
-          const row = Math.floor(i / cols);
-          const col = i % cols;
-          cells.push({
-            x: col * (cellWidth + gap),
-            y: row * (cellHeight + gap),
-            width: cellWidth,
-            height: cellHeight
-          });
-        });
-        return { cells };
-      }
-      
-      // Build cells from best layout
-      const cells = [];
-      let yPos = 0;
-      
-      bestLayout.rows.forEach((rowData, rowIndex) => {
-        const rowHeight = bestLayout.rowHeight;
-        const totalRowAspect = rowData.aspectSum;
-        const availableRowWidth = width - (rowData.photos.length - 1) * gap;
-        
-        let xPos = 0;
-        rowData.photos.forEach((photo) => {
-          const cellWidth = (photo.aspectRatio / totalRowAspect) * availableRowWidth;
-          
-          cells.push({
-            x: xPos,
-            y: yPos,
-            width: cellWidth,
-            height: rowHeight
-          });
-          
-          xPos += cellWidth + gap;
-        });
-        
-        yPos += rowHeight + gap;
-      });
-      
-      return { cells };
+    function setOrientation(o){
+      orientation=o;
+      document.getElementById('portraitBtn').classList.toggle('ghost', o!=='portrait');
+      document.getElementById('landscapeBtn').classList.toggle('ghost', o!=='landscape');
+      renderGrid();
     }
 
-    function renderGrid() {
+    function getPaperDimensions(){
+      const sz = document.getElementById('paperSize').value;
+      const size = PAPER_SIZES[sz];
+      return orientation==='landscape' ? {width:size.height, height:size.width} : {width:size.width, height:size.height};
+    }
+
+    function calculateGrid(photosForPage, width, height, gap){
+      // Simple responsive grid: try rows from 1..6 to find balanced layout
+      if(photosForPage.length===0) return {cells:[]};
+      const maxRows = Math.min(6, photosForPage.length);
+      let best=null;
+      for(let rows=1; rows<=maxRows; rows++){
+        const cols = Math.ceil(photosForPage.length/rows);
+        const cellW = (width - (cols-1)*gap)/cols;
+        const cellH = (height - (rows-1)*gap)/rows;
+        // measure mismatch to aspect ratios
+        let score=0;
+        for(let i=0;i<photosForPage.length;i++){
+          const photo = photosForPage[i];
+          const targetAspect = cellW/cellH;
+          score += Math.abs(photo.aspectRatio - targetAspect);
+        }
+        if(!best || score<best.score) best={rows,cols,cellW,cellH,score};
+      }
+      // build cells
+      const cells=[];
+      for(let i=0;i<photosForPage.length;i++){
+        const row = Math.floor(i/best.cols);
+        const col = i%best.cols;
+        cells.push({x: col*(best.cellW+gap), y: row*(best.cellH+gap), width:best.cellW, height:best.cellH});
+      }
+      return {cells};
+    }
+
+    function renderGrid(){
       const paper = getPaperDimensions();
-      const aspectRatio = paper.width / paper.height;
-      const displayWidth = Math.min(800, window.innerWidth - 400);
-      const displayHeight = displayWidth / aspectRatio;
+      const availableWidth = Math.min(820, window.innerWidth - 120);
+      const aspect = paper.width / paper.height;
+      const displayHeight = Math.round(availableWidth / aspect);
+      const wrapper = document.getElementById('canvasWrapper');
+      wrapper.innerHTML='';
 
-      const margin = parseInt(document.getElementById('margin').value) || 10;
-      const gap = parseInt(document.getElementById('gap').value) || 5;
-      const photosPerPage = parseInt(document.getElementById('photosPerPage').value) || 10;
-      
-      const marginPx = (margin / paper.width) * displayWidth;
-      const gapPx = (gap / paper.width) * displayWidth;
-      const availableWidth = displayWidth - (2 * marginPx);
-      const availableHeight = displayHeight - (2 * marginPx);
+      const photosPerPage = Number(document.getElementById('photosPerPage').value)||12;
+      const margin = Number(document.getElementById('margin').value)||10;
+      const gap = Number(document.getElementById('gap').value)||5;
+      const bg = document.getElementById('bgColor').value;
 
-      const canvasWrapper = document.getElementById('canvasWrapper');
-      canvasWrapper.innerHTML = '';
+      const pages = Math.ceil(photos.length / photosPerPage) || 1;
+      document.getElementById('pageCount').textContent = pages;
 
-      if (photos.length === 0) {
-        const emptyCanvas = document.createElement('div');
-        emptyCanvas.className = 'canvas';
-        emptyCanvas.style.width = displayWidth + 'px';
-        emptyCanvas.style.height = displayHeight + 'px';
-        emptyCanvas.style.backgroundColor = document.getElementById('bgColorText').value;
-        emptyCanvas.innerHTML = `
-          <div class="dropzone">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <circle cx="8.5" cy="8.5" r="1.5"></circle>
-              <polyline points="21 15 16 10 5 21"></polyline>
-            </svg>
-            <p class="dropzone-title">Drop photos here</p>
-            <p class="dropzone-subtitle">or use the upload button</p>
-          </div>
-        `;
-        canvasWrapper.appendChild(emptyCanvas);
-        document.getElementById('pageCount').textContent = '0';
+      if(photos.length===0){
+        const canvas = document.createElement('div'); canvas.className='canvas'; canvas.style.width=availableWidth+'px'; canvas.style.height=displayHeight+'px'; canvas.style.background=bg;
+        canvas.innerHTML = document.getElementById('dropzone').outerHTML;
+        wrapper.appendChild(canvas);
         return;
       }
 
-      // Split photos into pages - THIS IS THE KEY FIX
-      const totalPages = Math.ceil(photos.length / photosPerPage);
-      document.getElementById('pageCount').textContent = totalPages;
-
-      for (let pageNum = 0; pageNum < totalPages; pageNum++) {
-        const startIndex = pageNum * photosPerPage;
-        const endIndex = Math.min(startIndex + photosPerPage, photos.length);
-        const pagePhotos = photos.slice(startIndex, endIndex);
-
-        const canvasEl = document.createElement('div');
-        canvasEl.className = 'canvas';
-        canvasEl.style.width = displayWidth + 'px';
-        canvasEl.style.height = displayHeight + 'px';
-        canvasEl.style.backgroundColor = document.getElementById('bgColorText').value;
-
-        const gridEl = document.createElement('div');
-        gridEl.className = 'grid-container';
-        gridEl.style.left = marginPx + 'px';
-        gridEl.style.top = marginPx + 'px';
-
-        const grid = calculateAdaptiveGrid(pagePhotos, availableWidth, availableHeight, gapPx);
-
-        pagePhotos.forEach((photo, i) => {
-          if (i >= grid.cells.length) return;
-          const cell = grid.cells[i];
-          
-          const div = document.createElement('div');
-          div.className = 'photo-cell';
-          div.style.left = cell.x + 'px';
-          div.style.top = cell.y + 'px';
-          div.style.width = cell.width + 'px';
-          div.style.height = cell.height + 'px';
-
-          const img = document.createElement('img');
-          img.src = photo.src;
-          img.alt = photo.name;
-
-          const btn = document.createElement('button');
-          btn.className = 'remove-btn';
-          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-          btn.onclick = () => {
-            photos = photos.filter(p => p.id !== photo.id);
-            updateUI();
-          };
-
-          div.appendChild(img);
-          div.appendChild(btn);
-          gridEl.appendChild(div);
+      for(let p=0;p<pages;p++){
+        const start = p*photosPerPage; const end = Math.min(start+photosPerPage, photos.length);
+        const pagePhotos = photos.slice(start,end);
+        const canvas = document.createElement('div'); canvas.className='canvas'; canvas.style.width=availableWidth+'px'; canvas.style.height=displayHeight+'px'; canvas.style.background=bg;
+        const gridEl = document.createElement('div'); gridEl.className='grid-container'; gridEl.style.left = '0'; gridEl.style.top='0'; gridEl.style.width='100%'; gridEl.style.height='100%';
+        const padX = (margin / paper.width) * availableWidth;
+        const padY = (margin / paper.height) * displayHeight;
+        // compute available area inside margins
+        const availW = availableWidth - 2*padX;
+        const availH = displayHeight - 2*padY;
+        const grid = calculateGrid(pagePhotos, availW, availH, (gap/paper.width)*availableWidth);
+        pagePhotos.forEach((ph,i)=>{
+          if(i>=grid.cells.length) return;
+          const cell=grid.cells[i];
+          const el = document.createElement('div'); el.className='photo-cell';
+          el.style.left = (padX + cell.x) + 'px';
+          el.style.top = (padY + cell.y) + 'px';
+          el.style.width = cell.width + 'px';
+          el.style.height = cell.height + 'px';
+          const img = document.createElement('img'); img.src = ph.src; img.alt = ph.name;
+          const btn = document.createElement('button'); btn.className='remove-btn'; btn.title='Remove photo'; btn.innerHTML='✕';
+          btn.onclick = ()=>{ photos = photos.filter(x=>x.id!==ph.id); updateUI(); };
+          el.appendChild(img); el.appendChild(btn); gridEl.appendChild(el);
         });
-
-        // Add page number indicator
-        const pageLabel = document.createElement('div');
-        pageLabel.style.cssText = 'position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;';
-        pageLabel.textContent = `Page ${pageNum + 1} of ${totalPages}`;
-        
-        canvasEl.appendChild(gridEl);
-        canvasEl.appendChild(pageLabel);
-        canvasWrapper.appendChild(canvasEl);
+        const label = document.createElement('div'); label.style.cssText='position:absolute;right:10px;bottom:8px;font-size:13px;color:var(--muted);';
+        label.textContent = `Page ${p+1} / ${pages}`;
+        canvas.appendChild(gridEl); canvas.appendChild(label); wrapper.appendChild(canvas);
       }
     }
 
-    async function exportGrid() {
-      if (photos.length === 0) return;
-
+    // EXPORT: draw high-res pages in canvas and download as JPGs
+    async function exportPages(){
+      if(photos.length===0) return;
       const paper = getPaperDimensions();
-      const dpi = parseInt(document.getElementById('dpi').value);
-      const mmToPixels = dpi / 25.4;
-      const exportWidth = Math.round(paper.width * mmToPixels);
-      const exportHeight = Math.round(paper.height * mmToPixels);
-
-      const margin = parseInt(document.getElementById('margin').value);
-      const gap = parseInt(document.getElementById('gap').value);
-      const marginPx = margin * mmToPixels;
-      const gapPx = gap * mmToPixels;
-      const availableWidth = exportWidth - (2 * marginPx);
-      const availableHeight = exportHeight - (2 * marginPx);
-
-      const photosPerPage = parseInt(document.getElementById('photosPerPage').value);
+      const dpi = Number(document.getElementById('dpi').value)||300;
+      const mmToPx = dpi/25.4;
+      const w = Math.round(paper.width*mmToPx);
+      const h = Math.round(paper.height*mmToPx);
+      const margin = Number(document.getElementById('margin').value)||10;
+      const gap = Number(document.getElementById('gap').value)||5;
+      const photosPerPage = Number(document.getElementById('photosPerPage').value)||12;
       const pages = [];
-      for (let i = 0; i < photos.length; i += photosPerPage) {
-        pages.push(photos.slice(i, i + photosPerPage));
-      }
-
-      const bgColor = document.getElementById('bgColorText').value;
-      const paperSize = document.getElementById('paperSize').value;
-
-      for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
-        const pagePhotos = pages[pageIndex];
-        
-        const canvas = document.createElement('canvas');
-        canvas.width = exportWidth;
-        canvas.height = exportHeight;
-        const ctx = canvas.getContext('2d');
-
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, exportWidth, exportHeight);
-
-        const grid = calculateAdaptiveGrid(pagePhotos, availableWidth, availableHeight, gapPx);
-        
-        for (let i = 0; i < pagePhotos.length && i < grid.cells.length; i++) {
-          const photo = pagePhotos[i];
+      for(let i=0;i<photos.length;i+=photosPerPage) pages.push(photos.slice(i,i+photosPerPage));
+      const bg = document.getElementById('bgColor').value;
+      for(let p=0;p<pages.length;p++){
+        const canvas = document.createElement('canvas'); canvas.width=w; canvas.height=h; const ctx=canvas.getContext('2d');
+        ctx.fillStyle = bg; ctx.fillRect(0,0,w,h);
+        const pad = margin*mmToPx;
+        const availW = w - 2*pad; const availH = h - 2*pad;
+        const grid = calculateGrid(pages[p], availW, availH, gap*mmToPx);
+        for(let i=0;i<pages[p].length && i<grid.cells.length;i++){
           const cell = grid.cells[i];
-          
-          const img = await new Promise((resolve) => {
-            const image = new Image();
-            image.onload = () => resolve(image);
-            image.src = photo.src;
+          const ph = pages[p][i];
+          const img = await new Promise(res=>{
+            const im = new Image(); im.onload=()=>res(im); im.src=ph.src;
           });
-          
-          const cellAspect = cell.width / cell.height;
-          const photoAspect = photo.aspectRatio;
-          
-          let drawWidth, drawHeight, offsetX, offsetY;
-          
-          if (photoAspect > cellAspect) {
-            drawHeight = cell.height;
-            drawWidth = drawHeight * photoAspect;
-            offsetX = (cell.width - drawWidth) / 2;
-            offsetY = 0;
-          } else {
-            drawWidth = cell.width;
-            drawHeight = drawWidth / photoAspect;
-            offsetX = 0;
-            offsetY = (cell.height - drawHeight) / 2;
-          }
-          
-          const x = marginPx + cell.x + offsetX;
-          const y = marginPx + cell.y + offsetY;
-          
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(marginPx + cell.x, marginPx + cell.y, cell.width, cell.height);
-          ctx.clip();
-          ctx.drawImage(img, x, y, drawWidth, drawHeight);
-          ctx.restore();
+          // fit cover
+          const cellW = cell.width, cellH = cell.height;
+          const cellAspect = cellW/cellH; const photoAspect=ph.aspectRatio;
+          let drawW, drawH, dx, dy;
+          if(photoAspect>cellAspect){ drawH = cellH; drawW = drawH*photoAspect; dx = pad + cell.x + (cellW - drawW)/2; dy = pad + cell.y; }
+          else{ drawW = cellW; drawH = drawW/photoAspect; dx = pad + cell.x; dy = pad + cell.y + (cellH - drawH)/2; }
+          // clip
+          ctx.save(); ctx.beginPath(); ctx.rect(pad+cell.x,pad+cell.y,cellW,cellH); ctx.clip();
+          ctx.drawImage(img, dx, dy, drawW, drawH); ctx.restore();
         }
-
-        canvas.toBlob((blob) => {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          const fileName = pages.length > 1 
-            ? `photo-grid-${paperSize}-${orientation}-page${pageIndex + 1}-${dpi}dpi.jpg`
-            : `photo-grid-${paperSize}-${orientation}-${dpi}dpi.jpg`;
-          a.href = url;
-          a.download = fileName;
-          a.click();
-          URL.revokeObjectURL(url);
-        }, 'image/jpeg', 0.95);
+        // download each page as jpeg
+        const blob = await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.95));
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `photo-grid-${document.getElementById('paperSize').value}-${orientation}-page${p+1}.jpg`;
+        a.click(); URL.revokeObjectURL(a.href);
       }
-
-      canvas.toBlob((blob) => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const paperSize = document.getElementById('paperSize').value;
-        a.href = url;
-        a.download = `photo-grid-${paperSize}-${orientation}-${dpi}dpi.jpg`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }, 'image/jpeg', 0.95);
     }
 
+    // ZIP download of originals using JSZip (CDN)
+    async function downloadAllAsZip(){
+      if(photos.length===0) return;
+      const zip = new JSZip();
+      const folder = zip.folder('photos');
+      for(let i=0;i<photos.length;i++){
+        const ph = photos[i];
+        // dataURL -> binary
+        const dataURL = ph.src;
+        const arr = dataURL.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        const len = bstr.length; const u8 = new Uint8Array(len);
+        for(let j=0;j<len;j++) u8[j]=bstr.charCodeAt(j);
+        // ensure unique filename
+        let name = ph.name || `photo-${i+1}.jpg`;
+        // sanitize
+        name = name.replace(/[\\\/:\*\?"<>\|]/g,'_');
+        folder.file(name, u8, {binary:true});
+      }
+      const content = await zip.generateAsync({type:'blob'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(content);
+      a.download = `photos-${Date.now()}.zip`; a.click(); URL.revokeObjectURL(a.href);
+    }
+
+    // theme toggle
+    const themeToggle = document.getElementById('themeToggle');
+    themeToggle.addEventListener('click', ()=>{
+      const body = document.body;
+      const isDark = body.getAttribute('data-theme')==='dark';
+      body.setAttribute('data-theme', isDark? 'light':'dark');
+      themeToggle.classList.toggle('on', !isDark);
+    });
+
+    // buttons
+    downloadAllBtn.addEventListener('click', downloadAllAsZip);
+    exportBtn.addEventListener('click', exportPages);
+
+    // simple init
+    syncPhotosPerPage(12);
     renderGrid();
   </script>
 </body>
