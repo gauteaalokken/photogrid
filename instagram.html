@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instagram Maler</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fafafa; }
+    .app-container { min-height: 100vh; display: flex; }
+    .sidebar { width: 320px; background-color: white; border-right: 1px solid #dbdbdb; display: flex; flex-direction: column; }
+    .sidebar-header { padding: 24px; border-bottom: 1px solid #dbdbdb; }
+    .sidebar-header h1 { font-size: 24px; font-weight: 600; color: #111827; margin-bottom: 4px; }
+    .sidebar-header p { font-size: 14px; color: #8e8e8e; }
+    .sidebar-content { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+    .sidebar-footer { padding: 24px; border-top: 1px solid #dbdbdb; }
+    .control-group { display: flex; flex-direction: column; gap: 8px; }
+    .control-group label { font-size: 14px; font-weight: 500; color: #262626; }
+    .photo-count { font-size: 12px; color: #8e8e8e; margin-top: 8px; }
+    .btn-primary { width: 100%; padding: 12px 16px; background-color: #0095f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; justify-content: center; font-size: 14px; }
+    .btn-primary:hover { background-color: #1877f2; }
+    .btn-danger { width: 100%; padding: 8px 16px; color: #ed4956; background-color: white; border: 1px solid #ed4956; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .btn-danger:hover { background-color: #fef2f2; }
+    .btn-export { width: 100%; padding: 12px 16px; background-color: #262626; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; justify-content: center; }
+    .btn-export:hover { background-color: #000000; }
+    .btn-export:disabled { opacity: 0.5; cursor: not-allowed; }
+    .button-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .button-group button { flex: 1; min-width: 80px; padding: 8px 12px; background-color: white; color: #262626; border: 1px solid #dbdbdb; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; }
+    .button-group button:hover { border-color: #8e8e8e; }
+    .button-group button.active { background-color: #0095f6; border-color: #0095f6; color: white; }
+    select { width: 100%; padding: 8px 12px; border: 1px solid #dbdbdb; border-radius: 8px; font-size: 14px; outline: none; }
+    select:focus { border-color: #0095f6; }
+    input[type="text"] { width: 100%; padding: 8px 12px; border: 1px solid #dbdbdb; border-radius: 8px; font-size: 14px; outline: none; }
+    input[type="text"]:focus { border-color: #0095f6; }
+    .main-canvas { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; background: #fafafa; gap: 40px; }
+    .main-canvas.hidden { display: none; }
+    .instagram-frame { background: white; border: 1px solid #dbdbdb; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.08); width: fit-content; }
+    .frame-header { padding: 12px 16px; border-bottom: 1px solid #dbdbdb; display: flex; align-items: center; gap: 12px; background: white; flex-shrink: 0; }
+    .post-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); flex-shrink: 0; }
+    .post-username { font-size: 14px; font-weight: 600; color: #262626; }
+    .frame-content { overflow: hidden; user-select: none; position: relative; }
+    .images-container { display: flex; height: 100%; position: absolute; left: 0; top: 0; transition: transform 0.3s ease; }
+    .post-image { flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #fff; position: relative; }
+    .post-image img { display: block; object-fit: cover; }
+    .carousel-indicators { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5); color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; z-index: 10; }
+    .post-actions { padding: 12px 16px; display: flex; gap: 16px; border-top: 1px solid #efefef; }
+    .post-action { width: 24px; height: 24px; cursor: pointer; }
+    .preview-section { width: 100%; max-width: 1200px; }
+    .preview-header { text-align: center; margin-bottom: 24px; }
+    .preview-header h2 { font-size: 20px; font-weight: 600; color: #262626; margin-bottom: 8px; }
+    .preview-header p { font-size: 14px; color: #8e8e8e; }
+    .preview-feed { background: white; border: 1px solid #dbdbdb; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); max-width: 935px; margin: 0 auto; }
+    .preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 100%; }
+    .preview-post { aspect-ratio: 4/5; background: #fff; position: relative; overflow: hidden; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .preview-post img { object-fit: cover; display: block; }
+    .preview-post.new-post { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #dbdbdb; }
+    .preview-post.new-post::after { content: 'NYT'; position: absolute; top: 8px; right: 8px; background: #0095f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; z-index: 1; }
+    .preview-carousel-indicator { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+    .loading { text-align: center; padding: 40px; color: #8e8e8e; }
+    .error { text-align: center; padding: 20px; color: #ed4956; }
+    @media (max-width: 900px) {
+      .app-container { flex-direction: column; }
+      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #dbdbdb; }
+      .main-canvas { padding: 20px; }
+      .instagram-frame { max-width: 100%; }
+      .preview-grid { grid-template-columns: repeat(3, 1fr) !important; }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+</head>
+<body onload="initApp()">
+  <div class="app-container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h1>Instagram Maler</h1>
+        <p>Lag innlegg for Instagram</p>
+      </div>
+
+      <div class="sidebar-content">
+        <div class="control-group">
+          <label>Bilder</label>
+          <input type="file" id="fileInput" accept="image/*" multiple style="display: none">
+          <button class="btn-primary" onclick="document.getElementById('fileInput').click()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+            Last opp bilder
+          </button>
+          <p class="photo-count"><span id="photoCount">0</span> bilder lastet opp</p>
+        </div>
+
+        <div class="control-group">
+          <label>Format</label>
+          <div class="button-group">
+            <button onclick="setFormat('portrait')" class="active">4:5<br>Portrett</button>
+            <button onclick="setFormat('landscape')">16:9<br>Landskap</button>
+            <button onclick="setFormat('wide')">3:2<br>Bred</button>
+            <button onclick="setFormat('square')">1:1<br>Kvadrat</button>
+            <button onclick="setFormat('story')">9:16<br>Historie</button> 
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>Del bilder (split i to innlegg)</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="panoramaImages" placeholder="F.eks: 1, 3, 5" style="flex: 1;">
+            <button class="btn-load" onclick="updatePanoramaMode()">Oppdater</button>
+          </div>
+          <p class="photo-count" style="font-size: 11px; margin-top: 4px;">Skriv inn bildenummer som skal deles i to separate innlegg</p>
+        </div>
+
+        <div class="control-group">
+          <label>Ramme rundt bilde: <span id="frameMarginValue">0</span>mm</label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="range" id="frameMargin" min="0" max="50" value="0" oninput="updateMargin()" style="flex: 1;">
+            <input type="number" id="frameMarginInput" min="0" max="50" value="0" oninput="updateMarginFromInput()" style="width: 60px; padding: 4px 8px; border: 1px solid #dbdbdb; border-radius: 6px;">
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>Eksport kvalitet</label>
+          <select id="quality">
+            <option value="0.92">Høy kvalitet (anbefalt)</option>
+            <option value="0.85">Medium kvalitet</option>
+            <option value="0.75">Lav kvalitet (mindre filer)</option>
+          </select>
+        </div>
+
+        <button id="clearBtn" class="btn-danger" onclick="clearAll()" style="display:none">Fjern alle bilder</button>
+      </div>
+
+      <div class="sidebar-footer">
+        <button id="exportBtn" class="btn-export" onclick="exportAllJpegs()" disabled>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Eksporter alle innlegg (JPEG)
+        </button>
+      </div>
+    </div>
+
+    <div id="mainCanvas" class="main-canvas hidden">
+      <div class="instagram-frame">
+        <div class="frame-header">
+          <div class="post-avatar"></div>
+          <span class="post-username" id="frameUsername">din_profil</span>
+        </div>
+        <div id="frameContent" class="frame-content">
+          <div id="imagesContainer" class="images-container"></div>
+        </div>
+        <div class="post-actions">
+          <svg class="post-action" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+          </svg>
+          <svg class="post-action" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+          </svg>
+          <svg class="post-action" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </div>
+      </div>
+
+      <div id="previewSection" class="preview-section">
+        <div class="preview-header">
+          <h2>Forhåndsvisning på profil</h2>
+          <p id="previewUsername">@din_profil</p>
+        </div>
+        <div class="preview-feed">
+          <div id="previewGrid" class="preview-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const FORMATS = {
+      square: { width: 1, height: 1 },
+      portrait: { width: 4, height: 5 },
+      landscape: { width: 16, height: 9 },
+      wide: { width: 3, height: 2 },
+      story: { width: 9, height: 16 } // NYTT FORMAT: 1080x1920 (9:16)
+    };
+
+    let photos = [];
+    let currentFormat = 'portrait';
+    let instagramFeed = [];
+    let currentImageIndex = 0;
+    let panoramaImages = new Set();
+    let isDragging = false;
+    let startX = 0;
+    let currentTranslate = 0;
+    let prevTranslate = 0;
+
+    document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+    
+    function initApp() {
+        loadStandardFeed();
+        updateUI();
+    }
+
+    function handleFileUpload(e) {
+      handleFiles(Array.from(e.target.files));
+    }
+
+    function handleFiles(files) {
+      const loadPromises = files.filter(f => f.type.startsWith('image/')).map(file => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const aspectRatio = img.width / img.height;
+              resolve({
+                id: Date.now() + Math.random(),
+                src: e.target.result,
+                name: file.name,
+                width: img.width,
+                height: img.height,
+                aspectRatio: aspectRatio,
+                isLandscape: aspectRatio > 1
+              });
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+
+      Promise.all(loadPromises).then(newPhotos => {
+        newPhotos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+        photos.push(...newPhotos);
+        updateUI();
+      });
+    }
+
+    function updateMargin() {
+      const value = document.getElementById('frameMargin').value;
+      document.getElementById('frameMarginValue').textContent = value;
+      document.getElementById('frameMarginInput').value = value;
+      renderFeed();
+      renderPreview();
+    }
+
+    function updateMarginFromInput() {
+      const value = document.getElementById('frameMarginInput').value;
+      document.getElementById('frameMarginValue').textContent = value;
+      document.getElementById('frameMargin').value = value;
+      renderFeed();
+      renderPreview();
+    }
+
+    function setFormat(format) {
+      currentFormat = format;
+      document.querySelectorAll('.button-group button').forEach(btn => btn.classList.remove('active'));
+      // Sikrer at 'this' er knappen som ble klikket (ved å bruke event.target)
+      let clickedButton = event.target;
+      // Hvis klikket var på <br> eller tekst, finn den ytre <button>
+      while (clickedButton && clickedButton.tagName !== 'BUTTON') {
+          clickedButton = clickedButton.parentNode;
+      }
+      if (clickedButton) {
+          clickedButton.classList.add('active');
+      }
+
+      renderFeed();
+      renderPreview();
+    }
+
+    function updatePanoramaMode() {
+      const input = document.getElementById('panoramaImages').value;
+      const newPanoramaSet = new Set();
+      
+      if (input.trim()) {
+        const numbers = input.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n) && n > 0 && n <= photos.length);
+        numbers.forEach(n => newPanoramaSet.add(n));
+      }
+      
+      const toSplit = [];
+      newPanoramaSet.forEach(num => {
+        if (!panoramaImages.has(num)) {
+          toSplit.push(num);
+        }
+      });
+      
+      const toUnsplit = [];
+      panoramaImages.forEach(num => {
+        if (!newPanoramaSet.has(num)) {
+          toUnsplit.push(num);
+        }
+      });
+      
+      toUnsplit.sort((a, b) => b - a).forEach(num => {
+        unsplitPhoto(num - 1);
+      });
+
+      toSplit.sort((a, b) => b - a).forEach(num => {
+        splitPhoto(num - 1);
+      });
+      
+      panoramaImages = new Set(toSplit.map(n => n + 1).filter(n => n <= photos.length));
+      
+      renderFeed();
+      renderPreview();
+    }
+    
+    function splitPhoto(index) {
+        if (index < 0 || index >= photos.length || photos[index].isSplitLeft || photos[index].isSplitRight) return;
+        
+        const photo = photos[index];
+        
+        const leftHalf = {
+            ...photo,
+            id: Date.now() + Math.random(),
+            name: photo.name + '_left',
+            isSplitLeft: true,
+            originalIndex: index
+        };
+        
+        const rightHalf = {
+            ...photo,
+            id: Date.now() + Math.random() + 1,
+            name: photo.name + '_right',
+            isSplitRight: true,
+            originalIndex: index
+        };
+        
+        photos.splice(index, 1, leftHalf, rightHalf);
+    }
+
+    function unsplitPhoto(index) {
+        if (index < 0 || index >= photos.length) return;
+        
+        const photo = photos[index];
+        let leftIndex = -1, rightIndex = -1;
+        
+        if (photo.isSplitLeft && photos[index + 1] && photos[index + 1].isSplitRight) {
+            leftIndex = index;
+            rightIndex = index + 1;
+        } else if (photo.isSplitRight && photos[index - 1] && photos[index - 1].isSplitLeft) {
+            leftIndex = index - 1;
+            rightIndex = index;
+        } else {
+            return;
+        }
+        
+        const leftPhoto = photos[leftIndex];
+        
+        const originalPhoto = {
+            id: Date.now() + Math.random(),
+            src: leftPhoto.src,
+            name: leftPhoto.name.replace('_left', ''),
+            width: leftPhoto.width,
+            height: leftPhoto.height,
+            aspectRatio: leftPhoto.aspectRatio,
+            isLandscape: leftPhoto.isLandscape
+        };
+        
+        photos.splice(leftIndex, 2, originalPhoto);
+    }
+    
+    function isPanorama(index) {
+      if (index < 0 || index >= photos.length) return false;
+      return photos[index].isSplitLeft || photos[index].isSplitRight;
+    }
+
+    function clearAll() {
+      photos = [];
+      document.getElementById('panoramaImages').value = '';
+      panoramaImages = new Set();
+      updateUI();
+    }
+
+    function loadStandardFeed() {
+      instagramFeed = Array.from({length: 8}, (_, i) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 400;
+        const ctx = canvas.getContext('2d');
+        
+        const hue = (i * 45) % 360;
+        ctx.fillStyle = `hsl(${hue}, 60%, 75%)`;
+        ctx.fillRect(0, 0, 400, 400);
+        ctx.fillStyle = `hsl(${hue}, 60%, 65%)`;
+        ctx.fillRect(150, 150, 100, 100);
+        
+        return { id: i, imageUrl: canvas.toDataURL('image/png') };
+      });
+      
+      document.getElementById('frameUsername').textContent = 'din_profil';
+      document.getElementById('previewUsername').textContent = '@din_profil';
+      document.getElementById('previewSection').style.display = 'block';
+    }
+
+    function updateUI() {
+      document.getElementById('photoCount').textContent = photos.length;
+      document.getElementById('exportBtn').disabled = photos.length === 0;
+      document.getElementById('clearBtn').style.display = photos.length > 0 ? 'block' : 'none';
+      
+      const mainCanvas = document.getElementById('mainCanvas');
+      if (photos.length > 0) {
+        mainCanvas.classList.remove('hidden');
+      } else {
+        mainCanvas.classList.add('hidden');
+      }
+      
+      renderFeed();
+      renderPreview();
+    }
+
+    function getPostDimensions() {
+      const baseSize = 1080;
+      const format = FORMATS[currentFormat];
+      
+      let width, height;
+      
+      // Story format (9:16) er spesifikt 1080x1920
+      if (currentFormat === 'story') {
+          width = 1080;
+          height = 1920;
+      } else if (format.width > format.height) {
+        width = baseSize;
+        height = Math.round(baseSize * format.height / format.width);
+      } else if (format.width < format.height) {
+        height = baseSize;
+        width = Math.round(baseSize * format.width / format.height);
+      } else {
+        width = baseSize;
+        height = baseSize;
+      }
+      
+      return { width, height };
+    }
+
+    function getPhotoDisplayDimensions(photo) {
+      const format = FORMATS[currentFormat];
+      
+      let displayWidth, displayHeight;
+
+      if (currentFormat === 'story') {
+          // Vis Story med fast bredde og høyere høyde
+          displayWidth = 320; 
+          displayHeight = Math.round(displayWidth * 16 / 9); // 569px
+      } else if (format.width > format.height) {
+        displayWidth = 450;
+        displayHeight = Math.round(displayWidth * format.height / format.width);
+      } else if (format.width < format.height) {
+        displayHeight = 600;
+        displayWidth = Math.round(displayHeight * format.width / format.height);
+      } else {
+        displayWidth = 450;
+        displayHeight = 450;
+      }
+      
+      return { width: displayWidth, height: displayHeight };
+    }
+
+    function renderFeed() {
+      const imagesContainer = document.getElementById('imagesContainer');
+      const frameContent = document.getElementById('frameContent');
+      imagesContainer.innerHTML = '';
+
+      if (photos.length === 0) return;
+
+      const marginMm = parseFloat(document.getElementById('frameMargin').value);
+      const marginPx = (marginMm / 25.4) * 96;
+      
+      const baseDims = getPhotoDisplayDimensions(photos[0]);
+      frameContent.style.width = baseDims.width + 'px';
+      frameContent.style.height = baseDims.height + 'px';
+      
+      const displayWidth = baseDims.width;
+      const displayHeight = baseDims.height;
+
+      const oldIndicator = frameContent.querySelector('.carousel-indicators');
+      if (oldIndicator) oldIndicator.remove();
+      
+      const oldArrows = frameContent.querySelectorAll('[data-arrow]');
+      oldArrows.forEach(arrow => arrow.remove());
+
+      currentImageIndex = 0;
+      
+      if (photos.length > 1) {
+        const indicator = document.createElement('div');
+        indicator.className = 'carousel-indicators';
+        indicator.textContent = `1/${photos.length}`;
+        frameContent.appendChild(indicator);
+
+        let startDragX = 0;
+        let startScrollLeft = 0;
+
+        const dragStart = (e) => {
+          isDragging = true;
+          startDragX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+          startScrollLeft = currentImageIndex * displayWidth;
+          frameContent.style.cursor = 'grabbing';
+          imagesContainer.style.transition = 'none';
+        };
+
+        const dragMove = (e) => {
+          if (!isDragging) return;
+          e.preventDefault();
+          const currentX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+          const diff = startDragX - currentX;
+          const newTranslate = startScrollLeft + diff;
+          imagesContainer.style.transform = `translateX(-${newTranslate}px)`;
+        };
+
+        const dragEnd = (e) => {
+          if (!isDragging) return;
+          isDragging = false;
+          frameContent.style.cursor = 'grab';
+          
+          const currentX = e.type.includes('mouse') ? e.pageX : e.changedTouches[0].clientX;
+          const diff = startDragX - currentX;
+          
+          if (Math.abs(diff) > 50) {
+            if (diff > 0 && currentImageIndex < photos.length - 1) {
+              currentImageIndex++;
+            } else if (diff < 0 && currentImageIndex > 0) {
+              currentImageIndex--;
+            }
+          }
+          
+          imagesContainer.style.transition = 'transform 0.3s ease';
+          imagesContainer.style.transform = `translateX(-${currentImageIndex * displayWidth}px)`;
+          indicator.textContent = `${currentImageIndex + 1}/${photos.length}`;
+          updateArrows();
+        };
+
+        frameContent.addEventListener('mousedown', dragStart);
+        frameContent.addEventListener('mousemove', dragMove);
+        frameContent.addEventListener('mouseup', dragEnd);
+        frameContent.addEventListener('mouseleave', dragEnd);
+        
+        frameContent.addEventListener('touchstart', dragStart);
+        frameContent.addEventListener('touchmove', dragMove);
+        frameContent.addEventListener('touchend', dragEnd);
+
+        const leftArrow = document.createElement('div');
+        leftArrow.setAttribute('data-arrow', 'left');
+        leftArrow.style.cssText = 'position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; background: rgba(0,0,0,0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; color: white; font-size: 20px; user-select: none;';
+        leftArrow.innerHTML = '‹';
+        
+        const rightArrow = document.createElement('div');
+        rightArrow.setAttribute('data-arrow', 'right');
+        rightArrow.style.cssText = 'position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; background: rgba(0,0,0,0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; color: white; font-size: 20px; user-select: none;';
+        rightArrow.innerHTML = '›';
+
+        const navigate = (direction) => {
+          if (direction === 'left' && currentImageIndex > 0) {
+            currentImageIndex--;
+          } else if (direction === 'right' && currentImageIndex < photos.length - 1) {
+            currentImageIndex++;
+          }
+          imagesContainer.style.transition = 'transform 0.3s ease';
+          imagesContainer.style.transform = `translateX(-${currentImageIndex * displayWidth}px)`;
+          indicator.textContent = `${currentImageIndex + 1}/${photos.length}`;
+          updateArrows();
+        };
+
+        leftArrow.onclick = (e) => { e.stopPropagation(); navigate('left'); };
+        rightArrow.onclick = (e) => { e.stopPropagation(); navigate('right'); };
+
+        const updateArrows = () => {
+          leftArrow.style.display = currentImageIndex > 0 ? 'flex' : 'none';
+          rightArrow.style.display = currentImageIndex < photos.length - 1 ? 'flex' : 'none';
+        };
+
+        frameContent.appendChild(leftArrow);
+        frameContent.appendChild(rightArrow);
+        updateArrows();
+      }
+
+      photos.forEach((photo) => {
+        const imageDiv = document.createElement('div');
+        imageDiv.className = 'post-image';
+        imageDiv.style.width = displayWidth + 'px';
+        imageDiv.style.height = displayHeight + 'px';
+        
+        let paddingLeft = marginPx;
+        let paddingRight = marginPx;
+        let paddingTop = marginPx;
+        let paddingBottom = marginPx;
+
+        if (photo.isSplitLeft) {
+            paddingRight = 0;
+        } else if (photo.isSplitRight) {
+            paddingLeft = 0;
+        }
+
+        imageDiv.style.padding = `${paddingTop}px ${paddingRight}px ${paddingBottom}px ${paddingLeft}px`;
+
+        const img = document.createElement('img');
+        img.src = photo.src;
+        img.alt = photo.name;
+        
+        const availableWidth = displayWidth - (paddingLeft + paddingRight);
+        const availableHeight = displayHeight - (paddingTop + paddingBottom);
+        
+        img.style.width = availableWidth + 'px';
+        img.style.height = availableHeight + 'px';
+        img.style.objectFit = 'cover';
+        
+        if (photo.isSplitLeft) {
+            img.style.objectPosition = 'left center';
+        } else if (photo.isSplitRight) {
+            img.style.objectPosition = 'right center';
+        } else if (photo.isLandscape && currentFormat !== 'story') {
+             // For vanlige landskapsbilder, bruk 'contain' for å unngå beskjæring (gjelder ikke story)
+            img.style.objectFit = 'contain';
+        }
+        // Story (9:16) bruker cover for å fylle skjermen, med mindre ramme er satt.
+        
+        imageDiv.appendChild(img);
+        imagesContainer.appendChild(imageDiv);
+      });
+      
+      imagesContainer.style.transform = `translateX(0px)`;
+    }
+
+    function renderPreview() {
+      const previewGrid = document.getElementById('previewGrid');
+      
+      if (instagramFeed.length === 0) return;
+
+      const marginMm = parseFloat(document.getElementById('frameMargin').value);
+      const marginPercent = (marginMm / 25) * 5;
+
+      previewGrid.innerHTML = '';
+
+      // Juster grid-kolonner for Story-formatet
+      if (currentFormat === 'story') {
+        previewGrid.style.gridTemplateColumns = '1fr';
+        document.getElementById('previewSection').style.maxWidth = '300px'; // Smalere forhåndsvisning
+        document.querySelector('.preview-feed').style.padding = '0';
+      } else {
+        previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+        document.getElementById('previewSection').style.maxWidth = '935px';
+        document.querySelector('.preview-feed').style.padding = '20px';
+      }
+      
+      // Oppdater aspektforhold for rutenettet (Bruker 4:5 som fallback for grid-visning)
+      document.querySelectorAll('.preview-post').forEach(post => {
+        post.style.aspectRatio = currentFormat === 'story' ? '9 / 16' : '4 / 5';
+      });
+
+      photos.forEach((photo) => {
+        const newPost = document.createElement('div');
+        newPost.className = 'preview-post new-post';
+        newPost.style.aspectRatio = currentFormat === 'story' ? '9 / 16' : '4 / 5'; // Sett aspektforhold
+        
+        const wrapper = document.createElement('div');
+        
+        let paddingLeft = marginPercent;
+        let paddingRight = marginPercent;
+        let paddingTop = marginPercent;
+        let paddingBottom = marginPercent;
+
+        if (photo.isSplitLeft) {
+            paddingRight = 0;
+        } else if (photo.isSplitRight) {
+            paddingLeft = 0;
+        }
+
+        wrapper.style.padding = `${paddingTop}% ${paddingRight}% ${paddingBottom}% ${paddingLeft}%`;
+        wrapper.style.width = '100%';
+        wrapper.style.height = '100%';
+        wrapper.style.boxSizing = 'border-box';
+        wrapper.style.display = 'flex';
+        wrapper.style.alignItems = 'center';
+        wrapper.style.justifyContent = 'center';
+        
+        const img = document.createElement('img');
+        img.src = photo.src;
+        img.alt = photo.name;
+        
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+
+        if (photo.isSplitLeft) {
+          img.style.objectPosition = 'left center';
+        } else if (photo.isSplitRight) {
+          img.style.objectPosition = 'right center';
+        } else if (photo.isLandscape && currentFormat !== 'story') {
+           // Kun bruk contain for Feed-visning (4:5) av landskap
+          img.style.objectFit = 'contain';
+        }
+
+        wrapper.appendChild(img);
+        newPost.appendChild(wrapper);
+        
+        previewGrid.appendChild(newPost);
+      });
+
+      // Legg til gamle poster etter de nye
+      instagramFeed.forEach(feedPost => {
+        const post = document.createElement('div');
+        post.className = 'preview-post';
+        post.style.aspectRatio = currentFormat === 'story' ? '9 / 16' : '4 / 5'; // Sett aspektforhold
+        const img = document.createElement('img');
+        img.src = feedPost.imageUrl;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+        post.appendChild(img);
+        previewGrid.appendChild(post);
+      });
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    async function createPostBlob(photo, width, height) {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      const baseDims = getPostDimensions(); // Henter eksportmål for formatet (f.eks. 1080x1920)
+      
+      const img = await loadImage(photo.src);
+      
+      // Fyll med hvit bakgrunn
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+      
+      const targetAspect = baseDims.width / baseDims.height;
+      const photoAspect = photo.aspectRatio;
+      
+      // 1. Beskjær/Tilpass bildet til baseDimensjonene
+      let cropX, cropY, cropW, cropH;
+      let drawW, drawH, drawX, drawY;
+      
+      // Standard: cover (beskjæring)
+      if (photoAspect > targetAspect) {
+          // Bilde er bredere enn mål (beskjær venstre/høyre)
+          cropH = photo.height;
+          cropW = cropH * targetAspect;
+          cropX = (photo.width - cropW) / 2;
+          cropY = 0;
+      } else {
+          // Bilde er smalere/høyere enn mål (beskjær topp/bunn)
+          cropW = photo.width;
+          cropH = cropW / targetAspect;
+          cropX = 0;
+          cropY = (photo.height - cropH) / 2;
+      }
+
+      drawW = baseDims.width;
+      drawH = baseDims.height;
+      drawX = 0;
+      drawY = 0;
+      
+      // Unntak: Landskapsbilder i Feed-format (ikke Story/Split) bruker contain (letterboxing)
+      if (photo.isLandscape && currentFormat !== 'story' && !photo.isSplitLeft && !photo.isSplitRight) {
+          if (photoAspect > targetAspect) {
+              drawW = baseDims.width;
+              drawH = baseDims.width / photoAspect;
+              drawX = 0;
+              drawY = (baseDims.height - drawH) / 2;
+          } else {
+              drawH = baseDims.height;
+              drawW = baseDims.height * photoAspect;
+              drawX = (baseDims.width - drawW) / 2;
+              drawY = 0;
+          }
+          // I contain-modus bruker vi hele kildebildet
+          cropX = 0;
+          cropY = 0;
+          cropW = photo.width;
+          cropH = photo.height;
+      } else if (photo.isSplitLeft) {
+          // Split venstre: Beskjær kun venstre halvdel
+          cropX = 0;
+          cropW = photo.width / 2;
+      } else if (photo.isSplitRight) {
+          // Split høyre: Beskjær kun høyre halvdel
+          cropX = photo.width / 2;
+          cropW = photo.width / 2;
+      }
+
+      // Tegn det beskårne/tilpassede bildet til en midlertidig canvas
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = baseDims.width;
+      tempCanvas.height = baseDims.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.fillStyle = '#ffffff';
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+      tempCtx.drawImage(img, cropX, cropY, cropW, cropH, drawX, drawY, drawW, drawH);
+      
+      // 2. Legg til ramme (hvis aktiv)
+      const marginMm = parseFloat(document.getElementById('frameMargin').value);
+      if (marginMm > 0) {
+        const marginPx = (marginMm / 25.4) * 1080; // Beregn margin i piksler basert på base 1080px
+        
+        // Canvas-størrelsen har allerede tatt høyde for margin i kallende funksjon
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        
+        // Beregn startpunkt for å tegne det beskårne bildet på den større ramme-canvasen
+        let drawStartX = marginPx;
+        let drawStartY = marginPx;
+        
+        if (photo.isSplitLeft) {
+            // Venstre del: Start ved margin (X), men 0 margin til høyre
+        } else if (photo.isSplitRight) {
+            // Høyre del: Start ved 0 (X), men ha margin på høyre side
+            drawStartX = 0;
+        } else {
+            // Normalt bilde: Margin på begge sider
+        }
+
+        ctx.drawImage(tempCanvas, drawStartX, drawStartY, baseDims.width, baseDims.height);
+      } else {
+          // Hvis ingen ramme, tegn bare det beskårne bildet til sluttcanvasen
+          ctx.drawImage(tempCanvas, 0, 0);
+      }
+
+      return new Promise((resolve) => {
+        const quality = parseFloat(document.getElementById('quality').value);
+        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+      });
+    }
+
+    async function exportAllJpegs() {
+      if (photos.length === 0) return;
+
+      const btn = document.getElementById('exportBtn');
+      btn.disabled = true;
+
+      try {
+        for (let i = 0; i < photos.length; i++) {
+          const photo = photos[i];
+          
+          const baseDims = getPostDimensions();
+          let exportWidth = baseDims.width;
+          let exportHeight = baseDims.height;
+          const marginMm = parseFloat(document.getElementById('frameMargin').value);
+          
+          // Beregn total eksportstørrelse inkludert ramme
+          if (marginMm > 0) {
+              const marginPx = (marginMm / 25.4) * 1080; 
+              if (photo.isSplitLeft || photo.isSplitRight) {
+                  // Split: Ramme på 3 sider (1x margin i bredden + 2x margin i høyden)
+                  exportWidth = baseDims.width + marginPx; 
+              } else {
+                  // Normal: Ramme på 4 sider
+                  exportWidth = baseDims.width + 2 * marginPx;
+              }
+              exportHeight = baseDims.height + 2 * marginPx;
+          }
+
+          const blob = await createPostBlob(photo, exportWidth, exportHeight);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          
+          let filename;
+          const fileIndex = String(i + 1).padStart(2, '0');
+          if (photo.isSplitLeft) {
+            filename = `instagram-${currentFormat}-${fileIndex}-left.jpg`;
+          } else if (photo.isSplitRight) {
+            filename = `instagram-${currentFormat}-${fileIndex}-right.jpg`;
+          } else {
+            filename = `instagram-${currentFormat}-${fileIndex}.jpg`;
+          }
+          
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          await new Promise(r => setTimeout(r, 200));
+        }
+      } catch (err) {
+        alert('Feil ved eksport: ' + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+    
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
