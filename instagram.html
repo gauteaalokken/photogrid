@@ -756,33 +756,44 @@
       imagesContainer.style.transform = `translateX(0px)`;
     }
 
-  function renderPreview() {
+ // --- JAVASCRIPT: renderPreview FUNCTION (MODIFIED) ---
+
+function renderPreview() {
   const previewGrid = document.getElementById('previewGrid');
   previewGrid.innerHTML = '';
 
   const totalSlots = 9; // always 3×3
 
-  // Convert margin (mm → px → percentage)
+  // Get base dimensions (post size without margin) for the CURRENT format
+  const base = getPostDimensions(); // { width: W, height: H }
+
+  // Convert margin (mm → px)
   const marginMm = parseFloat(document.getElementById('frameMargin').value);
-  const marginPx1080 = (marginMm / 25.4) * 1080;  // same calc as export
+  const marginPx1080 = (marginMm / 25.4) * 1080;
 
-  // Base format dimensions used for scaling
-  const base = getPostDimensions(); // width/height of format WITHOUT margin
-
-  // Convert pixel margin to % so it scales inside the small grid
+  // Calculate pixel margin relative to the EXPORTED post's width
+  // This is the key: we calculate the margin as a percentage of the base width (W)
   const marginPercent = (marginPx1080 / base.width) * 100;
 
   for (let i = 0; i < totalSlots; i++) {
     const cell = document.createElement('div');
     cell.className = 'preview-post';
-    cell.style.aspectRatio = '4 / 5';
 
     if (i === 0 && photos.length > 0) {
+      // 1. SET ASPECT RATIO TO MATCH CURRENT FORMAT
+      // The preview-post aspect ratio should match the selected format (e.g., 4 / 5, 1 / 1).
+      // This is crucial for proportional display.
+      cell.style.aspectRatio = `${FORMATS[currentFormat].width} / ${FORMATS[currentFormat].height}`;
+
       // Wrapper that simulates the margin
       const wrapper = document.createElement('div');
       wrapper.style.width = '100%';
       wrapper.style.height = '100%';
       wrapper.style.boxSizing = 'border-box';
+
+      // 2. APPLY MARGIN AS PERCENTAGE PADDING
+      // If the margin is applied to all four sides, it should be the same value
+      // based on the percentage calculated from the original post size.
       wrapper.style.padding = `${marginPercent}%`;
 
       // Image
@@ -791,16 +802,17 @@
       img.alt = photos[0].name || 'første bilde';
       img.style.width = '100%';
       img.style.height = '100%';
+      // Use 'cover' to ensure the image fills the inner padded area
       img.style.objectFit = 'cover';
-      
+
       wrapper.appendChild(img);
       cell.appendChild(wrapper);
 
       // “NYT” badge
       cell.classList.add('new-post');
-
     } else {
-      // grey placeholders
+      // For placeholders, keep the original 4:5 aspect ratio for a consistent grid layout
+      cell.style.aspectRatio = '4 / 5';
       cell.classList.add('placeholder');
     }
 
