@@ -762,56 +762,59 @@ function renderPreview() {
   const previewGrid = document.getElementById('previewGrid');
   previewGrid.innerHTML = '';
 
-  const totalSlots = 9; // always 3×3
+  const totalSlots = 9;
 
-  // 1. Determine the Base Dimensions of the SELECTED POST FORMAT
   const format = FORMATS[currentFormat];
-  const { width: formatW, height: formatH } = format;
+  const formatW = format.width;
+  const formatH = format.height;
 
-  // 2. Calculate the EXPORT margin size in pixels (based on 1080px export width)
+  // Export dimensions (real Instagram output)
+  const postDims = getPostDimensions();
+  const exportW = postDims.width;
+  const exportH = postDims.height;
+
+  // real export margin (px)
   const marginMm = parseFloat(document.getElementById('frameMargin').value);
-  const marginPx1080 = (marginMm / 25.4) * 1080;
-
-  // 3. Calculate the Margin Percentage relative to the format's dimensions
-  // The frame is drawn within a 1080x1080 bounding box. We calculate the margin
-  // relative to the final post dimension (e.g., 1080 for 1:1, or 864 for 4:5 width).
-  // The most reliable percentage is relative to the frame's height/width ratio.
-  const marginPercent = (marginPx1080 / (1080 * formatW / Math.max(formatW, formatH))) * 100;
+  const marginPxExport = (marginMm / 25.4) * 1080;   // 1080 DPI base
 
   for (let i = 0; i < totalSlots; i++) {
     const cell = document.createElement('div');
     cell.className = 'preview-post';
 
     if (i === 0 && photos.length > 0) {
-      // Set the aspect ratio of the first cell to match the selected format
+
+      // Match preview cell aspect ratio to selected post format
       cell.style.aspectRatio = `${formatW} / ${formatH}`;
 
-      // Create a wrapper for applying the proportional margin (padding)
+      // --- wrapper for margin
       const wrapper = document.createElement('div');
       wrapper.style.width = '100%';
       wrapper.style.height = '100%';
       wrapper.style.boxSizing = 'border-box';
 
-      // Apply the margin as proportional padding
-      // This ensures the padding scales with the cell size.
-      wrapper.style.padding = `${marginPercent}%`;
+      // Wait for layout (so we can read actual pixel width)
+      requestAnimationFrame(() => {
+        const cellWidth = cell.clientWidth;
 
-      // The image element
-      const img = document.createElement('img');
-      // For split images (carousels), the logic is complex, so for the tiny
-      // preview, we just show the first full photo's content
-      img.src = photos[0].src;
-      img.alt = photos[0].name || 'første bilde';
-      img.style.width = '100%';
-      img.style.height = '100%';
-      img.style.objectFit = 'cover';
+        // proportional margin = (margin_export / export_width) * preview_width
+        const marginPxPreview = (marginPxExport / exportW) * cellWidth;
 
-      wrapper.appendChild(img);
-      cell.appendChild(wrapper);
+        wrapper.style.padding = `${marginPxPreview}px`;
+
+        const img = document.createElement('img');
+        img.src = photos[0].src;
+        img.alt = photos[0].name;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+
+        wrapper.appendChild(img);
+        cell.appendChild(wrapper);
+      });
 
       cell.classList.add('new-post');
+
     } else {
-      // Keep the default 4:5 aspect ratio for placeholders in the 3x3 grid
       cell.style.aspectRatio = '4 / 5';
       cell.classList.add('placeholder');
     }
@@ -819,6 +822,7 @@ function renderPreview() {
     previewGrid.appendChild(cell);
   }
 }
+
     function loadImage(src) {
       return new Promise((resolve, reject) => {
         const img = new Image();
