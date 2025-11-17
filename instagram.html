@@ -756,57 +756,107 @@
       imagesContainer.style.transform = `translateX(0px)`;
     }
 
-  function renderPreview() {
-  const previewGrid = document.getElementById('previewGrid');
-  previewGrid.innerHTML = '';
+  // --- Start of updated renderPreview() function ---
 
-  const totalSlots = 9; // always 3×3
+function renderPreview() {
+    const previewGrid = document.getElementById('previewGrid');
+    previewGrid.innerHTML = '';
 
-  // Convert margin (mm → px → percentage)
-  const marginMm = parseFloat(document.getElementById('frameMargin').value);
-  const marginPx1080 = (marginMm / 25.4) * 1080;  // same calc as export
+    const totalSlots = 9; // always 3×3
 
-  // Base format dimensions used for scaling
-  const base = getPostDimensions(); // width/height of format WITHOUT margin
+    // 1. Get the current format dimensions (for the aspect ratio)
+    const format = FORMATS[currentFormat];
+    const targetAspectRatio = format.width / format.height;
 
-  // Convert pixel margin to % so it scales inside the small grid
-  const marginPercent = (marginPx1080 / base.width) * 100;
+    // 2. Get the margin in mm/px (for visual simulation)
+    const marginMm = parseFloat(document.getElementById('frameMargin').value);
+    const simulatedMarginPx = marginMm > 0 ? 5 : 0; // Use a small, fixed pixel value for visual margin effect in the small grid
 
-  for (let i = 0; i < totalSlots; i++) {
-    const cell = document.createElement('div');
-    cell.className = 'preview-post';
-    cell.style.aspectRatio = '4 / 5';
+    for (let i = 0; i < totalSlots; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'preview-post';
+        cell.style.aspectRatio = '4 / 5'; // Fixed Instagram grid ratio
 
-    if (i === 0 && photos.length > 0) {
-      // Wrapper that simulates the margin
-      const wrapper = document.createElement('div');
-      wrapper.style.width = '100%';
-      wrapper.style.height = '100%';
-      wrapper.style.boxSizing = 'border-box';
-      wrapper.style.padding = `${marginPercent}%`;
+        if (i === 0 && photos.length > 0) {
+            const photo = photos[0];
+            
+            // Inner container to hold the content with the correct aspect ratio
+            const contentContainer = document.createElement('div');
+            contentContainer.className = 'preview-post-content';
+            contentContainer.style.width = '100%';
+            contentContainer.style.height = '100%';
+            contentContainer.style.display = 'flex';
+            contentContainer.style.justifyContent = 'center';
+            contentContainer.style.alignItems = 'center';
 
-      // Image
-      const img = document.createElement('img');
-      img.src = photos[0].src;
-      img.alt = photos[0].name || 'første bilde';
-      img.style.width = '100%';
-      img.style.height = '100%';
-      img.style.objectFit = 'cover';
-      
-      wrapper.appendChild(img);
-      cell.appendChild(wrapper);
+            // Create a wrapper for the image with the correct format aspect ratio
+            const imageWrapper = document.createElement('div');
+            imageWrapper.style.width = '100%';
+            imageWrapper.style.paddingTop = `${100 / targetAspectRatio}%`;
+            imageWrapper.style.position = 'relative';
+            imageWrapper.style.overflow = 'hidden';
+            
+            // Use box-shadow to simulate the white border/margin.
+            // Adjusting the spread to simulate the margin size.
+            if (marginMm > 0) {
+                // Adjust content size to make space for the simulated margin
+                const simulatedMarginPercent = 100 * (simulatedMarginPx * 2) / cell.offsetWidth;
+                imageWrapper.style.width = `calc(100% - ${simulatedMarginPercent * 2}px)`;
+                imageWrapper.style.height = `calc(100% - ${simulatedMarginPercent * 2}px)`;
 
-      // “NYT” badge
-      cell.classList.add('new-post');
+                // Using a white outline/border effect to simulate the margin *inside* the 4:5 cell
+                cell.style.boxShadow = `inset 0 0 0 ${simulatedMarginPx}px #ffffff`;
+                imageWrapper.style.paddingTop = `0`;
+                imageWrapper.style.aspectRatio = `${format.width} / ${format.height}`;
+                imageWrapper.style.width = 'auto';
+                imageWrapper.style.height = 'auto';
+                imageWrapper.style.maxWidth = '100%';
+                imageWrapper.style.maxHeight = '100%';
+                imageWrapper.style.margin = 'auto';
+                cell.style.backgroundColor = '#ffffff'; // The simulated margin color
+                
+            } else {
+                // If no margin, just fill the whole 4:5 cell (or the max possible area for the format)
+                imageWrapper.style.aspectRatio = `${format.width} / ${format.height}`;
+                imageWrapper.style.width = '100%';
+                imageWrapper.style.height = '100%';
+                imageWrapper.style.margin = 'auto'; // Center the content
+                cell.style.boxShadow = 'none';
+                cell.style.backgroundColor = '#fff';
+            }
 
-    } else {
-      // grey placeholders
-      cell.classList.add('placeholder');
+
+            // The actual image element
+            const img = document.createElement('img');
+            img.src = photo.src;
+            img.alt = photo.name || 'første bilde';
+            img.style.position = 'absolute';
+            img.style.top = '0';
+            img.style.left = '0';
+            img.style.width = '100%';
+            img.style.height = '100%';
+            
+            // Scale the image to "cover" the inner format area
+            img.style.objectFit = 'cover'; 
+            
+            imageWrapper.appendChild(img);
+            contentContainer.appendChild(imageWrapper);
+            cell.appendChild(contentContainer);
+
+            // “NYT” badge
+            cell.classList.add('new-post');
+
+        } else {
+            // grey placeholders
+            cell.classList.add('placeholder');
+            cell.style.boxShadow = 'none';
+        }
+
+        previewGrid.appendChild(cell);
     }
-
-    previewGrid.appendChild(cell);
-  }
 }
+
+// --- End of updated renderPreview() function ---
 
     function loadImage(src) {
       return new Promise((resolve, reject) => {
