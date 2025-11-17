@@ -770,7 +770,9 @@ function renderPreview() {
 
     // 2. Get the margin in mm/px (for visual simulation)
     const marginMm = parseFloat(document.getElementById('frameMargin').value);
-    const simulatedMarginPx = marginMm > 0 ? 5 : 0; // Use a small, fixed pixel value for visual margin effect in the small grid
+    // Use a small, fixed pixel value for visual margin effect in the small grid
+    // 4px border looks good on a small preview cell (~100-150px wide)
+    const simulatedMarginPx = marginMm > 0 ? 4 : 0; 
 
     for (let i = 0; i < totalSlots; i++) {
         const cell = document.createElement('div');
@@ -780,71 +782,102 @@ function renderPreview() {
         if (i === 0 && photos.length > 0) {
             const photo = photos[0];
             
-            // Inner container to hold the content with the correct aspect ratio
-            const contentContainer = document.createElement('div');
-            contentContainer.className = 'preview-post-content';
-            contentContainer.style.width = '100%';
-            contentContainer.style.height = '100%';
-            contentContainer.style.display = 'flex';
-            contentContainer.style.justifyContent = 'center';
-            contentContainer.style.alignItems = 'center';
-
-            // Create a wrapper for the image with the correct format aspect ratio
+            // Inner wrapper for the image, constrained by the post's aspect ratio
             const imageWrapper = document.createElement('div');
-            imageWrapper.style.width = '100%';
-            imageWrapper.style.paddingTop = `${100 / targetAspectRatio}%`;
             imageWrapper.style.position = 'relative';
             imageWrapper.style.overflow = 'hidden';
+            imageWrapper.style.margin = 'auto'; // Center content inside the 4:5 cell
+            imageWrapper.style.display = 'flex'; // For centering content
+            imageWrapper.style.justifyContent = 'center';
+            imageWrapper.style.alignItems = 'center';
             
-            // Use box-shadow to simulate the white border/margin.
-            // Adjusting the spread to simulate the margin size.
-            if (marginMm > 0) {
-                // Adjust content size to make space for the simulated margin
-                const simulatedMarginPercent = 100 * (simulatedMarginPx * 2) / cell.offsetWidth;
-                imageWrapper.style.width = `calc(100% - ${simulatedMarginPercent * 2}px)`;
-                imageWrapper.style.height = `calc(100% - ${simulatedMarginPercent * 2}px)`;
+            // Set the aspect ratio of the imageWrapper based on the selected format
+            imageWrapper.style.aspectRatio = `${format.width} / ${format.height}`;
+            imageWrapper.style.maxWidth = '100%';
+            imageWrapper.style.maxHeight = '100%';
 
-                // Using a white outline/border effect to simulate the margin *inside* the 4:5 cell
-                cell.style.boxShadow = `inset 0 0 0 ${simulatedMarginPx}px #ffffff`;
-                imageWrapper.style.paddingTop = `0`;
-                imageWrapper.style.aspectRatio = `${format.width} / ${format.height}`;
-                imageWrapper.style.width = 'auto';
-                imageWrapper.style.height = 'auto';
-                imageWrapper.style.maxWidth = '100%';
-                imageWrapper.style.maxHeight = '100%';
-                imageWrapper.style.margin = 'auto';
+            // Simulate the border/margin by reducing the size of the wrapper 
+            // and setting the background of the cell to white.
+            if (marginMm > 0) {
+                // Calculate size reduction based on the simulated margin
+                const reduction = simulatedMarginPx * 2; 
+                imageWrapper.style.width = `calc(100% - ${reduction}px)`;
+                imageWrapper.style.height = `calc(100% - ${reduction}px)`;
                 cell.style.backgroundColor = '#ffffff'; // The simulated margin color
-                
             } else {
-                // If no margin, just fill the whole 4:5 cell (or the max possible area for the format)
-                imageWrapper.style.aspectRatio = `${format.width} / ${format.height}`;
                 imageWrapper.style.width = '100%';
                 imageWrapper.style.height = '100%';
-                imageWrapper.style.margin = 'auto'; // Center the content
-                cell.style.boxShadow = 'none';
                 cell.style.backgroundColor = '#fff';
             }
-
 
             // The actual image element
             const img = document.createElement('img');
             img.src = photo.src;
             img.alt = photo.name || 'første bilde';
-            img.style.position = 'absolute';
-            img.style.top = '0';
-            img.style.left = '0';
             img.style.width = '100%';
             img.style.height = '100%';
-            
-            // Scale the image to "cover" the inner format area
             img.style.objectFit = 'cover'; 
             
             imageWrapper.appendChild(img);
-            contentContainer.appendChild(imageWrapper);
-            cell.appendChild(contentContainer);
+            cell.appendChild(imageWrapper);
 
             // “NYT” badge
             cell.classList.add('new-post');
+
+        } else if (i === 1 && photos.length > 1 && (photos[0].isSplitLeft || photos[0].isSplitRight)) {
+            // **New Logic for Split Post Preview (Slot 2)**
+            // If the first post is a split panorama, display the second half in the 
+            // second slot to visually represent the continuous image.
+            
+            // This is **NOT** how Instagram's profile grid works (it shows only 1/9 posts),
+            // but it allows you to see the effect you want: a continuous image.
+
+            const photo = photos[1]; // The right half
+
+            const imageWrapper = document.createElement('div');
+            imageWrapper.style.position = 'relative';
+            imageWrapper.style.overflow = 'hidden';
+            imageWrapper.style.margin = 'auto';
+            imageWrapper.style.display = 'flex';
+            imageWrapper.style.justifyContent = 'center';
+            imageWrapper.style.alignItems = 'center';
+            imageWrapper.style.aspectRatio = `${format.width} / ${format.height}`;
+            imageWrapper.style.maxWidth = '100%';
+            imageWrapper.style.maxHeight = '100%';
+            
+            if (marginMm > 0) {
+                const reduction = simulatedMarginPx * 2; 
+                imageWrapper.style.width = `calc(100% - ${reduction}px)`;
+                imageWrapper.style.height = `calc(100% - ${reduction}px)`;
+                cell.style.backgroundColor = '#ffffff';
+                
+                // For the right half, we remove the margin on the left side
+                imageWrapper.style.transform = `translateX(-${simulatedMarginPx}px)`;
+            } else {
+                imageWrapper.style.width = '100%';
+                imageWrapper.style.height = '100%';
+                cell.style.backgroundColor = '#fff';
+            }
+
+            const img = document.createElement('img');
+            img.src = photo.src;
+            img.alt = photo.name || 'andre bilde';
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover'; 
+            
+            imageWrapper.appendChild(img);
+            cell.appendChild(imageWrapper);
+
+            cell.classList.add('new-post'); // Mark it as part of the new post
+
+            // We must now ensure the grid columns are adjusted for this dual display
+            // Temporarily update the grid to span 2 columns for the first post.
+            // Note: This changes the grid layout for slots 0 and 1.
+            previewGrid.style.gridTemplateColumns = 'repeat(2, 1fr) 1fr';
+            if (i === 0) {
+                cell.style.gridColumn = 'span 1';
+            }
 
         } else {
             // grey placeholders
@@ -854,8 +887,12 @@ function renderPreview() {
 
         previewGrid.appendChild(cell);
     }
+    
+    // Reset the grid template if the first post is not a split panorama
+    if (photos.length === 0 || !(photos[0].isSplitLeft || photos[0].isSplitRight)) {
+        previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+    }
 }
-
 // --- End of updated renderPreview() function ---
 
     function loadImage(src) {
