@@ -768,14 +768,14 @@ function renderPreview() {
   const formatW = format.width;
   const formatH = format.height;
 
-  // Export dimensions (real Instagram output)
-  const postDims = getPostDimensions();
-  const exportW = postDims.width;
-  const exportH = postDims.height;
-
-  // real export margin (px)
+  // Main preview uses 96px per inch
   const marginMm = parseFloat(document.getElementById('frameMargin').value);
-  const marginPxExport = (marginMm / 25.4) * 1080;   // 1080 DPI base
+  const marginPxMain = (marginMm / 25.4) * 96;
+
+  // Get size of the main preview container
+  const mainImageDiv = document.querySelector('#imagesContainer .post-image');
+  const mainW = mainImageDiv ? mainImageDiv.clientWidth : 600;  
+  const mainH = mainImageDiv ? mainImageDiv.clientHeight : 600;
 
   for (let i = 0; i < totalSlots; i++) {
     const cell = document.createElement('div');
@@ -783,27 +783,24 @@ function renderPreview() {
 
     if (i === 0 && photos.length > 0) {
 
-      // Match preview cell aspect ratio to selected post format
+      // Match aspect ratio of current selected format
       cell.style.aspectRatio = `${formatW} / ${formatH}`;
 
-      // --- wrapper for margin
       const wrapper = document.createElement('div');
       wrapper.style.width = '100%';
       wrapper.style.height = '100%';
       wrapper.style.boxSizing = 'border-box';
 
-      // Wait for layout (so we can read actual pixel width)
       requestAnimationFrame(() => {
         const cellWidth = cell.clientWidth;
 
-        // proportional margin = (margin_export / export_width) * preview_width
-        const marginPxPreview = (marginPxExport / exportW) * cellWidth;
+        // SCALE margin based on real preview width
+        const marginPxCell = marginPxMain * (cellWidth / mainW);
 
-        wrapper.style.padding = `${marginPxPreview}px`;
+        wrapper.style.padding = `${marginPxCell}px`;
 
         const img = document.createElement('img');
         img.src = photos[0].src;
-        img.alt = photos[0].name;
         img.style.width = '100%';
         img.style.height = '100%';
         img.style.objectFit = 'cover';
@@ -815,6 +812,8 @@ function renderPreview() {
       cell.classList.add('new-post');
 
     } else {
+
+      // Keep Instagram-style placeholders 4:5
       cell.style.aspectRatio = '4 / 5';
       cell.classList.add('placeholder');
     }
@@ -822,6 +821,7 @@ function renderPreview() {
     previewGrid.appendChild(cell);
   }
 }
+
 
     function loadImage(src) {
       return new Promise((resolve, reject) => {
