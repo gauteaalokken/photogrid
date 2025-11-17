@@ -210,7 +210,7 @@
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
           </svg>
           <svg class="post-action" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2">
-            <path d="M21 11.5a8.38 8.38 0 0 1-.9 sweets-smash 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
           </svg>
           <svg class="post-action" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2">
             <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -345,17 +345,15 @@
 
     function updatePanoramaMode() {
       const input = document.getElementById('panoramaImages').value;
-      const originalPhotoCount = photos.filter(p => !p.isSplitLeft && !p.isSplitRight).length; // Teller kun un-splittet bilder for mapping
+      const originalPhotoCount = photos.filter(p => !p.isSplitLeft && !p.isSplitRight).length;
 
       const newPanoramaSet = new Set();
       
-      // 1. Definer hvilke ORIGINALE bilder som skal splittes
       if (input.trim()) {
         const numbers = input.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n) && n > 0 && n <= originalPhotoCount);
         numbers.forEach(n => newPanoramaSet.add(n));
       }
       
-      // Finn hvilke bilder i den nåværende `photos` arrayet som tilsvarer de originale bildene
       const currentIndicesToSplit = [];
       const currentIndicesToUnsplit = [];
       
@@ -367,32 +365,25 @@
           const isCurrentlySplit = photo.isSplitLeft || photo.isSplitRight;
           
           if (!isCurrentlySplit) {
-              originalIndexCounter++; // Nåværende bilde er et originalt bilde
+              originalIndexCounter++;
               if (newPanoramaSet.has(originalIndexCounter)) {
-                  // Dette bildet skal splittes, og er ikke splittet nå
                   currentIndicesToSplit.push(currentIndex);
-              } else if (panoramaImages.has(originalIndexCounter)) {
-                  // Dette bildet var splittet (men er nå samlet) og skal IKKE lenger splittes. (Sikkerhetsnett, skal ikke skje med riktig unsplit logikk)
               }
               currentIndex++;
           } else if (photo.isSplitLeft) {
-              originalIndexCounter++; // Venstre del teller som det originale bildet
+              originalIndexCounter++;
               if (!newPanoramaSet.has(originalIndexCounter)) {
-                   // Dette bildet er splittet, men skal IKKE lenger være splittet
                   currentIndicesToUnsplit.push(currentIndex);
               }
-              currentIndex += 2; // Hopper over høyre del
+              currentIndex += 2;
           }
       }
       
-      // 2. Utfør unsplit (høyest til lavest)
       currentIndicesToUnsplit.sort((a, b) => b - a).forEach(index => {
           unsplitPhoto(index);
       });
       
-      // 3. Utfør split (høyest til lavest)
-      // Må re-mappe indekser etter unsplit
-      const currentPhotosAfterUnsplit = [...photos]; // Lager en midlertidig kopi for å finne de riktige indeksene
+      const currentPhotosAfterUnsplit = [...photos];
 
       const splitIndicesAfterUnsplit = [];
       let currentIdx = 0;
@@ -402,25 +393,20 @@
           const photo = currentPhotosAfterUnsplit[currentIdx];
           if (!photo.isSplitLeft && !photo.isSplitRight) {
               origIdxCounter++;
-              if (newPanoramaSet.has(origIdxCounter) && !panoramaImages.has(origIdxCounter)) { // Hvis den skal splittes, og ikke var splittet
-                   // Siden vi allerede har håndtert unsplit over, er dette kun nye splittelser
+              if (newPanoramaSet.has(origIdxCounter) && !panoramaImages.has(origIdxCounter)) {
                    splitIndicesAfterUnsplit.push(currentIdx); 
               }
               currentIdx++;
           } else {
-              // Dette er et splittet bilde som ikke ble rørt (fordi det ikke var i toUnsplit)
-              // Vi må telle det som et originalt bilde
               origIdxCounter++;
               currentIdx += 2;
           }
       }
 
       splitIndicesAfterUnsplit.sort((a, b) => b - a).forEach(index => {
-          // Splitt operasjonen vil oppdatere 'photos' arrayet
           splitPhoto(index); 
       });
 
-      // Oppdater panoramaImages til å reflektere den nye tilstanden for de ORIGINALE filnumrene
       panoramaImages = newPanoramaSet;
       
       renderFeed();
@@ -432,19 +418,16 @@
         
         const photo = photos[index];
         
-        // Venstre halvdel
         const leftHalf = {
             ...photo,
             id: Date.now() + Math.random(),
             name: photo.name + '_left',
             isSplitLeft: true,
             originalIndex: index,
-            // Det nye aspektforholdet er halvparten av det originale bildet
             splitAspect: photo.aspectRatio / 2, 
-            splitRatio: `1:${Math.round(1 / (photo.aspectRatio / 2))}` // for display
+            splitRatio: `1:${Math.round(1 / (photo.aspectRatio / 2))}`
         };
         
-        // Høyre halvdel
         const rightHalf = {
             ...photo,
             id: Date.now() + Math.random() + 1,
@@ -452,7 +435,7 @@
             isSplitRight: true,
             originalIndex: index,
             splitAspect: photo.aspectRatio / 2,
-            splitRatio: `1:${Math.round(1 / (photo.aspectRatio / 2))}` // for display
+            splitRatio: `1:${Math.round(1 / (photo.aspectRatio / 2))}`
         };
         
         photos.splice(index, 1, leftHalf, rightHalf);
@@ -479,7 +462,6 @@
         const originalPhoto = {
             id: Date.now() + Math.random(),
             src: leftPhoto.src,
-            // Fjern '_left' fra navnet
             name: leftPhoto.name.replace('_left', ''),
             width: leftPhoto.width,
             height: leftPhoto.height,
@@ -600,13 +582,11 @@
       const marginMm = parseFloat(document.getElementById('frameMargin').value);
       const marginPx = (marginMm / 25.4) * 96;
       
-      // Beregn dimensjoner for første bilde, og bruk disse for karusell-containeren
       const baseDims = getPhotoDisplayDimensions(photos[0]);
       
       let maxDisplayWidth = baseDims.width;
       let maxDisplayHeight = baseDims.height;
 
-      // Finn største dimensjoner blant alle bilder for å unngå layout-hopp
       photos.forEach(p => {
           const dims = getPhotoDisplayDimensions(p);
           if (dims.width > maxDisplayWidth) maxDisplayWidth = dims.width;
@@ -617,8 +597,6 @@
       frameContent.style.height = maxDisplayHeight + 'px';
       
       const frameWidth = maxDisplayWidth;
-      
-      // Setter alle bilder i karusellen til å ha samme bredde (rammens bredde)
       const displayWidth = frameWidth; 
       const displayHeight = maxDisplayHeight;
 
@@ -727,11 +705,9 @@
         const imageDiv = document.createElement('div');
         imageDiv.className = 'post-image';
         
-        // Setter div-størrelsen til rammebredden
         imageDiv.style.width = displayWidth + 'px';
         imageDiv.style.height = displayHeight + 'px';
         
-        // --- Beregn padding ---
         let paddingLeft = marginPx;
         let paddingRight = marginPx;
         let paddingTop = marginPx;
@@ -749,16 +725,12 @@
         img.src = photo.src;
         img.alt = photo.name;
         
-        // Tilgjengelig plass for bildet
         const availableWidth = displayWidth - (paddingLeft + paddingRight);
         const availableHeight = displayHeight - (paddingTop + paddingBottom);
         
-        // --- Bildevisning ---
-        
-        // For split-bilder, bildet i seg selv er bare en del av lerretet, men det skal fylle det tilgjengelige visningsområdet (availableWidth/Height)
         img.style.width = availableWidth + 'px';
         img.style.height = availableHeight + 'px';
-        img.style.objectFit = 'cover'; // Cropping må fortsatt skje, men med riktig posisjon
+        img.style.objectFit = 'cover';
 
         if (photo.isSplitLeft) {
             img.style.objectPosition = 'left center';
@@ -790,7 +762,6 @@
       if (currentFormat === 'story') {
         previewGrid.style.gridTemplateColumns = '1fr'; 
         document.getElementById('previewSection').style.maxWidth = '300px';
-        
       } else {
         previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
         document.getElementById('previewSection').style.maxWidth = '935px';
@@ -803,34 +774,25 @@
         const newPost = document.createElement('div');
         newPost.className = 'preview-post new-post';
         
-        // --- Bestem aspektforhold og grid-layout ---
-        let previewAspect = '1 / 1';
-        let isGridPost = true; // Skal vises i 3-kolonners grid
+        let isGridPost = currentFormat === 'square'; // Kun Square er standard grid
+        let previewAspect = isGridPost ? '1 / 1' : `${format.width} / ${format.height}`;
 
+        // --- Bestem aspektforhold og grid-layout ---
         if (currentFormat === 'story') {
-            previewAspect = '9 / 16';
+            newPost.style.aspectRatio = '9 / 16';
             newPost.classList.add('non-square-post'); 
             newPost.style.border = '1px solid #dbdbdb';
-            isGridPost = false; // Vises i 1-kolonne layout
-
-        } else if (photo.isSplitLeft || photo.isSplitRight) {
-            // Split posts vises alltid i full bredde (som 4:5 i feeden) for å simulere Instagram karusell-formatet
-            newPost.classList.add('non-square-post');
-            previewAspect = `${format.width} / ${format.height}`; // Bruk valgt format for å vise full bredde
             isGridPost = false;
 
-        } else if (currentFormat === 'square') {
-            previewAspect = '1 / 1';
+        } else if (isGridPost) { // Square
+            newPost.style.aspectRatio = '1 / 1';
             newPost.style.gridColumn = 'span 1';
 
-        } else if (currentFormat === 'portrait' || currentFormat === 'landscape' || currentFormat === 'wide') {
+        } else { // Portrait, Landscape, Wide (Full bredde feed post)
             newPost.classList.add('non-square-post'); 
-            previewAspect = `${format.width} / ${format.height}`;
-            isGridPost = false;
+            newPost.style.aspectRatio = previewAspect;
         }
-
-        newPost.style.aspectRatio = previewAspect;
-
+        
         // --- Legg til bilde-innhold ---
         const wrapper = document.createElement('div');
         
@@ -866,7 +828,7 @@
         } else if (photo.isSplitRight) {
           img.style.objectPosition = 'right center';
         } else if (photo.isLandscape && currentFormat !== 'story') {
-          if (currentFormat === 'square' || currentFormat === 'portrait') {
+          if (isGridPost || currentFormat === 'portrait') { // Contain for Landskap i Square/Portrait ramme
              img.style.objectFit = 'contain';
           }
         }
@@ -875,7 +837,7 @@
         newPost.appendChild(wrapper);
         
         // Simuler liker/kommentarer for realisme på full-bredde poster
-        if (!isGridPost) {
+        if (!isGridPost && currentFormat !== 'story') {
             const actions = document.createElement('div');
             actions.style.cssText = 'position: absolute; bottom: 0; left: 0; width: 100%; height: 30%; background: linear-gradient(to top, rgba(0,0,0,0.5), rgba(0,0,0,0)); display: flex; align-items: flex-end; justify-content: center; padding: 8px; color: white; font-size: 14px; font-weight: 600; gap: 20px;';
             actions.innerHTML = `
@@ -888,23 +850,45 @@
         previewGrid.appendChild(newPost);
       });
 
-      // 3. Legg til gamle poster (kun hvis Square-formatet er valgt)
-      if (currentFormat === 'square' || currentFormat === 'portrait' || currentFormat === 'landscape' || currentFormat === 'wide') {
-          // Filtrer for å kun vise grid-poster ETTER full-bredde poster
-          if (photos.length === 0 || currentFormat === 'square') {
-            instagramFeed.forEach(feedPost => {
-              const post = document.createElement('div');
-              post.className = 'preview-post';
-              post.style.aspectRatio = '1 / 1'; 
-              const img = document.createElement('img');
-              img.src = feedPost.imageUrl;
-              img.style.width = '100%';
-              img.style.height = '100%';
-              img.style.objectFit = 'cover';
-              post.appendChild(img);
-              previewGrid.appendChild(post);
-            });
-          }
+      // 3. Legg til gamle poster
+      
+      // Hvis vi er i Grid-modus (Square), legger vi til eksisterende poster i rutenettet (1:1 aspect ratio).
+      // Hvis vi er i full-bredde modus (Portrait/Landscape/Wide), legger vi til eksisterende poster som full-bredde poster
+      
+      if (currentFormat === 'square') {
+          instagramFeed.forEach(feedPost => {
+            const post = document.createElement('div');
+            post.className = 'preview-post';
+            post.style.aspectRatio = '1 / 1'; 
+            const img = document.createElement('img');
+            img.src = feedPost.imageUrl;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            post.appendChild(img);
+            previewGrid.appendChild(post);
+          });
+      } else if (currentFormat !== 'story') {
+          // I full-bredde modus simulerer vi at de gamle innleggene også vises i full bredde i feeden (men de er fortsatt 1:1 innhold)
+          instagramFeed.forEach(feedPost => {
+            const post = document.createElement('div');
+            post.className = 'preview-post non-square-post';
+            post.style.aspectRatio = '1 / 1'; // Viser som kvadratisk post i full bredde
+            
+            const img = document.createElement('img');
+            img.src = feedPost.imageUrl;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            post.appendChild(img);
+
+            const actions = document.createElement('div');
+            actions.style.cssText = 'position: absolute; bottom: 0; left: 0; width: 100%; height: 30%; background: linear-gradient(to top, rgba(0,0,0,0.5), rgba(0,0,0,0)); display: flex; align-items: flex-end; justify-content: center; padding: 8px; color: white; font-size: 14px; font-weight: 600; gap: 20px;';
+            actions.innerHTML = `<span>❤️ 29</span><span>💬 0</span>`;
+            post.appendChild(actions);
+
+            previewGrid.appendChild(post);
+          });
       }
     }
 
@@ -917,21 +901,20 @@
       });
     }
 
-    // *** OPPDATERT FUNKSJON FOR EKTE PANORAMA SPLIT ***
     async function createPostBlob(photo, width, height) {
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       
-      // Henter base dimensjoner (uten margin)
       const baseDimsNoMargin = getPostDimensions(); 
       let baseWidth = baseDimsNoMargin.width;
       let baseHeight = baseDimsNoMargin.height;
       
-      // Hvis split, base bredden er det fulle bildet, ellers er det basebredden for formatet
       if (photo.isSplitLeft || photo.isSplitRight) {
-           baseWidth = Math.round(photo.width * (baseDimsNoMargin.height / photo.height)); // Skalerer til 1080px høyde og beholder aspect ratio
+           // Base bredden for canvasen er formatbredden
+           // Base bredden for det originale bildet på lerretet er det fulle bildet skalert til 1080px høyde
+           baseWidth = baseDimsNoMargin.width; // Mål-bredde (f.eks 1080)
       }
 
       const img = await loadImage(photo.src);
@@ -942,44 +925,54 @@
       const targetAspect = baseDimsNoMargin.width / baseDimsNoMargin.height;
       const photoAspect = photo.aspectRatio;
       
-      // Initialiser cropping/drawing variabler
       let cropX, cropY, cropW, cropH;
       let drawW, drawH, drawX, drawY;
       
-      // Setter drawing dimensjoner til mål-dimensjoner (uten margin)
+      // Standard: cover (beskjæring)
+      if (photoAspect > targetAspect) {
+          cropH = photo.height;
+          cropW = cropH * targetAspect;
+          cropX = (photo.width - cropW) / 2;
+          cropY = 0;
+      } else {
+          cropW = photo.width;
+          cropH = cropW / targetAspect;
+          cropX = 0;
+          cropY = (photo.height - cropH) / 2;
+      }
+
       drawW = baseDimsNoMargin.width;
       drawH = baseDimsNoMargin.height;
       drawX = 0;
       drawY = 0;
 
       if (photo.isSplitLeft) {
-          // VENSTRE DEL: Target er halve bredden av det originale bildet
+          // Kilde: Venstre halvdel
           cropW = photo.width / 2;
           cropH = photo.height;
           cropX = 0;
           cropY = 0;
           
-          // Tegn venstre halvdel fra kildebildet over hele målflaten
-          // Draw dimensjoner er baseDimsNoMargin (f.eks. 1080xX)
+          // Tegn: Over hele målflaten
           drawW = baseDimsNoMargin.width;
           drawH = baseDimsNoMargin.height;
           drawX = 0;
           drawY = 0;
 
       } else if (photo.isSplitRight) {
-          // HØYRE DEL: Target er halve bredden av det originale bildet
+          // Kilde: Høyre halvdel
           cropW = photo.width / 2;
           cropH = photo.height;
-          cropX = photo.width / 2; // Starter fra midten
+          cropX = photo.width / 2;
           cropY = 0;
           
-          // Tegn høyre halvdel fra kildebildet over hele målflaten
+          // Tegn: Over hele målflaten
           drawW = baseDimsNoMargin.width;
           drawH = baseDimsNoMargin.height;
           drawX = 0;
           drawY = 0;
 
-      } else if (photo.isLandscape && currentFormat !== 'story') {
+      } else if (photo.isLandscape && currentFormat !== 'story' && !photo.isSplitLeft && !photo.isSplitRight) {
           // Landskap (contain / letterboxing)
           if (photoAspect > targetAspect) {
               drawW = baseDimsNoMargin.width;
@@ -997,20 +990,7 @@
           cropW = photo.width;
           cropH = photo.height;
 
-      } else {
-          // Standard cover (Portrett/Kvadrat/Story)
-          if (photoAspect > targetAspect) {
-              cropH = photo.height;
-              cropW = cropH * targetAspect;
-              cropX = (photo.width - cropW) / 2;
-              cropY = 0;
-          } else {
-              cropW = photo.width;
-              cropH = cropW / targetAspect;
-              cropX = 0;
-              cropY = (photo.height - cropH) / 2;
-          }
-      }
+      } 
 
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = baseDimsNoMargin.width;
@@ -1039,7 +1019,6 @@
 
         ctx.drawImage(tempCanvas, drawStartX, drawStartY, baseDimsNoMargin.width, baseDimsNoMargin.height);
       } else {
-          // Ingen ramme, tegn direkte til den endelige canvasen (som da har baseDimsNoMargin størrelse)
           ctx.drawImage(tempCanvas, 0, 0);
       }
 
@@ -1064,11 +1043,9 @@
           let exportHeight = baseDimsNoMargin.height;
           const marginMm = parseFloat(document.getElementById('frameMargin').value);
           
-          // Beregn total eksportstørrelse inkludert ramme
           if (marginMm > 0) {
               const marginPx = (marginMm / 25.4) * 1080; 
               if (photo.isSplitLeft || photo.isSplitRight) {
-                  // Split: baseWidth er halve bredden av det splittede bildet
                   exportWidth = baseDimsNoMargin.width + marginPx; 
               } else {
                   exportWidth = baseDimsNoMargin.width + 2 * marginPx;
