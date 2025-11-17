@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Instagram Maler</title>
+  <title>Instagram Maler (Oppdatert)</title>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fafafa; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fafafa; color: #111827; }
     .app-container { min-height: 100vh; display: flex; }
     .sidebar { width: 320px; background-color: white; border-right: 1px solid #dbdbdb; display: flex; flex-direction: column; }
     .sidebar-header { padding: 24px; border-bottom: 1px solid #dbdbdb; }
@@ -46,78 +46,30 @@
     .carousel-indicators { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5); color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; z-index: 10; }
     .post-actions { padding: 12px 16px; display: flex; gap: 16px; border-top: 1px solid #efefef; }
     .post-action { width: 24px; height: 24px; cursor: pointer; }
-    .preview-section { 
-        width: 100%; 
-        max-width: 935px;
-    }
-    .preview-feed { 
-        background: #fafafa;
-        border: none;
-        border-radius: 0; 
-        padding: 0; 
-        box-shadow: none; 
-        max-width: 935px; 
-        margin: 0 auto; 
-    }
-    .preview-grid-nav {
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        border-top: 1px solid #dbdbdb;
-        background: white;
-    }
-    .preview-grid-nav-item {
-        flex: 1;
-        display: flex;
-        justify-content: center;
-        padding: 12px 0;
-        cursor: pointer;
-        color: #8e8e8e;
-        border-bottom: 2px solid transparent;
-        transition: color 0.1s;
-    }
-    .preview-grid-nav-item.active {
-        color: #262626;
-        border-bottom: 2px solid #262626;
-    }
-    .preview-grid-nav-item svg {
-        width: 24px;
-        height: 24px;
-        stroke: currentColor;
-    }
-    .preview-grid { 
-        display: grid; 
-        grid-template-columns: repeat(3, 1fr); 
-        gap: 4px; 
-        width: 100%; 
-        padding: 4px 0;
-    }
-    .preview-post { 
-        aspect-ratio: 1 / 1;
-        background: #fff; 
-        position: relative; 
-        overflow: hidden; 
-        cursor: pointer; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-    }
-    .preview-post img { object-fit: cover; display: block; }
+    .preview-section { width: 100%; max-width: 935px; }
+    .preview-feed { background: #fafafa; border: none; border-radius: 0; padding: 0; box-shadow: none; max-width: 935px; margin: 0 auto; }
+    .preview-grid-nav { display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #dbdbdb; background: white; }
+    .preview-grid-nav-item { flex: 1; display: flex; justify-content: center; padding: 12px 0; cursor: pointer; color: #8e8e8e; border-bottom: 2px solid transparent; transition: color 0.1s; }
+    .preview-grid-nav-item.active { color: #262626; border-bottom: 2px solid #262626; }
+    .preview-grid-nav-item svg { width: 24px; height: 24px; stroke: currentColor; }
+    /* === Updated preview grid styles (always 3x3 with 4:5 frames) === */
+    .preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 100%; padding: 4px 0; }
+    .preview-post { aspect-ratio: 4 / 5; background: #fff; position: relative; overflow: hidden; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .preview-post img { object-fit: cover; display: block; width: 100%; height: 100%; }
     .preview-post.new-post { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #dbdbdb; }
     .preview-post.new-post::after { content: 'NYT'; position: absolute; top: 8px; right: 8px; background: #0095f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; z-index: 1; }
     .preview-carousel-indicator { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; }
     .loading { text-align: center; padding: 40px; color: #8e8e8e; }
     .error { text-align: center; padding: 20px; color: #ed4956; }
-    .preview-feed .non-square-post {
-        grid-column: span 3;
-        margin-bottom: 4px;
-        aspect-ratio: 9 / 16;
-    }
+    .preview-feed .non-square-post { grid-column: span 3; margin-bottom: 4px; aspect-ratio: 9 / 16; }
     .username-input-group { display: flex; gap: 8px; }
     .btn-load { padding: 8px 16px; background-color: #0095f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap; }
     .btn-load:hover { background-color: #1877f2; }
     .btn-load:disabled { opacity: 0.5; cursor: not-allowed; }
-    
+
+    /* placeholder style for the non-first slots */
+    .placeholder { background: #e3e3e3; }
+
     @media (max-width: 900px) {
       .app-container { flex-direction: column; }
       .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #dbdbdb; }
@@ -157,10 +109,10 @@
             <button onclick="setFormat('landscape')">16:9<br>Landskap</button>
             <button onclick="setFormat('wide')">3:2<br>Bred</button>
             <button onclick="setFormat('square')">1:1<br>Kvadrat</button>
-            <button onclick="setFormat('story')">9:16<br>Historie</button> 
+            <button onclick="setFormat('story')">9:16<br>Historie</button>
           </div>
         </div>
-        
+
         <div class="control-group">
           <label>Del bilder (split i to innlegg)</label>
           <div style="display: flex; gap: 8px;">
@@ -186,14 +138,14 @@
             <option value="0.75">Lav kvalitet (mindre filer)</option>
           </select>
         </div>
-        
+
         <div class="control-group">
           <label>Instagram brukernavn (valgfritt)</label>
           <div class="username-input-group">
             <input type="text" id="usernameInput" placeholder="brukernavn">
             <button class="btn-load" id="loadFeedBtn" onclick="loadInstagramFeed()">Last inn</button>
           </div>
-          <p class="photo-count" style="font-size: 11px;">Laster inn offentlige profiler for forhåndsvisning</p>
+          <p class="photo-count" style="font-size: 11px;">Laster inn offentlige profiler for forhåndsvisning (dette vil ikke påvirke profilruten nede)</p>
         </div>
 
         <button id="clearBtn" class="btn-danger" onclick="clearAll()" style="display:none">Fjern alle bilder</button>
@@ -236,7 +188,6 @@
 
       <div id="previewSection" class="preview-section">
         <div class="preview-feed">
-          
           <div class="preview-grid-nav">
               <div class="preview-grid-nav-item active">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -259,7 +210,7 @@
                   </svg>
               </div>
           </div>
-          
+
           <div id="previewGrid" class="preview-grid"></div>
         </div>
       </div>
@@ -279,11 +230,9 @@
     let currentFormat = 'portrait';
     let instagramFeed = [];
     let panoramaImages = new Set();
-    let isDragging = false;
-    
 
     document.getElementById('fileInput').addEventListener('change', handleFileUpload);
-    
+
     function initApp() {
         loadStandardFeed();
         updateUI();
@@ -360,22 +309,22 @@
       const originalPhotoCount = photos.filter(p => !p.isSplitLeft && !p.isSplitRight).length;
 
       const newPanoramaSet = new Set();
-      
+
       if (input.trim()) {
         const numbers = input.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n) && n > 0 && n <= originalPhotoCount);
         numbers.forEach(n => newPanoramaSet.add(n));
       }
-      
+
       const currentIndicesToSplit = [];
       const currentIndicesToUnsplit = [];
-      
+
       let currentIndex = 0;
-      let originalIndexCounter = 0; 
+      let originalIndexCounter = 0;
 
       while (currentIndex < photos.length) {
           const photo = photos[currentIndex];
           const isCurrentlySplit = photo.isSplitLeft || photo.isSplitRight;
-          
+
           if (!isCurrentlySplit) {
               originalIndexCounter++;
               if (newPanoramaSet.has(originalIndexCounter)) {
@@ -390,23 +339,23 @@
               currentIndex += 2;
           }
       }
-      
+
       currentIndicesToUnsplit.sort((a, b) => b - a).forEach(index => {
           unsplitPhoto(index);
       });
-      
+
       const currentPhotosAfterUnsplit = [...photos];
 
       const splitIndicesAfterUnsplit = [];
       let currentIdx = 0;
       let origIdxCounter = 0;
-      
+
       while (currentIdx < currentPhotosAfterUnsplit.length) {
           const photo = currentPhotosAfterUnsplit[currentIdx];
           if (!photo.isSplitLeft && !photo.isSplitRight) {
               origIdxCounter++;
               if (newPanoramaSet.has(origIdxCounter) && !panoramaImages.has(origIdxCounter)) {
-                   splitIndicesAfterUnsplit.push(currentIdx); 
+                   splitIndicesAfterUnsplit.push(currentIdx);
               }
               currentIdx++;
           } else {
@@ -416,30 +365,30 @@
       }
 
       splitIndicesAfterUnsplit.sort((a, b) => b - a).forEach(index => {
-          splitPhoto(index); 
+          splitPhoto(index);
       });
 
       panoramaImages = newPanoramaSet;
-      
+
       renderFeed();
       renderPreview();
     }
-    
+
     function splitPhoto(index) {
         if (index < 0 || index >= photos.length || photos[index].isSplitLeft || photos[index].isSplitRight) return;
-        
+
         const photo = photos[index];
-        
+
         const leftHalf = {
             ...photo,
             id: Date.now() + Math.random(),
             name: photo.name + '_left',
             isSplitLeft: true,
             originalIndex: index,
-            splitAspect: photo.aspectRatio / 2, 
+            splitAspect: photo.aspectRatio / 2,
             splitRatio: `1:${Math.round(1 / (photo.aspectRatio / 2))}`
         };
-        
+
         const rightHalf = {
             ...photo,
             id: Date.now() + Math.random() + 1,
@@ -449,16 +398,16 @@
             splitAspect: photo.aspectRatio / 2,
             splitRatio: `1:${Math.round(1 / (photo.aspectRatio / 2))}`
         };
-        
+
         photos.splice(index, 1, leftHalf, rightHalf);
     }
 
     function unsplitPhoto(index) {
         if (index < 0 || index >= photos.length) return;
-        
+
         const photo = photos[index];
         let leftIndex = -1, rightIndex = -1;
-        
+
         if (photo.isSplitLeft && photos[index + 1] && photos[index + 1].isSplitRight) {
             leftIndex = index;
             rightIndex = index + 1;
@@ -468,9 +417,9 @@
         } else {
             return;
         }
-        
+
         const leftPhoto = photos[leftIndex];
-        
+
         const originalPhoto = {
             id: Date.now() + Math.random(),
             src: leftPhoto.src,
@@ -480,10 +429,10 @@
             aspectRatio: leftPhoto.aspectRatio,
             isLandscape: leftPhoto.isLandscape
         };
-        
+
         photos.splice(leftIndex, 2, originalPhoto);
     }
-    
+
     function clearAll() {
       photos = [];
       instagramFeed = [];
@@ -498,22 +447,23 @@
         canvas.width = 400;
         canvas.height = 400;
         const ctx = canvas.getContext('2d');
-        
+
         const hue = (i * 45) % 360;
         ctx.fillStyle = `hsl(${hue}, 60%, 75%)`;
         ctx.fillRect(0, 0, 400, 400);
         ctx.fillStyle = `hsl(${hue}, 60%, 65%)`;
         ctx.fillRect(150, 150, 100, 100);
-        
+
         const imgUrl = canvas.toDataURL('image/png');
-        
-        return { id: i, imageUrl: imgUrl, format: 'square' }; 
+
+        return { id: i, imageUrl: imgUrl, format: 'square' };
       });
-      
+
       document.getElementById('frameUsername').textContent = 'din_profil';
     }
 
     function loadInstagramFeed() {
+      // keep this function for compatibility (it will NOT change the profile preview grid)
       const username = document.getElementById('usernameInput').value.trim();
       if (!username) {
         alert('Vennligst skriv inn et brukernavn');
@@ -525,32 +475,35 @@
       const btn = document.getElementById('loadFeedBtn');
       const previewSection = document.getElementById('previewSection');
       const previewGrid = document.getElementById('previewGrid');
-      
+
       btn.disabled = true;
       btn.textContent = 'Laster...';
       previewGrid.innerHTML = '<div class="loading">Laster inn Instagram-feed...</div>';
       previewSection.style.display = 'block';
 
+      // For privacy and reliability we simulate a feed like before,
+      // but the bottom profile preview will remain the local 3x3 with placeholders.
       setTimeout(() => {
         loadStandardFeed();
+        // we still render preview, but renderPreview() intentionally only uses your local uploads (photos)
         renderPreview();
         btn.disabled = false;
         btn.textContent = 'Last inn';
-      }, 1000);
+      }, 800);
     }
-    
+
     function updateUI() {
       document.getElementById('photoCount').textContent = photos.length;
       document.getElementById('exportInstagramBtn').disabled = photos.length === 0;
       document.getElementById('clearBtn').style.display = photos.length > 0 ? 'block' : 'none';
-      
+
       const mainCanvas = document.getElementById('mainCanvas');
       if (photos.length > 0) {
         mainCanvas.classList.remove('hidden');
       } else {
         mainCanvas.classList.add('hidden');
       }
-      
+
       renderFeed();
       renderPreview();
     }
@@ -558,9 +511,9 @@
     function getPostDimensions() {
       const baseSize = 1080;
       const format = FORMATS[currentFormat];
-      
+
       let width, height;
-      
+
       if (currentFormat === 'story') {
           width = 1080;
           height = 1920;
@@ -574,23 +527,23 @@
         width = baseSize;
         height = baseSize;
       }
-      
+
       return { width, height };
     }
 
     function getPhotoDisplayDimensions(photo) {
       const format = FORMATS[currentFormat];
-      
+
       let displayWidth, displayHeight;
 
       if (currentFormat === 'story') {
-          displayWidth = 320; 
+          displayWidth = 320;
           displayHeight = Math.round(displayWidth * 16 / 9);
-      } else { 
+      } else {
           displayHeight = 600;
           displayWidth = Math.round(displayHeight * format.width / format.height);
       }
-      
+
       return { width: displayWidth, height: displayHeight };
     }
 
@@ -600,14 +553,14 @@
       imagesContainer.innerHTML = '';
 
       if (photos.length === 0) return;
-      
-      const photosToRender = photos; 
+
+      const photosToRender = photos;
 
       const marginMm = parseFloat(document.getElementById('frameMargin').value);
       const marginPx = (marginMm / 25.4) * 96;
-      
+
       const baseDims = getPhotoDisplayDimensions(photosToRender[0]);
-      
+
       let maxDisplayWidth = baseDims.width;
       let maxDisplayHeight = baseDims.height;
 
@@ -619,19 +572,19 @@
 
       frameContent.style.width = maxDisplayWidth + 'px';
       frameContent.style.height = maxDisplayHeight + 'px';
-      
+
       const frameWidth = maxDisplayWidth;
-      const displayWidth = frameWidth; 
+      const displayWidth = frameWidth;
       const displayHeight = maxDisplayHeight;
 
       const oldIndicator = frameContent.querySelector('.carousel-indicators');
       if (oldIndicator) oldIndicator.remove();
-      
+
       const oldArrows = frameContent.querySelectorAll('[data-arrow]');
       oldArrows.forEach(arrow => arrow.remove());
 
       let currentImageIndex = 0;
-      
+
       if (photosToRender.length > 1) {
         const indicator = document.createElement('div');
         indicator.className = 'carousel-indicators';
@@ -663,10 +616,10 @@
           if (!isDragging) return;
           isDragging = false;
           frameContent.style.cursor = 'grab';
-          
+
           const currentX = e.type.includes('mouse') ? e.pageX : e.changedTouches[0].clientX;
           const diff = startDragX - currentX;
-          
+
           if (Math.abs(diff) > 50) {
             if (diff > 0 && currentImageIndex < photosToRender.length - 1) {
               currentImageIndex++;
@@ -674,7 +627,7 @@
               currentImageIndex--;
             }
           }
-          
+
           imagesContainer.style.transition = 'transform 0.3s ease';
           imagesContainer.style.transform = `translateX(-${currentImageIndex * displayWidth}px)`;
           indicator.textContent = `${currentImageIndex + 1}/${photosToRender.length}`;
@@ -685,7 +638,7 @@
         frameContent.addEventListener('mousemove', dragMove);
         frameContent.addEventListener('mouseup', dragEnd);
         frameContent.addEventListener('mouseleave', dragEnd);
-        
+
         frameContent.addEventListener('touchstart', dragStart);
         frameContent.addEventListener('touchmove', dragMove);
         frameContent.addEventListener('touchend', dragEnd);
@@ -694,7 +647,7 @@
         leftArrow.setAttribute('data-arrow', 'left');
         leftArrow.style.cssText = 'position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; background: rgba(0,0,0,0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; color: white; font-size: 20px; user-select: none;';
         leftArrow.innerHTML = '‹';
-        
+
         const rightArrow = document.createElement('div');
         rightArrow.setAttribute('data-arrow', 'right');
         rightArrow.style.cssText = 'position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; background: rgba(0,0,0,0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; color: white; font-size: 20px; user-select: none;';
@@ -728,10 +681,10 @@
       photosToRender.forEach((photo) => {
         const imageDiv = document.createElement('div');
         imageDiv.className = 'post-image';
-        
+
         imageDiv.style.width = displayWidth + 'px';
         imageDiv.style.height = displayHeight + 'px';
-        
+
         let paddingLeft = marginPx;
         let paddingRight = marginPx;
         let paddingTop = marginPx;
@@ -747,29 +700,29 @@
 
         const availableWidth = displayWidth - (paddingLeft + paddingRight);
         const availableHeight = displayHeight - (paddingTop + paddingBottom);
-        
+
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        
+
         const img = new Image();
         img.onload = () => {
           canvas.width = availableWidth;
           canvas.height = availableHeight;
-          
+
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          
+
           if (photo.isSplitLeft || photo.isSplitRight) {
             const sourceX = photo.isSplitLeft ? 0 : img.width / 2;
             const sourceWidth = img.width / 2;
             const sourceHeight = img.height;
-            
+
             const scale = Math.max(availableWidth / sourceWidth, availableHeight / sourceHeight);
             const scaledWidth = sourceWidth * scale;
             const scaledHeight = sourceHeight * scale;
             const offsetX = (availableWidth - scaledWidth) / 2;
             const offsetY = (availableHeight - scaledHeight) / 2;
-            
+
             ctx.drawImage(img, sourceX, 0, sourceWidth, sourceHeight, offsetX, offsetY, scaledWidth, scaledHeight);
           } else if (photo.isLandscape && currentFormat !== 'story') {
             const scale = Math.min(availableWidth / img.width, availableHeight / img.height);
@@ -786,7 +739,7 @@
             const offsetY = (availableHeight - scaledHeight) / 2;
             ctx.drawImage(img, 0, 0, img.width, img.height, offsetX, offsetY, scaledWidth, scaledHeight);
           }
-          
+
           const displayImg = document.createElement('img');
           displayImg.src = canvas.toDataURL('image/jpeg', 0.95);
           displayImg.alt = photo.name;
@@ -796,143 +749,44 @@
           imageDiv.appendChild(displayImg);
         };
         img.src = photo.src;
-        
+
         imagesContainer.appendChild(imageDiv);
       });
-      
+
       imagesContainer.style.transform = `translateX(0px)`;
     }
 
+    /* ======= IMPORTANT: UPDATED renderPreview() - Profile grid (3x3) shows ONLY first uploaded photo (4:5), others greyed out ======= */
     function renderPreview() {
       const previewGrid = document.getElementById('previewGrid');
-      
-      if (instagramFeed.length === 0) return;
-
-      const marginMm = parseFloat(document.getElementById('frameMargin').value);
-      const marginPercent = (marginMm / 25) * 5;
-
       previewGrid.innerHTML = '';
 
-      if (currentFormat === 'story') {
-        previewGrid.style.gridTemplateColumns = '1fr'; 
-        document.getElementById('previewSection').style.maxWidth = '300px';
-      } else {
-        previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
-        document.getElementById('previewSection').style.maxWidth = '935px';
-      }
+      const totalSlots = 9; // fixed 3x3 grid
+      for (let i = 0; i < totalSlots; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'preview-post';
 
-      const photosToDisplay = photos.slice(0, 9);
+        // force 4:5 aspect ratio visually
+        cell.style.aspectRatio = '4 / 5';
 
-      photosToDisplay.forEach((photo) => {
-        const format = FORMATS[currentFormat];
-        
-        const newPost = document.createElement('div');
-        
-        if (currentFormat === 'story') {
-            newPost.className = 'preview-post new-post non-square-post';
+        if (i === 0 && photos.length > 0) {
+          // show only the FIRST uploaded photo, fit into 4:5 frame (object-fit:cover)
+          const img = document.createElement('img');
+          img.src = photos[0].src;
+          img.alt = photos[0].name || 'første bilde';
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.objectFit = 'cover';
+          cell.appendChild(img);
+
+          // mark it visually as new post
+          cell.classList.add('new-post');
         } else {
-            newPost.className = 'preview-post new-post';
-            newPost.style.aspectRatio = '1 / 1';
-            newPost.style.gridColumn = 'span 1';
-        }
-        
-        const wrapper = document.createElement('div');
-        
-        let paddingLeft = marginPercent;
-        let paddingRight = marginPercent;
-        let paddingTop = marginPercent;
-        let paddingBottom = marginPercent;
-
-        if (photo.isSplitLeft) {
-            paddingRight = 0;
-        } else if (photo.isSplitRight) {
-            paddingLeft = 0;
+          // other cells are grey placeholders
+          cell.classList.add('placeholder');
         }
 
-        wrapper.style.padding = `${paddingTop}% ${paddingRight}% ${paddingBottom}% ${paddingLeft}%`;
-        wrapper.style.width = '100%';
-        wrapper.style.height = '100%';
-        wrapper.style.boxSizing = 'border-box';
-        wrapper.style.display = 'flex';
-        wrapper.style.alignItems = 'center';
-        wrapper.style.justifyContent = 'center';
-        
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 400;
-        canvas.height = 400;
-        
-        const img = new Image();
-        img.onload = () => {
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          
-          if (photo.isSplitLeft || photo.isSplitRight) {
-            const sourceX = photo.isSplitLeft ? 0 : img.width / 2;
-            const sourceWidth = img.width / 2;
-            const sourceHeight = img.height;
-            
-            const scale = Math.max(canvas.width / sourceWidth, canvas.height / sourceHeight);
-            const scaledWidth = sourceWidth * scale;
-            const scaledHeight = sourceHeight * scale;
-            const offsetX = (canvas.width - scaledWidth) / 2;
-            const offsetY = (canvas.height - scaledHeight) / 2;
-            
-            ctx.drawImage(img, sourceX, 0, sourceWidth, sourceHeight, offsetX, offsetY, scaledWidth, scaledHeight);
-          } else if (photo.isLandscape && currentFormat !== 'story') {
-            const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
-            const scaledWidth = img.width * scale;
-            const scaledHeight = img.height * scale;
-            const offsetX = (canvas.width - scaledWidth) / 2;
-            const offsetY = (canvas.height - scaledHeight) / 2;
-            ctx.drawImage(img, 0, 0, img.width, img.height, offsetX, offsetY, scaledWidth, scaledHeight);
-          } else {
-            const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
-            const scaledWidth = img.width * scale;
-            const scaledHeight = img.height * scale;
-            const offsetX = (canvas.width - scaledWidth) / 2;
-            const offsetY = (canvas.height - scaledHeight) / 2;
-            ctx.drawImage(img, 0, 0, img.width, img.height, offsetX, offsetY, scaledWidth, scaledHeight);
-          }
-          
-          const previewImg = document.createElement('img');
-          previewImg.src = canvas.toDataURL('image/jpeg', 0.85);
-          previewImg.alt = photo.name;
-          previewImg.style.width = '100%';
-          previewImg.style.height = '100%';
-          previewImg.style.objectFit = 'cover';
-          
-          wrapper.appendChild(previewImg);
-        };
-        img.src = photo.src;
-
-        newPost.appendChild(wrapper);
-        
-        if (currentFormat === 'story') {
-            const actions = document.createElement('div');
-            actions.style.cssText = 'position: absolute; bottom: 0; left: 0; width: 100%; height: 30%; background: linear-gradient(to top, rgba(0,0,0,0.5), rgba(0,0,0,0)); display: flex; align-items: flex-end; justify-content: center; padding: 8px; color: white; font-size: 14px; font-weight: 600; gap: 20px;';
-            actions.innerHTML = `<span>❤️ 29</span><span>💬 0</span>`;
-            newPost.appendChild(actions);
-        }
-        
-        previewGrid.appendChild(newPost);
-      });
-
-      const remainingSlots = 9 - photosToDisplay.length;
-      if (remainingSlots > 0 && currentFormat !== 'story') {
-          const feedToDisplay = instagramFeed.slice(0, remainingSlots);
-          feedToDisplay.forEach(feedPost => {
-            const post = document.createElement('div');
-            post.className = 'preview-post';
-            post.style.aspectRatio = '1 / 1'; 
-            const img = document.createElement('img');
-            img.src = feedPost.imageUrl;
-            img.style.width = '100%';
-            img.style.height = '100%';
-            img.style.objectFit = 'cover';
-            post.appendChild(img);
-            previewGrid.appendChild(post);
-          });
+        previewGrid.appendChild(cell);
       }
     }
 
@@ -950,22 +804,22 @@
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
-      
-      const baseDimsNoMargin = getPostDimensions(); 
-      
+
+      const baseDimsNoMargin = getPostDimensions();
+
       const img = await loadImage(photo.src);
-      
+
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, width, height);
-      
+
       const targetAspect = baseDimsNoMargin.width / baseDimsNoMargin.height;
-      
+
       let sourceX, sourceY, sourceWidth, sourceHeight;
       let drawW, drawH, drawX, drawY;
-      
+
       const marginMm = parseFloat(document.getElementById('frameMargin').value);
       const marginPx = marginMm > 0 ? (marginMm / 25.4) * 1080 : 0;
-      
+
       drawX = photo.isSplitRight ? 0 : marginPx;
       drawY = marginPx;
       drawW = baseDimsNoMargin.width;
@@ -976,7 +830,7 @@
         sourceY = 0;
         sourceWidth = img.width / 2;
         sourceHeight = img.height;
-        
+
         const sourceAspect = sourceWidth / sourceHeight;
         if (sourceAspect > targetAspect) {
           const cropWidth = sourceHeight * targetAspect;
@@ -992,7 +846,7 @@
         sourceY = 0;
         sourceWidth = img.width;
         sourceHeight = img.height;
-        
+
         const photoAspect = img.width / img.height;
         if (photoAspect > targetAspect) {
           drawW = baseDimsNoMargin.width;
@@ -1005,7 +859,7 @@
         }
       } else {
         const photoAspect = img.width / img.height;
-        
+
         if (photoAspect > targetAspect) {
           sourceHeight = img.height;
           sourceWidth = sourceHeight * targetAspect;
@@ -1033,24 +887,24 @@
       const btn = document.getElementById('exportInstagramBtn');
       btn.disabled = true;
       btn.textContent = 'Eksporterer...';
-      
+
       const zip = new JSZip();
-      
+
       let totalFileCount = 0;
 
       try {
         for (let i = 0; i < photos.length; i++) {
           const photo = photos[i];
-          
+
           const baseDimsNoMargin = getPostDimensions();
           let exportWidth = baseDimsNoMargin.width;
           let exportHeight = baseDimsNoMargin.height;
           const marginMm = parseFloat(document.getElementById('frameMargin').value);
-          
+
           if (marginMm > 0) {
-              const marginPx = (marginMm / 25.4) * 1080; 
+              const marginPx = (marginMm / 25.4) * 1080;
               if (photo.isSplitLeft || photo.isSplitRight) {
-                  exportWidth = baseDimsNoMargin.width + marginPx; 
+                  exportWidth = baseDimsNoMargin.width + marginPx;
               } else {
                   exportWidth = baseDimsNoMargin.width + 2 * marginPx;
               }
@@ -1058,12 +912,12 @@
           }
 
           const blob = await createPostBlob(photo, exportWidth, exportHeight);
-          
+
           let filename;
           const fileIndex = String(i + 1).padStart(2, '0');
-          
+
           filename = `instagram-${currentFormat}-${fileIndex}`;
-          
+
           if (photo.isSplitLeft) {
               filename += `-left.jpg`;
           } else if (photo.isSplitRight) {
@@ -1071,9 +925,10 @@
           } else {
               filename += `.jpg`;
           }
-          
+
           zip.file(filename, blob);
           totalFileCount++;
+          // small delay to keep UI responsive on some browsers
           await new Promise(r => setTimeout(r, 100));
         }
 
@@ -1096,7 +951,7 @@
         btn.textContent = 'Eksporter Innlegg (ZIP)';
       }
     }
-    
+
     document.addEventListener('DOMContentLoaded', initApp);
   </script>
 </body>
