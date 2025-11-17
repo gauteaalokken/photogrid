@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Instagram Maler</title>
   <style>
+    /* ... (CSS-koden er uendret, men jeg legger merke til at aspektforholdet for .preview-post er satt til 4/5 i den originale CSS-en. Jeg vil overstyre dette i JS og legge til en justering i CSS) ... */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fafafa; }
     .app-container { min-height: 100vh; display: flex; }
@@ -51,13 +52,18 @@
     .preview-header p { font-size: 14px; color: #8e8e8e; }
     .preview-feed { background: white; border: 1px solid #dbdbdb; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); max-width: 935px; margin: 0 auto; }
     .preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 100%; }
-    .preview-post { aspect-ratio: 4/5; background: #fff; position: relative; overflow: hidden; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .preview-post { background: #fff; position: relative; overflow: hidden; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .preview-post img { object-fit: cover; display: block; }
     .preview-post.new-post { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #dbdbdb; }
     .preview-post.new-post::after { content: 'NYT'; position: absolute; top: 8px; right: 8px; background: #0095f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; z-index: 1; }
     .preview-carousel-indicator { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; }
     .loading { text-align: center; padding: 40px; color: #8e8e8e; }
     .error { text-align: center; padding: 20px; color: #ed4956; }
+    /* Tilpasser feed-innlegg som ikke er kvadratiske */
+    .preview-feed .non-square-post {
+        grid-column: span 3; /* Tar opp hele bredden i gridet */
+        margin-bottom: 4px; /* Samme gap som mellom rutenettet */
+    }
     @media (max-width: 900px) {
       .app-container { flex-direction: column; }
       .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #dbdbdb; }
@@ -184,7 +190,7 @@
       portrait: { width: 4, height: 5 },
       landscape: { width: 16, height: 9 },
       wide: { width: 3, height: 2 },
-      story: { width: 9, height: 16 } // NYTT FORMAT: 1080x1920 (9:16)
+      story: { width: 9, height: 16 }
     };
 
     let photos = [];
@@ -258,9 +264,7 @@
     function setFormat(format) {
       currentFormat = format;
       document.querySelectorAll('.button-group button').forEach(btn => btn.classList.remove('active'));
-      // Sikrer at 'this' er knappen som ble klikket (ved å bruke event.target)
       let clickedButton = event.target;
-      // Hvis klikket var på <br> eller tekst, finn den ytre <button>
       while (clickedButton && clickedButton.tagName !== 'BUTTON') {
           clickedButton = clickedButton.parentNode;
       }
@@ -377,6 +381,7 @@
     }
 
     function loadStandardFeed() {
+      // Lager 8 firkantede dummy-bilder (som standard grid-innlegg)
       instagramFeed = Array.from({length: 8}, (_, i) => {
         const canvas = document.createElement('canvas');
         canvas.width = 400;
@@ -389,7 +394,11 @@
         ctx.fillStyle = `hsl(${hue}, 60%, 65%)`;
         ctx.fillRect(150, 150, 100, 100);
         
-        return { id: i, imageUrl: canvas.toDataURL('image/png') };
+        // Hjelp til å skille dem fra nye bilder i preview
+        const imgUrl = canvas.toDataURL('image/png');
+        
+        // Simulerer at eksisterende feed-innlegg er firkantede
+        return { id: i, imageUrl: imgUrl, format: 'square' }; 
       });
       
       document.getElementById('frameUsername').textContent = 'din_profil';
@@ -419,7 +428,6 @@
       
       let width, height;
       
-      // Story format (9:16) er spesifikt 1080x1920
       if (currentFormat === 'story') {
           width = 1080;
           height = 1920;
@@ -443,16 +451,15 @@
       let displayWidth, displayHeight;
 
       if (currentFormat === 'story') {
-          // Vis Story med fast bredde og høyere høyde
           displayWidth = 320; 
-          displayHeight = Math.round(displayWidth * 16 / 9); // 569px
-      } else if (format.width > format.height) {
+          displayHeight = Math.round(displayWidth * 16 / 9);
+      } else if (format.width > format.height) { // Landskap/Bred
         displayWidth = 450;
         displayHeight = Math.round(displayWidth * format.height / format.width);
-      } else if (format.width < format.height) {
+      } else if (format.width < format.height) { // Portrett
         displayHeight = 600;
         displayWidth = Math.round(displayHeight * format.width / format.height);
-      } else {
+      } else { // Kvadrat
         displayWidth = 450;
         displayHeight = 450;
       }
@@ -615,7 +622,6 @@
              // For vanlige landskapsbilder, bruk 'contain' for å unngå beskjæring (gjelder ikke story)
             img.style.objectFit = 'contain';
         }
-        // Story (9:16) bruker cover for å fylle skjermen, med mindre ramme er satt.
         
         imageDiv.appendChild(img);
         imagesContainer.appendChild(imageDiv);
@@ -634,27 +640,55 @@
 
       previewGrid.innerHTML = '';
 
-      // Juster grid-kolonner for Story-formatet
-      if (currentFormat === 'story') {
-        previewGrid.style.gridTemplateColumns = '1fr';
-        document.getElementById('previewSection').style.maxWidth = '300px'; // Smalere forhåndsvisning
-        document.querySelector('.preview-feed').style.padding = '0';
-      } else {
-        previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
-        document.getElementById('previewSection').style.maxWidth = '935px';
-        document.querySelector('.preview-feed').style.padding = '20px';
-      }
-      
-      // Oppdater aspektforhold for rutenettet (Bruker 4:5 som fallback for grid-visning)
-      document.querySelectorAll('.preview-post').forEach(post => {
-        post.style.aspectRatio = currentFormat === 'story' ? '9 / 16' : '4 / 5';
-      });
+      // --- Oppdaterer layout for feed-visning basert på format ---
 
+      // 1. Juster hele forhåndsvisningsseksjonen (kun for Story-format)
+      if (currentFormat === 'story') {
+        previewGrid.style.gridTemplateColumns = '1fr'; // Kun én kolonne
+        document.getElementById('previewSection').style.maxWidth = '300px';
+        document.querySelector('.preview-feed').style.padding = '0';
+        document.querySelector('.preview-feed').style.background = '#fafafa'; // Fjern hvit bakgrunn for å simulere feed-visning
+        
+      } else if (currentFormat === 'square') {
+          // Standard Instagram grid
+          previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+          document.getElementById('previewSection').style.maxWidth = '935px';
+          document.querySelector('.preview-feed').style.padding = '20px';
+          document.querySelector('.preview-feed').style.background = 'white';
+          
+      } else {
+          // For Landskap, Bred og Portrett, simuler full-bredde visning i feeden
+          previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)'; // Må ha 3 kolonner for å bruke span 3
+          document.getElementById('previewSection').style.maxWidth = '935px';
+          document.querySelector('.preview-feed').style.padding = '20px';
+          document.querySelector('.preview-feed').style.background = 'white';
+      }
+
+      // 2. Vis alle nye bilder først
       photos.forEach((photo) => {
+        const format = FORMATS[currentFormat];
+        const formatAspect = format.width / format.height;
+        
         const newPost = document.createElement('div');
         newPost.className = 'preview-post new-post';
-        newPost.style.aspectRatio = currentFormat === 'story' ? '9 / 16' : '4 / 5'; // Sett aspektforhold
         
+        // --- Bestem aspektforhold og grid-layout ---
+        if (currentFormat === 'story') {
+            newPost.style.aspectRatio = '9 / 16';
+            newPost.classList.add('non-square-post'); // Tar full bredde
+            newPost.style.aspectRatio = '9 / 16';
+            newPost.style.border = '1px solid #dbdbdb'; // Legg til synlig ramme
+            
+        } else if (currentFormat === 'square') {
+            newPost.style.aspectRatio = '1 / 1';
+            newPost.style.gridColumn = 'span 1'; // Tar opp 1/3 av bredden
+
+        } else if (currentFormat === 'portrait' || currentFormat === 'landscape' || currentFormat === 'wide') {
+            newPost.classList.add('non-square-post'); // Tar full bredde
+            newPost.style.aspectRatio = `${format.width} / ${format.height}`;
+        }
+        
+        // --- Legg til bilde-innhold ---
         const wrapper = document.createElement('div');
         
         let paddingLeft = marginPercent;
@@ -689,29 +723,44 @@
         } else if (photo.isSplitRight) {
           img.style.objectPosition = 'right center';
         } else if (photo.isLandscape && currentFormat !== 'story') {
-           // Kun bruk contain for Feed-visning (4:5) av landskap
-          img.style.objectFit = 'contain';
+           // Kun bruk contain for Feed-visning (når bildet er landskap, men formatet er 4:5/1:1)
+          if (currentFormat === 'square' || currentFormat === 'portrait') {
+             img.style.objectFit = 'contain';
+          }
         }
 
         wrapper.appendChild(img);
         newPost.appendChild(wrapper);
         
+        // Hvis det ikke er et Story-innlegg, simuler liker/kommentarer for realisme
+        if (currentFormat !== 'story') {
+            const actions = document.createElement('div');
+            actions.style.cssText = 'position: absolute; bottom: 0; left: 0; width: 100%; height: 30%; background: linear-gradient(to top, rgba(0,0,0,0.5), rgba(0,0,0,0)); display: flex; align-items: flex-end; justify-content: center; padding: 8px; color: white; font-size: 14px; font-weight: 600; gap: 20px;';
+            actions.innerHTML = `
+                <span>❤️ 29</span>
+                <span>💬 0</span>
+            `;
+            newPost.appendChild(actions);
+        }
+        
         previewGrid.appendChild(newPost);
       });
 
-      // Legg til gamle poster etter de nye
-      instagramFeed.forEach(feedPost => {
-        const post = document.createElement('div');
-        post.className = 'preview-post';
-        post.style.aspectRatio = currentFormat === 'story' ? '9 / 16' : '4 / 5'; // Sett aspektforhold
-        const img = document.createElement('img');
-        img.src = feedPost.imageUrl;
-        img.style.width = '100%';
-        img.style.height = '100%';
-        img.style.objectFit = 'cover';
-        post.appendChild(img);
-        previewGrid.appendChild(post);
-      });
+      // 3. Legg til gamle poster
+      if (currentFormat !== 'story') {
+          instagramFeed.forEach(feedPost => {
+            const post = document.createElement('div');
+            post.className = 'preview-post';
+            post.style.aspectRatio = '1 / 1'; // Eksisterende feed-poster er alltid kvadratiske i grid-visning
+            const img = document.createElement('img');
+            img.src = feedPost.imageUrl;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            post.appendChild(img);
+            previewGrid.appendChild(post);
+          });
+      }
     }
 
     function loadImage(src) {
@@ -728,30 +777,26 @@
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
-      const baseDims = getPostDimensions(); // Henter eksportmål for formatet (f.eks. 1080x1920)
+      const baseDims = getPostDimensions(); 
       
       const img = await loadImage(photo.src);
       
-      // Fyll med hvit bakgrunn
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, width, height);
       
       const targetAspect = baseDims.width / baseDims.height;
       const photoAspect = photo.aspectRatio;
       
-      // 1. Beskjær/Tilpass bildet til baseDimensjonene
       let cropX, cropY, cropW, cropH;
       let drawW, drawH, drawX, drawY;
       
-      // Standard: cover (beskjæring)
+      // Standard: cover (beskjæring) for å fylle rammen
       if (photoAspect > targetAspect) {
-          // Bilde er bredere enn mål (beskjær venstre/høyre)
           cropH = photo.height;
           cropW = cropH * targetAspect;
           cropX = (photo.width - cropW) / 2;
           cropY = 0;
       } else {
-          // Bilde er smalere/høyere enn mål (beskjær topp/bunn)
           cropW = photo.width;
           cropH = cropW / targetAspect;
           cropX = 0;
@@ -776,22 +821,18 @@
               drawX = (baseDims.width - drawW) / 2;
               drawY = 0;
           }
-          // I contain-modus bruker vi hele kildebildet
           cropX = 0;
           cropY = 0;
           cropW = photo.width;
           cropH = photo.height;
       } else if (photo.isSplitLeft) {
-          // Split venstre: Beskjær kun venstre halvdel
           cropX = 0;
           cropW = photo.width / 2;
       } else if (photo.isSplitRight) {
-          // Split høyre: Beskjær kun høyre halvdel
           cropX = photo.width / 2;
           cropW = photo.width / 2;
       }
 
-      // Tegn det beskårne/tilpassede bildet til en midlertidig canvas
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = baseDims.width;
       tempCanvas.height = baseDims.height;
@@ -804,28 +845,20 @@
       // 2. Legg til ramme (hvis aktiv)
       const marginMm = parseFloat(document.getElementById('frameMargin').value);
       if (marginMm > 0) {
-        const marginPx = (marginMm / 25.4) * 1080; // Beregn margin i piksler basert på base 1080px
+        const marginPx = (marginMm / 25.4) * 1080;
         
-        // Canvas-størrelsen har allerede tatt høyde for margin i kallende funksjon
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, width, height);
         
-        // Beregn startpunkt for å tegne det beskårne bildet på den større ramme-canvasen
         let drawStartX = marginPx;
         let drawStartY = marginPx;
         
-        if (photo.isSplitLeft) {
-            // Venstre del: Start ved margin (X), men 0 margin til høyre
-        } else if (photo.isSplitRight) {
-            // Høyre del: Start ved 0 (X), men ha margin på høyre side
+        if (photo.isSplitRight) {
             drawStartX = 0;
-        } else {
-            // Normalt bilde: Margin på begge sider
         }
 
         ctx.drawImage(tempCanvas, drawStartX, drawStartY, baseDims.width, baseDims.height);
       } else {
-          // Hvis ingen ramme, tegn bare det beskårne bildet til sluttcanvasen
           ctx.drawImage(tempCanvas, 0, 0);
       }
 
@@ -850,14 +883,11 @@
           let exportHeight = baseDims.height;
           const marginMm = parseFloat(document.getElementById('frameMargin').value);
           
-          // Beregn total eksportstørrelse inkludert ramme
           if (marginMm > 0) {
               const marginPx = (marginMm / 25.4) * 1080; 
               if (photo.isSplitLeft || photo.isSplitRight) {
-                  // Split: Ramme på 3 sider (1x margin i bredden + 2x margin i høyden)
                   exportWidth = baseDims.width + marginPx; 
               } else {
-                  // Normal: Ramme på 4 sider
                   exportWidth = baseDims.width + 2 * marginPx;
               }
               exportHeight = baseDims.height + 2 * marginPx;
