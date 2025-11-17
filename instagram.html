@@ -768,11 +768,17 @@ function renderPreview() {
     const format = FORMATS[currentFormat];
     const targetAspectRatio = format.width / format.height;
 
-    // 2. Get the margin in mm/px (for visual simulation)
+    // 2. Get the margin in mm (for proportional visual simulation)
     const marginMm = parseFloat(document.getElementById('frameMargin').value);
-    // Use a small, fixed pixel value for visual margin effect in the small grid
-    // 4px border looks good on a small preview cell (~100-150px wide)
-    const simulatedMarginPx = marginMm > 0 ? 4 : 0; 
+    
+    // Define a maximum visual pixel size for the border in the small preview
+    const MAX_VISUAL_PX = 8;
+    // Define the maximum possible input in mm (based on your input field max="50")
+    const MAX_INPUT_MM = 50; 
+    
+    // Linearly map the input marginMm (0 to 50) to the visual pixel range (0 to 8)
+    const simulatedMarginPx = Math.round((marginMm / MAX_INPUT_MM) * MAX_VISUAL_PX); 
+    
 
     for (let i = 0; i < totalSlots; i++) {
         const cell = document.createElement('div');
@@ -799,7 +805,7 @@ function renderPreview() {
             // Simulate the border/margin by reducing the size of the wrapper 
             // and setting the background of the cell to white.
             if (marginMm > 0) {
-                // Calculate size reduction based on the simulated margin
+                // Use the calculated proportional pixel size
                 const reduction = simulatedMarginPx * 2; 
                 imageWrapper.style.width = `calc(100% - ${reduction}px)`;
                 imageWrapper.style.height = `calc(100% - ${reduction}px)`;
@@ -825,13 +831,8 @@ function renderPreview() {
             cell.classList.add('new-post');
 
         } else if (i === 1 && photos.length > 1 && (photos[0].isSplitLeft || photos[0].isSplitRight)) {
-            // **New Logic for Split Post Preview (Slot 2)**
-            // If the first post is a split panorama, display the second half in the 
-            // second slot to visually represent the continuous image.
+            // Logic for Split Post Preview (Slot 2)
             
-            // This is **NOT** how Instagram's profile grid works (it shows only 1/9 posts),
-            // but it allows you to see the effect you want: a continuous image.
-
             const photo = photos[1]; // The right half
 
             const imageWrapper = document.createElement('div');
@@ -846,12 +847,13 @@ function renderPreview() {
             imageWrapper.style.maxHeight = '100%';
             
             if (marginMm > 0) {
+                // Use the calculated proportional pixel size
                 const reduction = simulatedMarginPx * 2; 
                 imageWrapper.style.width = `calc(100% - ${reduction}px)`;
                 imageWrapper.style.height = `calc(100% - ${reduction}px)`;
                 cell.style.backgroundColor = '#ffffff';
                 
-                // For the right half, we remove the margin on the left side
+                // For the right half, we translate left to cover the border between cells
                 imageWrapper.style.transform = `translateX(-${simulatedMarginPx}px)`;
             } else {
                 imageWrapper.style.width = '100%';
@@ -869,11 +871,9 @@ function renderPreview() {
             imageWrapper.appendChild(img);
             cell.appendChild(imageWrapper);
 
-            cell.classList.add('new-post'); // Mark it as part of the new post
+            cell.classList.add('new-post'); 
 
-            // We must now ensure the grid columns are adjusted for this dual display
-            // Temporarily update the grid to span 2 columns for the first post.
-            // Note: This changes the grid layout for slots 0 and 1.
+            // Adjust grid columns to span 2 for the split post
             previewGrid.style.gridTemplateColumns = 'repeat(2, 1fr) 1fr';
             if (i === 0) {
                 cell.style.gridColumn = 'span 1';
