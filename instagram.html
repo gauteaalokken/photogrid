@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Instagram Maler</title>
   <style>
-    /* ... (CSS-koden er uendret, men jeg legger merke til at aspektforholdet for .preview-post er satt til 4/5 i den originale CSS-en. Jeg vil overstyre dette i JS og legge til en justering i CSS) ... */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fafafa; }
     .app-container { min-height: 100vh; display: flex; }
@@ -46,23 +45,77 @@
     .carousel-indicators { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5); color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; z-index: 10; }
     .post-actions { padding: 12px 16px; display: flex; gap: 16px; border-top: 1px solid #efefef; }
     .post-action { width: 24px; height: 24px; cursor: pointer; }
-    .preview-section { width: 100%; max-width: 1200px; }
-    .preview-header { text-align: center; margin-bottom: 24px; }
-    .preview-header h2 { font-size: 20px; font-weight: 600; color: #262626; margin-bottom: 8px; }
-    .preview-header p { font-size: 14px; color: #8e8e8e; }
-    .preview-feed { background: white; border: 1px solid #dbdbdb; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); max-width: 935px; margin: 0 auto; }
-    .preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 100%; }
-    .preview-post { background: #fff; position: relative; overflow: hidden; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .preview-section { 
+        width: 100%; 
+        max-width: 935px; /* Opprinnelig maksbredde */
+    }
+    .preview-header { 
+        text-align: center; 
+        margin-bottom: 24px; 
+        display: none; /* Skjuler gammel overskrift */
+    }
+    .preview-feed { 
+        background: #fafafa; /* Ligner på Instagram bakgrunn */
+        border: none; /* Fjerner den grå boksen */
+        border-radius: 0; 
+        padding: 0; 
+        box-shadow: none; 
+        max-width: 935px; 
+        margin: 0 auto; 
+    }
+    .preview-grid-nav {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        border-top: 1px solid #dbdbdb;
+        background: white;
+    }
+    .preview-grid-nav-item {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        padding: 12px 0;
+        cursor: pointer;
+        color: #8e8e8e;
+        border-bottom: 2px solid transparent;
+        transition: color 0.1s;
+    }
+    .preview-grid-nav-item.active {
+        color: #262626;
+        border-bottom: 2px solid #262626;
+    }
+    .preview-grid-nav-item svg {
+        width: 24px;
+        height: 24px;
+        stroke: currentColor;
+    }
+    .preview-grid { 
+        display: grid; 
+        grid-template-columns: repeat(3, 1fr); 
+        gap: 4px; 
+        width: 100%; 
+        padding: 4px 0; /* Litt padding for å simulere mellomrom over/under */
+    }
+    .preview-post { 
+        /* Fjerner den hardkodede aspect-ratioen fra CSS her, den settes i JS */
+        background: #fff; 
+        position: relative; 
+        overflow: hidden; 
+        cursor: pointer; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+    }
     .preview-post img { object-fit: cover; display: block; }
     .preview-post.new-post { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #dbdbdb; }
     .preview-post.new-post::after { content: 'NYT'; position: absolute; top: 8px; right: 8px; background: #0095f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; z-index: 1; }
     .preview-carousel-indicator { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; }
     .loading { text-align: center; padding: 40px; color: #8e8e8e; }
     .error { text-align: center; padding: 20px; color: #ed4956; }
-    /* Tilpasser feed-innlegg som ikke er kvadratiske */
+    /* Full-bredde poster */
     .preview-feed .non-square-post {
-        grid-column: span 3; /* Tar opp hele bredden i gridet */
-        margin-bottom: 4px; /* Samme gap som mellom rutenettet */
+        grid-column: span 3;
+        margin-bottom: 4px;
     }
     @media (max-width: 900px) {
       .app-container { flex-direction: column; }
@@ -173,11 +226,31 @@
       </div>
 
       <div id="previewSection" class="preview-section">
-        <div class="preview-header">
-          <h2>Forhåndsvisning på profil</h2>
-          <p id="previewUsername">@din_profil</p>
-        </div>
         <div class="preview-feed">
+          
+          <div class="preview-grid-nav">
+              <div class="preview-grid-nav-item active">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="12" y1="3" x2="12" y2="21"></line>
+                      <line x1="3" y1="12" x2="21" y2="12"></line>
+                  </svg>
+              </div>
+              <div class="preview-grid-nav-item">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                  </svg>
+              </div>
+              <div class="preview-grid-nav-item">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="17 8 12 3 7 8"></polyline>
+                      <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+              </div>
+          </div>
+          
           <div id="previewGrid" class="preview-grid"></div>
         </div>
       </div>
@@ -381,7 +454,6 @@
     }
 
     function loadStandardFeed() {
-      // Lager 8 firkantede dummy-bilder (som standard grid-innlegg)
       instagramFeed = Array.from({length: 8}, (_, i) => {
         const canvas = document.createElement('canvas');
         canvas.width = 400;
@@ -394,15 +466,12 @@
         ctx.fillStyle = `hsl(${hue}, 60%, 65%)`;
         ctx.fillRect(150, 150, 100, 100);
         
-        // Hjelp til å skille dem fra nye bilder i preview
         const imgUrl = canvas.toDataURL('image/png');
         
-        // Simulerer at eksisterende feed-innlegg er firkantede
         return { id: i, imageUrl: imgUrl, format: 'square' }; 
       });
       
       document.getElementById('frameUsername').textContent = 'din_profil';
-      document.getElementById('previewUsername').textContent = '@din_profil';
       document.getElementById('previewSection').style.display = 'block';
     }
 
@@ -453,13 +522,13 @@
       if (currentFormat === 'story') {
           displayWidth = 320; 
           displayHeight = Math.round(displayWidth * 16 / 9);
-      } else if (format.width > format.height) { // Landskap/Bred
+      } else if (format.width > format.height) {
         displayWidth = 450;
         displayHeight = Math.round(displayWidth * format.height / format.width);
-      } else if (format.width < format.height) { // Portrett
+      } else if (format.width < format.height) {
         displayHeight = 600;
         displayWidth = Math.round(displayHeight * format.width / format.height);
-      } else { // Kvadrat
+      } else {
         displayWidth = 450;
         displayHeight = 450;
       }
@@ -619,7 +688,6 @@
         } else if (photo.isSplitRight) {
             img.style.objectPosition = 'right center';
         } else if (photo.isLandscape && currentFormat !== 'story') {
-             // For vanlige landskapsbilder, bruk 'contain' for å unngå beskjæring (gjelder ikke story)
             img.style.objectFit = 'contain';
         }
         
@@ -642,32 +710,24 @@
 
       // --- Oppdaterer layout for feed-visning basert på format ---
 
-      // 1. Juster hele forhåndsvisningsseksjonen (kun for Story-format)
       if (currentFormat === 'story') {
-        previewGrid.style.gridTemplateColumns = '1fr'; // Kun én kolonne
+        // En kolonne, bred forhåndsvisning
+        previewGrid.style.gridTemplateColumns = '1fr'; 
         document.getElementById('previewSection').style.maxWidth = '300px';
         document.querySelector('.preview-feed').style.padding = '0';
-        document.querySelector('.preview-feed').style.background = '#fafafa'; // Fjern hvit bakgrunn for å simulere feed-visning
+        document.querySelector('.preview-feed').style.background = '#fafafa';
         
-      } else if (currentFormat === 'square') {
-          // Standard Instagram grid
-          previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
-          document.getElementById('previewSection').style.maxWidth = '935px';
-          document.querySelector('.preview-feed').style.padding = '20px';
-          document.querySelector('.preview-feed').style.background = 'white';
-          
       } else {
-          // For Landskap, Bred og Portrett, simuler full-bredde visning i feeden
-          previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)'; // Må ha 3 kolonner for å bruke span 3
-          document.getElementById('previewSection').style.maxWidth = '935px';
-          document.querySelector('.preview-feed').style.padding = '20px';
-          document.querySelector('.preview-feed').style.background = 'white';
+        // Standard grid eller full-bredde feed-visning
+        previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+        document.getElementById('previewSection').style.maxWidth = '935px';
+        document.querySelector('.preview-feed').style.padding = '0 0 4px 0'; // Justert for å matche grid-gap
+        document.querySelector('.preview-feed').style.background = 'white';
       }
 
       // 2. Vis alle nye bilder først
       photos.forEach((photo) => {
         const format = FORMATS[currentFormat];
-        const formatAspect = format.width / format.height;
         
         const newPost = document.createElement('div');
         newPost.className = 'preview-post new-post';
@@ -675,16 +735,15 @@
         // --- Bestem aspektforhold og grid-layout ---
         if (currentFormat === 'story') {
             newPost.style.aspectRatio = '9 / 16';
-            newPost.classList.add('non-square-post'); // Tar full bredde
-            newPost.style.aspectRatio = '9 / 16';
-            newPost.style.border = '1px solid #dbdbdb'; // Legg til synlig ramme
+            newPost.classList.add('non-square-post'); 
+            newPost.style.border = '1px solid #dbdbdb';
             
         } else if (currentFormat === 'square') {
             newPost.style.aspectRatio = '1 / 1';
-            newPost.style.gridColumn = 'span 1'; // Tar opp 1/3 av bredden
+            newPost.style.gridColumn = 'span 1';
 
         } else if (currentFormat === 'portrait' || currentFormat === 'landscape' || currentFormat === 'wide') {
-            newPost.classList.add('non-square-post'); // Tar full bredde
+            newPost.classList.add('non-square-post'); 
             newPost.style.aspectRatio = `${format.width} / ${format.height}`;
         }
         
@@ -723,7 +782,6 @@
         } else if (photo.isSplitRight) {
           img.style.objectPosition = 'right center';
         } else if (photo.isLandscape && currentFormat !== 'story') {
-           // Kun bruk contain for Feed-visning (når bildet er landskap, men formatet er 4:5/1:1)
           if (currentFormat === 'square' || currentFormat === 'portrait') {
              img.style.objectFit = 'contain';
           }
@@ -732,8 +790,8 @@
         wrapper.appendChild(img);
         newPost.appendChild(wrapper);
         
-        // Hvis det ikke er et Story-innlegg, simuler liker/kommentarer for realisme
-        if (currentFormat !== 'story') {
+        // Simuler liker/kommentarer for realisme på full-bredde poster
+        if (currentFormat !== 'story' && (currentFormat === 'portrait' || currentFormat === 'landscape' || currentFormat === 'wide')) {
             const actions = document.createElement('div');
             actions.style.cssText = 'position: absolute; bottom: 0; left: 0; width: 100%; height: 30%; background: linear-gradient(to top, rgba(0,0,0,0.5), rgba(0,0,0,0)); display: flex; align-items: flex-end; justify-content: center; padding: 8px; color: white; font-size: 14px; font-weight: 600; gap: 20px;';
             actions.innerHTML = `
@@ -746,12 +804,12 @@
         previewGrid.appendChild(newPost);
       });
 
-      // 3. Legg til gamle poster
-      if (currentFormat !== 'story') {
+      // 3. Legg til gamle poster (kun i grid-visning)
+      if (currentFormat === 'square') { // Legg bare til gamle poster hvis det aktive formatet er Square
           instagramFeed.forEach(feedPost => {
             const post = document.createElement('div');
             post.className = 'preview-post';
-            post.style.aspectRatio = '1 / 1'; // Eksisterende feed-poster er alltid kvadratiske i grid-visning
+            post.style.aspectRatio = '1 / 1'; 
             const img = document.createElement('img');
             img.src = feedPost.imageUrl;
             img.style.width = '100%';
@@ -760,6 +818,11 @@
             post.appendChild(img);
             previewGrid.appendChild(post);
           });
+      }
+      
+      // Oppdaterer feed visning for å vise de nye innleggene
+      if (currentFormat !== 'story' && currentFormat !== 'square') {
+           document.querySelector('.preview-feed').style.padding = '0';
       }
     }
 
@@ -790,7 +853,7 @@
       let cropX, cropY, cropW, cropH;
       let drawW, drawH, drawX, drawY;
       
-      // Standard: cover (beskjæring) for å fylle rammen
+      // Standard: cover (beskjæring)
       if (photoAspect > targetAspect) {
           cropH = photo.height;
           cropW = cropH * targetAspect;
