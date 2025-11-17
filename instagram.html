@@ -756,144 +756,57 @@
       imagesContainer.style.transform = `translateX(0px)`;
     }
 
-  // --- Start of updated renderPreview() function ---
+  function renderPreview() {
+  const previewGrid = document.getElementById('previewGrid');
+  previewGrid.innerHTML = '';
 
-function renderPreview() {
-    const previewGrid = document.getElementById('previewGrid');
-    previewGrid.innerHTML = '';
+  const totalSlots = 9; // always 3×3
 
-    const totalSlots = 9; // always 3×3
+  // Convert margin (mm → px → percentage)
+  const marginMm = parseFloat(document.getElementById('frameMargin').value);
+  const marginPx1080 = (marginMm / 25.4) * 1080;  // same calc as export
 
-    // 1. Get the current format dimensions (for the aspect ratio)
-    const format = FORMATS[currentFormat];
-    const targetAspectRatio = format.width / format.height;
+  // Base format dimensions used for scaling
+  const base = getPostDimensions(); // width/height of format WITHOUT margin
 
-    // 2. Get the margin in mm (for proportional visual simulation)
-    const marginMm = parseFloat(document.getElementById('frameMargin').value);
-    
-    // Define a maximum visual pixel size for the border in the small preview
-    const MAX_VISUAL_PX = 8;
-    // Define the maximum possible input in mm (based on your input field max="50")
-    const MAX_INPUT_MM = 50; 
-    
-    // Linearly map the input marginMm (0 to 50) to the visual pixel range (0 to 8)
-    const simulatedMarginPx = Math.round((marginMm / MAX_INPUT_MM) * MAX_VISUAL_PX); 
-    
+  // Convert pixel margin to % so it scales inside the small grid
+  const marginPercent = (marginPx1080 / base.width) * 100;
 
-    for (let i = 0; i < totalSlots; i++) {
-        const cell = document.createElement('div');
-        cell.className = 'preview-post';
-        cell.style.aspectRatio = '4 / 5'; // Fixed Instagram grid ratio
+  for (let i = 0; i < totalSlots; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'preview-post';
+    cell.style.aspectRatio = '4 / 5';
 
-        if (i === 0 && photos.length > 0) {
-            const photo = photos[0];
-            
-            // Inner wrapper for the image, constrained by the post's aspect ratio
-            const imageWrapper = document.createElement('div');
-            imageWrapper.style.position = 'relative';
-            imageWrapper.style.overflow = 'hidden';
-            imageWrapper.style.margin = 'auto'; // Center content inside the 4:5 cell
-            imageWrapper.style.display = 'flex'; // For centering content
-            imageWrapper.style.justifyContent = 'center';
-            imageWrapper.style.alignItems = 'center';
-            
-            // Set the aspect ratio of the imageWrapper based on the selected format
-            imageWrapper.style.aspectRatio = `${format.width} / ${format.height}`;
-            imageWrapper.style.maxWidth = '100%';
-            imageWrapper.style.maxHeight = '100%';
+    if (i === 0 && photos.length > 0) {
+      // Wrapper that simulates the margin
+      const wrapper = document.createElement('div');
+      wrapper.style.width = '100%';
+      wrapper.style.height = '100%';
+      wrapper.style.boxSizing = 'border-box';
+      wrapper.style.padding = `${marginPercent}%`;
 
-            // Simulate the border/margin by reducing the size of the wrapper 
-            // and setting the background of the cell to white.
-            if (marginMm > 0) {
-                // Use the calculated proportional pixel size
-                const reduction = simulatedMarginPx * 2; 
-                imageWrapper.style.width = `calc(100% - ${reduction}px)`;
-                imageWrapper.style.height = `calc(100% - ${reduction}px)`;
-                cell.style.backgroundColor = '#ffffff'; // The simulated margin color
-            } else {
-                imageWrapper.style.width = '100%';
-                imageWrapper.style.height = '100%';
-                cell.style.backgroundColor = '#fff';
-            }
+      // Image
+      const img = document.createElement('img');
+      img.src = photos[0].src;
+      img.alt = photos[0].name || 'første bilde';
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.objectFit = 'cover';
+      
+      wrapper.appendChild(img);
+      cell.appendChild(wrapper);
 
-            // The actual image element
-            const img = document.createElement('img');
-            img.src = photo.src;
-            img.alt = photo.name || 'første bilde';
-            img.style.width = '100%';
-            img.style.height = '100%';
-            img.style.objectFit = 'cover'; 
-            
-            imageWrapper.appendChild(img);
-            cell.appendChild(imageWrapper);
+      // “NYT” badge
+      cell.classList.add('new-post');
 
-            // “NYT” badge
-            cell.classList.add('new-post');
-
-        } else if (i === 1 && photos.length > 1 && (photos[0].isSplitLeft || photos[0].isSplitRight)) {
-            // Logic for Split Post Preview (Slot 2)
-            
-            const photo = photos[1]; // The right half
-
-            const imageWrapper = document.createElement('div');
-            imageWrapper.style.position = 'relative';
-            imageWrapper.style.overflow = 'hidden';
-            imageWrapper.style.margin = 'auto';
-            imageWrapper.style.display = 'flex';
-            imageWrapper.style.justifyContent = 'center';
-            imageWrapper.style.alignItems = 'center';
-            imageWrapper.style.aspectRatio = `${format.width} / ${format.height}`;
-            imageWrapper.style.maxWidth = '100%';
-            imageWrapper.style.maxHeight = '100%';
-            
-            if (marginMm > 0) {
-                // Use the calculated proportional pixel size
-                const reduction = simulatedMarginPx * 2; 
-                imageWrapper.style.width = `calc(100% - ${reduction}px)`;
-                imageWrapper.style.height = `calc(100% - ${reduction}px)`;
-                cell.style.backgroundColor = '#ffffff';
-                
-                // For the right half, we translate left to cover the border between cells
-                imageWrapper.style.transform = `translateX(-${simulatedMarginPx}px)`;
-            } else {
-                imageWrapper.style.width = '100%';
-                imageWrapper.style.height = '100%';
-                cell.style.backgroundColor = '#fff';
-            }
-
-            const img = document.createElement('img');
-            img.src = photo.src;
-            img.alt = photo.name || 'andre bilde';
-            img.style.width = '100%';
-            img.style.height = '100%';
-            img.style.objectFit = 'cover'; 
-            
-            imageWrapper.appendChild(img);
-            cell.appendChild(imageWrapper);
-
-            cell.classList.add('new-post'); 
-
-            // Adjust grid columns to span 2 for the split post
-            previewGrid.style.gridTemplateColumns = 'repeat(2, 1fr) 1fr';
-            if (i === 0) {
-                cell.style.gridColumn = 'span 1';
-            }
-
-        } else {
-            // grey placeholders
-            cell.classList.add('placeholder');
-            cell.style.boxShadow = 'none';
-        }
-
-        previewGrid.appendChild(cell);
+    } else {
+      // grey placeholders
+      cell.classList.add('placeholder');
     }
-    
-    // Reset the grid template if the first post is not a split panorama
-    if (photos.length === 0 || !(photos[0].isSplitLeft || photos[0].isSplitRight)) {
-        previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
-    }
+
+    previewGrid.appendChild(cell);
+  }
 }
-// --- End of updated renderPreview() function ---
 
     function loadImage(src) {
       return new Promise((resolve, reject) => {
