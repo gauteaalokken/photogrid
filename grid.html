@@ -292,25 +292,19 @@
         : { width: size.width, height: size.height };
     }
 
-    // --- NEW ALGORITHM: Balanced Height Partitioning ---
-    // This logic finds the optimal number of rows and distributes photos
-    // so that *every* row is close to the ideal height, then stretches evenly.
+    // --- UPDATED ALGORITHM: Strictly enforce < 5% Crop ---
     function calculateAdaptiveGrid(photos, width, height, gap) {
       if (photos.length === 0) return { cells: [] };
       
-      let bestLayout = null;
-      let bestDeviation = Infinity;
+      let candidates = [];
       
       // Estimate reasonable range of rows
       const minRows = Math.max(1, Math.floor(photos.length / 8));
-      const maxRows = Math.min(photos.length, 12);
+      const maxRows = Math.min(photos.length, 16);
       
-      // Try to fit photos into exactly 'k' rows
+      // Try every possible row count
       for (let k = minRows; k <= maxRows; k++) {
-        // The exact height each row *must* be to fit perfectly (minus gaps)
         const targetRowHeight = (height - (k - 1) * gap) / k;
-        
-        // If target height is ridiculously small, skip
         if (targetRowHeight < 20) continue;
 
         const rows = [];
@@ -321,38 +315,29 @@
         // Partition photos into k rows
         for (let r = 0; r < k; r++) {
            if (photoIndex >= photos.length) {
-             validConfiguration = false; // Ran out of photos before filling rows
+             validConfiguration = false; 
              break;
            }
 
            const rowPhotos = [];
            let rowAspectSum = 0;
            
-           // Add photos to this row until adding another makes it TOO short compared to target
-           // (or until we run out of photos)
+           // Greedily fill row to approach target height
            while (photoIndex < photos.length) {
              const photo = photos[photoIndex];
              const nextAspectSum = rowAspectSum + photo.aspectRatio;
              
-             // Calculate what the height WOULD be if we stopped here
              const currentGapWidth = Math.max(0, (rowPhotos.length - 1) * gap);
-             const currentHeight = (width - currentGapWidth) / rowAspectSum; // Height with CURRENT photos (before adding new one)
+             const currentHeight = (width - currentGapWidth) / rowAspectSum; 
              
-             // Calculate what height WOULD be if we add this new photo
              const nextGapWidth = (rowPhotos.length) * gap;
              const nextHeight = (width - nextGapWidth) / nextAspectSum;
 
-             // Logic: We want the row height to be close to 'targetRowHeight'.
-             // As we add photos, the row height shrinks.
-             // We switch to a new row when the deviation starts increasing.
-             
              if (rowPhotos.length > 0) {
                 const diffCurrent = Math.abs(currentHeight - targetRowHeight);
                 const diffNext = Math.abs(nextHeight - targetRowHeight);
                 
-                // If adding this photo makes us drift FURTHER from the target height,
-                // stop here and start a new row.
-                // Exception: if this is the LAST row, we MUST take all remaining photos.
+                // Minimize deviation from target height
                 if (r < k - 1 && diffNext > diffCurrent) {
                     break; 
                 }
@@ -368,7 +353,6 @@
              break;
            }
            
-           // Calculate actual height of this formed row (before stretching)
            const gapWidth = (rowPhotos.length - 1) * gap;
            const rawRowHeight = (width - gapWidth) / rowAspectSum;
            
@@ -376,19 +360,51 @@
            currentTotalDeviation += Math.abs(rawRowHeight - targetRowHeight);
         }
 
-        // If we successfully partitioned into k rows AND used all photos
         if (validConfiguration && photoIndex === photos.length) {
-            // We found a valid layout with k rows.
-            // Is it better than our previous best?
-            // We prefer lower deviation (rows naturally closer to target)
-            if (currentTotalDeviation < bestDeviation) {
-                bestDeviation = currentTotalDeviation;
-                bestLayout = { rows: rows };
-            }
+            // Determine how much we need to stretch/crop to fill page
+            const totalGap = (rows.length - 1) * gap;
+            const contentHeight = rows.reduce((sum, r) => sum + r.height, 0);
+            const totalHeight = contentHeight + totalGap;
+            
+            // stretchRatio: > 1 means stretch (crop width), < 1 means squash (crop height)
+            const stretchRatio = height / totalHeight;
+            
+            // Crop factor: 0 is perfect. 0.05 is 5%.
+            const cropFactor = Math.abs(1 - stretchRatio);
+            
+            candidates.push({ 
+                rows, 
+                crop: cropFactor, 
+                deviation: currentTotalDeviation 
+            });
         }
       }
       
-      // Fallback: if balanced partition fails (rare), use single row
+      // SORT CANDIDATES
+      // Priority 1: Is crop < 5%?
+      // Priority 2: If yes, which is more uniform (lower deviation)?
+      // Priority 3: If no, which has least crop?
+      candidates.sort((a, b) => {
+          const aValid = a.crop <= 0.05;
+          const bValid = b.crop <= 0.05;
+          
+          if (aValid && !bValid) return -1;
+          if (!aValid && bValid) return 1;
+          
+          // If both valid, prefer uniformity, but only if crop is somewhat similar
+          // If crop difference is negligible, prioritize visual uniformity
+          if (aValid && bValid) {
+              return a.deviation - b.deviation;
+          }
+          
+          // If both invalid (rare), minimize the disaster
+          return a.crop - b.crop;
+      });
+
+      // Select best
+      let bestLayout = candidates.length > 0 ? candidates[0] : null;
+      
+      // Fallback
       if (!bestLayout) {
         const rowAspectSum = photos.reduce((sum, p) => sum + p.aspectRatio, 0);
         const rowHeight = width / rowAspectSum;
@@ -397,44 +413,31 @@
         };
       }
       
-      // --- UNIFORM STRETCH ---
-      // Now we have rows that are relatively balanced.
-      // We force them to fit the page height exactly.
+      // --- APPLY FINAL STRETCH ---
       const totalGapHeight = (bestLayout.rows.length - 1) * gap;
       const targetContentHeight = height - totalGapHeight;
-      
-      // Calculate the raw total height of our layout
       const currentTotalHeight = bestLayout.rows.reduce((sum, row) => sum + row.height, 0);
-      
-      // Scale factor: stretch (or squash) everything equally to hit target
       const verticalScale = currentTotalHeight > 0 ? targetContentHeight / currentTotalHeight : 1;
       
       const cells = [];
       let yPos = 0;
       
       bestLayout.rows.forEach((row) => {
-        // Apply scale to row height
         const finalRowHeight = row.height * verticalScale;
         const gapWidth = (row.photos.length - 1) * gap;
         const availableWidth = width - gapWidth;
         
         let xPos = 0;
         row.photos.forEach(({ photo }) => {
-          // Calculate width based on Aspect Ratio (width fills row normally)
-          // Note: We do NOT scale width here, because the render step crops.
-          // The cell just defines the box.
           const properWidth = (photo.aspectRatio / row.aspectSum) * availableWidth;
-
           cells.push({
             x: xPos,
             y: yPos,
             width: properWidth,
             height: finalRowHeight
           });
-          
           xPos += properWidth + gap;
         });
-        
         yPos += finalRowHeight + gap;
       });
       
@@ -549,7 +552,7 @@
           const img = document.createElement('img');
           img.src = photo.src;
           img.alt = photo.name;
-          // Force Object-Fit Cover to handle the forced stretching of cells
+          // Force Object-Fit Cover
           img.style.objectFit = 'cover'; 
 
           const btn = document.createElement('button');
