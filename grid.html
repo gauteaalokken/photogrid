@@ -42,10 +42,11 @@
     .dropzone-title { margin-top: 16px; font-size: 18px; font-weight: 500; }
     .dropzone-subtitle { font-size: 14px; }
     .grid-container { position: absolute; }
-    .photo-cell { position: absolute; overflow: hidden; background-color: #f3f4f6; }
-    .photo-cell img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-cell { position: absolute; overflow: hidden; background-color: #f3f4f6; cursor: grab; transition: opacity 0.2s; } 
+    .photo-cell.dragging { opacity: 0.5; cursor: grabbing; z-index: 100; } 
+    .photo-cell img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; } 
     .photo-cell:hover .remove-btn { opacity: 1; }
-    .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background-color: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; transition: all 0.15s; }
+    .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background-color: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; transition: all 0.15s; z-index: 10; }
     .remove-btn:hover { background-color: #dc2626; }
     /* Responsive / Mobile styles */
     @media (max-width: 900px) {
@@ -61,7 +62,6 @@
       .btn-primary, .btn-export { padding: 10px; }
     }
   </style>
-  <!-- include JSZip from CDN for zipping downloads -->
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
@@ -113,6 +113,29 @@
           <div class="button-group">
             <button id="portraitBtn" class="active" onclick="setOrientation('portrait')">Portrett</button>
             <button id="landscapeBtn" onclick="setOrientation('landscape')">Landskap</button>
+          </div>
+        </div>
+        
+        <div class="control-group">
+          <label>Bildejustering</label>
+          <div class="button-group">
+            <button id="cropBtn" class="active" onclick="setFitMode('cover')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <path d="M7 7h.01"></path>
+                    <path d="M10 10l-6 6"></path>
+                    <path d="M20 4v7"></path>
+                    <path d="M4 20h7"></path>
+                </svg>
+                Fyll (Beskjær)</button>
+            <button id="containBtn" onclick="setFitMode('contain')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <path d="M8.5 8.5v.01"></path>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                </svg>
+                Tilpass (Hvitrom)</button>
           </div>
         </div>
 
@@ -167,8 +190,7 @@
 
     <div class="main-canvas">
       <div id="canvasWrapper" class="canvas-wrapper">
-        <!-- Pages will be added here dynamically -->
-      </div>
+        </div>
     </div>
   </div>
 
@@ -184,6 +206,12 @@
 
     let photos = [];
     let orientation = 'portrait';
+    let fitMode = 'cover'; // 'cover' (crop) or 'contain' (whitespace)
+    
+    // --- Drag & Drop State Variables ---
+    let draggedElement = null;
+    let dragStartIndex = -1;
+    let currentPagePhotos = []; 
 
     function updatePhotosPerPage() {
       const value = parseInt(document.getElementById('photosPerPage').value);
@@ -215,7 +243,10 @@
     canvasWrapper.addEventListener('dragover', (e) => e.preventDefault());
     canvasWrapper.addEventListener('drop', (e) => {
       e.preventDefault();
-      handleFiles(Array.from(e.dataTransfer.files));
+      // Handle file drop for upload if no reordering is active
+      if (!draggedElement) {
+         handleFiles(Array.from(e.dataTransfer.files));
+      }
     });
 
     function handleFileUpload(e) {
@@ -250,6 +281,7 @@
       });
 
       Promise.all(loadPromises).then(newPhotos => {
+        newPhotos = newPhotos.map((p, i) => ({ ...p, initialIndex: photos.length + i }));
         newPhotos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
         photos.push(...newPhotos);
         updateUI();
@@ -260,6 +292,13 @@
       orientation = ori;
       document.getElementById('portraitBtn').className = ori === 'portrait' ? 'active' : '';
       document.getElementById('landscapeBtn').className = ori === 'landscape' ? 'active' : '';
+      renderGrid();
+    }
+    
+    function setFitMode(mode) {
+      fitMode = mode;
+      document.getElementById('cropBtn').className = mode === 'cover' ? 'active' : '';
+      document.getElementById('containBtn').className = mode === 'contain' ? 'active' : '';
       renderGrid();
     }
 
@@ -273,6 +312,7 @@
       document.getElementById('exportBtn').disabled = photos.length === 0;
       document.getElementById('downloadAllBtn').style.display = photos.length > 0 ? 'block' : 'none';
       document.getElementById('clearBtn').style.display = photos.length > 0 ? 'block' : 'none';
+      updatePageCount();
       renderGrid();
     }
 
@@ -287,79 +327,79 @@
     function calculateAdaptiveGrid(photos, width, height, gap) {
       if (photos.length === 0) return { cells: [] };
       
-      // Try different row configurations to find the best fit
       let bestLayout = null;
       let bestWaste = Infinity;
       
-      // Estimate reasonable number of rows to try
-      const minRows = Math.max(1, Math.floor(photos.length / 6));
-      const maxRows = Math.min(photos.length, Math.ceil(photos.length / 1));
+      const minRows = Math.max(1, Math.floor(photos.length / 8));
+      const maxRows = Math.min(photos.length, 12);
       
       for (let targetRows = minRows; targetRows <= maxRows; targetRows++) {
         const rows = [];
         let photoIndex = 0;
-        const estimatedRowHeight = (height - (targetRows - 1) * gap) / targetRows;
         
-        // Distribute photos across rows
         while (photoIndex < photos.length && rows.length < targetRows) {
           const rowPhotos = [];
           let rowAspectSum = 0;
           const photosRemaining = photos.length - photoIndex;
           const rowsRemaining = targetRows - rows.length;
-          const minPhotosForRow = Math.floor(photosRemaining / rowsRemaining);
-          const maxPhotosForRow = Math.ceil(photosRemaining / rowsRemaining) + 2;
           
-          // Add photos to this row
-          while (photoIndex < photos.length && rowPhotos.length < maxPhotosForRow) {
-            const photo = photos[photoIndex];
-            const projectedWidth = (rowAspectSum + photo.aspectRatio) * estimatedRowHeight;
-            
-            if (projectedWidth <= width + gap || rowPhotos.length < minPhotosForRow) {
-              rowPhotos.push({ photo, index: photoIndex });
-              rowAspectSum += photo.aspectRatio;
-              photoIndex++;
-            } else {
-              break;
-            }
+          let maxPhotosForRow = photosRemaining;
+          if (rowsRemaining > 0) {
+             maxPhotosForRow = Math.ceil(photosRemaining / rowsRemaining) + 2;
           }
           
+          let tempAspectSum = 0;
+          let tempPhotos = [];
+          
+          for(let i = 0; i < maxPhotosForRow && (photoIndex + i) < photos.length; i++) {
+              tempAspectSum += photos[photoIndex + i].aspectRatio;
+              tempPhotos.push({ photo: photos[photoIndex + i], index: photoIndex + i });
+          }
+          
+          const gapWidth = (tempPhotos.length - 1) * gap;
+          const availableWidth = width - gapWidth;
+          let rowHeight = availableWidth / tempAspectSum;
+          
+          rowPhotos.push(...tempPhotos);
+          rowAspectSum = tempAspectSum;
+          photoIndex += tempPhotos.length;
+          
           if (rowPhotos.length > 0) {
-            const gapWidth = (rowPhotos.length - 1) * gap;
-            const availableWidth = width - gapWidth;
-            const rowHeight = availableWidth / rowAspectSum;
             rows.push({ photos: rowPhotos, height: rowHeight, aspectSum: rowAspectSum });
           }
         }
         
-        // Calculate how well this fits
         const totalGapHeight = (rows.length - 1) * gap;
         const totalContentHeight = rows.reduce((sum, row) => sum + row.height, 0);
-        const totalHeight = totalContentHeight + totalGapHeight;
+        let totalHeight = totalContentHeight + totalGapHeight;
+        
+        if (totalHeight > height * 1.001) {
+             totalHeight = height * 2;
+        }
+        
         const waste = Math.abs(height - totalHeight);
         
-        if (waste < bestWaste && photoIndex === photos.length) {
+        if (waste < bestWaste && photoIndex === photos.length && totalHeight <= height * 1.001) {
           bestWaste = waste;
           bestLayout = { rows, totalHeight };
         }
       }
       
       if (!bestLayout) {
-        // Fallback: single row
         const rowAspectSum = photos.reduce((sum, p) => sum + p.aspectRatio, 0);
         const rowHeight = width / rowAspectSum;
         bestLayout = {
-          rows: [{ photos: photos.map((photo, index) => ({ photo, index })), height: rowHeight, aspectSum: rowAspectSum }],
+          rows: [{ photos: photos.map((photo, index) => ({ photo, index: index })), height: rowHeight, aspectSum: rowAspectSum }],
           totalHeight: rowHeight
         };
       }
       
-      // Build final cells - scale slightly to fill height if close enough
       const cells = [];
       let yPos = 0;
       const totalGapHeight = (bestLayout.rows.length - 1) * gap;
-      const heightDiff = height - bestLayout.totalHeight;
-      const shouldScale = Math.abs(heightDiff) < height * 0.05; // Only scale if within 5%
-      const scale = shouldScale ? height / (bestLayout.totalHeight + totalGapHeight) : 1;
+      const totalLayoutHeight = bestLayout.rows.reduce((sum, row) => sum + row.height, 0) + totalGapHeight;
+      
+      const scale = Math.min(1, height / totalLayoutHeight);
       
       bestLayout.rows.forEach((row) => {
         const scaledRowHeight = row.height * scale;
@@ -368,10 +408,8 @@
         
         let xPos = 0;
         row.photos.forEach(({ photo }) => {
-          // Calculate width to maintain aspect ratio with the scaled height
-          const cellWidth = scaledRowHeight * photo.aspectRatio;
-          const properWidth = (photo.aspectRatio / row.aspectSum) * availableWidth;
-          
+          const properWidth = (photo.aspectRatio / row.aspectSum) * availableWidth * scale;
+
           cells.push({
             x: xPos,
             y: yPos,
@@ -390,10 +428,35 @@
 
     function renderGrid() {
       const paper = getPaperDimensions();
-      const aspectRatio = paper.width / paper.height;
+      const paperAspectRatio = paper.width / paper.height;
+      
       const isMobile = window.innerWidth <= 900;
-      const displayWidth = isMobile ? Math.min(window.innerWidth - 32, 900) : Math.min(800, window.innerWidth - 400);
-      const displayHeight = displayWidth / aspectRatio;
+      // Estimate available height for canvas (viewport height minus header/footer/padding)
+      const viewportHeight = window.innerHeight - (isMobile ? 250 : 100); 
+
+      let displayWidth, displayHeight;
+      
+      if (paperAspectRatio < 1) { // Portrait (tall) page
+          // Prioritize fitting the height for tall pages like Instagram Story
+          displayHeight = Math.min(viewportHeight, 800); 
+          displayWidth = displayHeight * paperAspectRatio;
+          
+          // Re-check width against the sidebar
+          if (displayWidth > (window.innerWidth - (isMobile ? 32 : 400))) {
+              displayWidth = window.innerWidth - (isMobile ? 32 : 400);
+              displayHeight = displayWidth / paperAspectRatio;
+          }
+      } else { // Landscape or Square page
+          // Scale based on width (default behavior)
+          displayWidth = isMobile ? Math.min(window.innerWidth - 32, 900) : Math.min(800, window.innerWidth - 400);
+          displayHeight = displayWidth / paperAspectRatio;
+      }
+      
+      // Ensure displayHeight doesn't exceed a reasonable maximum
+      if (displayHeight > 900) { 
+           displayHeight = 900;
+           displayWidth = displayHeight * paperAspectRatio;
+      }
 
       const margin = parseInt(document.getElementById('margin').value) || 10;
       const gap = parseInt(document.getElementById('gap').value) || 5;
@@ -431,18 +494,28 @@
 
       // Split photos into pages
       const totalPages = Math.ceil(photos.length / photosPerPage);
-      document.getElementById('pageCount').textContent = totalPages;
 
       for (let pageNum = 0; pageNum < totalPages; pageNum++) {
         const startIndex = pageNum * photosPerPage;
         const endIndex = Math.min(startIndex + photosPerPage, photos.length);
         const pagePhotos = photos.slice(startIndex, endIndex);
+        
+        // Only set currentPagePhotos for the first page for D&D
+        if (pageNum === 0) {
+            currentPagePhotos = pagePhotos;
+        }
 
         const canvasEl = document.createElement('div');
         canvasEl.className = 'canvas';
         canvasEl.style.width = displayWidth + 'px';
         canvasEl.style.height = displayHeight + 'px';
         canvasEl.style.backgroundColor = document.getElementById('bgColorText').value;
+        
+        if (pageNum === 0) {
+             canvasEl.setAttribute('data-page', pageNum);
+             canvasEl.addEventListener('dragover', handleDragOver);
+             canvasEl.addEventListener('drop', handleDrop);
+        }
 
         const gridEl = document.createElement('div');
         gridEl.className = 'grid-container';
@@ -457,14 +530,19 @@
           
           const div = document.createElement('div');
           div.className = 'photo-cell';
+          div.setAttribute('draggable', pageNum === 0 ? 'true' : 'false');
+          div.setAttribute('data-photo-id', photo.id);
+          div.setAttribute('data-page-index', i);
+
           div.style.left = cell.x + 'px';
           div.style.top = cell.y + 'px';
           div.style.width = cell.width + 'px';
           div.style.height = cell.height + 'px';
-
+          
           const img = document.createElement('img');
           img.src = photo.src;
           img.alt = photo.name;
+          img.style.objectFit = fitMode;
 
           const btn = document.createElement('button');
           btn.className = 'remove-btn';
@@ -477,6 +555,13 @@
           div.appendChild(img);
           div.appendChild(btn);
           gridEl.appendChild(div);
+          
+          if (pageNum === 0) {
+            div.addEventListener('dragstart', handleDragStart);
+            div.addEventListener('dragenter', handleDragEnter);
+            div.addEventListener('dragleave', handleDragLeave);
+            div.addEventListener('dragend', handleDragEnd);
+          }
         });
 
         const pageLabel = document.createElement('div');
@@ -488,7 +573,82 @@
         canvasWrapper.appendChild(canvasEl);
       }
     }
+    
+    // --- Drag & Drop Logic ---
+    function handleDragStart(e) {
+      draggedElement = this;
+      dragStartIndex = parseInt(this.getAttribute('data-page-index'));
+      
+      const photoId = parseFloat(this.getAttribute('data-photo-id'));
+      const globalIndex = photos.findIndex(p => p.id === photoId);
+      e.dataTransfer.setData('text/plain', globalIndex.toString());
+      e.dataTransfer.effectAllowed = 'move';
+      
+      setTimeout(() => {
+        this.classList.add('dragging');
+      }, 0);
+    }
+    
+    function handleDragEnter(e) {
+      e.preventDefault();
+      if (this !== draggedElement && this.draggable === true) {
+        this.classList.add('drag-over');
+      }
+    }
+    
+    function handleDragLeave(e) {
+      this.classList.remove('drag-over');
+    }
+    
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+    
+    function handleDragEnd(e) {
+      if (draggedElement) {
+        draggedElement.classList.remove('dragging');
+        draggedElement = null;
+      }
+      document.querySelectorAll('.photo-cell').forEach(cell => cell.classList.remove('drag-over'));
+    }
+    
+    function handleDrop(e) {
+      e.preventDefault();
+      
+      const globalStartIndex = parseInt(e.dataTransfer.getData('text/plain'));
+      if (isNaN(globalStartIndex) || globalStartIndex < 0) return;
+      
+      let targetElement = e.target.closest('.photo-cell');
+      let dropIndexOnPage;
+      
+      if (targetElement) {
+        dropIndexOnPage = parseInt(targetElement.getAttribute('data-page-index'));
+      } else {
+        // Dropped onto the canvas background, append to the end of the current page
+        dropIndexOnPage = currentPagePhotos.length - 1; 
+      }
+      
+      const photosPerPage = parseInt(document.getElementById('photosPerPage').value);
+      const currentPageNum = 0; 
+      let globalDropIndex = (currentPageNum * photosPerPage) + dropIndexOnPage;
+      
+      if (targetElement && dropIndexOnPage > dragStartIndex) {
+         // If dropping onto an element *after* the start index, we need to insert *after* the target's position in the global array.
+         globalDropIndex += 1;
+      }
 
+
+      if (globalStartIndex !== globalDropIndex) {
+          const photoToMove = photos.splice(globalStartIndex, 1)[0];
+          photos.splice(globalDropIndex, 0, photoToMove);
+      }
+      
+      handleDragEnd();
+      renderGrid();
+    }
+    // --- End Drag & Drop Logic ---
+    
     function loadImage(src) {
       return new Promise((resolve, reject) => {
         const img = new Image();
@@ -498,7 +658,7 @@
       });
     }
 
-    function createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, bgColor) {
+    function createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, bgColor, fitMode) {
       return new Promise(async (resolve, reject) => {
         try {
           const canvas = document.createElement('canvas');
@@ -512,7 +672,12 @@
           const availableWidth = exportWidth - 2 * marginPx;
           const availableHeight = exportHeight - 2 * marginPx;
 
-          const grid = calculateAdaptiveGrid(pagePhotos, availableWidth, availableHeight, gapPx);
+          const paper = getPaperDimensions();
+          const dpi = parseInt(document.getElementById('dpi').value);
+          const mmToPixels = dpi / 25.4;
+          const exportGap = gap * mmToPixels;
+          
+          const grid = calculateAdaptiveGrid(pagePhotos, availableWidth, availableHeight, exportGap);
 
           for (let i = 0; i < pagePhotos.length && i < grid.cells.length; i++) {
             const photo = pagePhotos[i];
@@ -524,17 +689,31 @@
             const photoAspect = photo.aspectRatio;
 
             let drawWidth, drawHeight, offsetX, offsetY;
-
-            if (photoAspect > cellAspect) {
-              drawHeight = cell.height;
-              drawWidth = drawHeight * photoAspect;
-              offsetX = (cell.width - drawWidth) / 2;
-              offsetY = 0;
-            } else {
-              drawWidth = cell.width;
-              drawHeight = drawWidth / photoAspect;
-              offsetX = 0;
-              offsetY = (cell.height - drawHeight) / 2;
+            
+            if (fitMode === 'cover') {
+                if (photoAspect > cellAspect) {
+                  drawHeight = cell.height;
+                  drawWidth = drawHeight * photoAspect;
+                  offsetX = (cell.width - drawWidth) / 2;
+                  offsetY = 0;
+                } else {
+                  drawWidth = cell.width;
+                  drawHeight = drawWidth / photoAspect;
+                  offsetX = 0;
+                  offsetY = (cell.height - drawHeight) / 2;
+                }
+            } else { // 'contain'
+                if (photoAspect > cellAspect) {
+                    drawWidth = cell.width;
+                    drawHeight = drawWidth / photoAspect;
+                    offsetX = 0;
+                    offsetY = (cell.height - drawHeight) / 2;
+                } else {
+                    drawHeight = cell.height;
+                    drawWidth = drawHeight * photoAspect;
+                    offsetX = (cell.width - drawWidth) / 2;
+                    offsetY = 0;
+                }
             }
 
             const x = Math.round(marginPx + cell.x + offsetX);
@@ -570,6 +749,7 @@
       const gap = parseInt(document.getElementById('gap').value);
       const marginPx = Math.round(margin * mmToPixels);
       const gapPx = Math.round(gap * mmToPixels);
+      const currentFitMode = fitMode;
 
       const photosPerPage = parseInt(document.getElementById('photosPerPage').value);
       const pages = [];
@@ -584,7 +764,7 @@
       try {
         for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
           const pagePhotos = pages[pageIndex];
-          const blob = await createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, document.getElementById('bgColorText').value);
+          const blob = await createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, document.getElementById('bgColorText').value, currentFitMode);
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           const fileName = pages.length > 1 
@@ -597,7 +777,6 @@
           a.remove();
           URL.revokeObjectURL(url);
 
-          // Small pause to allow browser to process large downloads
           await new Promise(r => setTimeout(r, 200));
         }
       } catch (err) {
@@ -621,6 +800,7 @@
       const gap = parseInt(document.getElementById('gap').value);
       const marginPx = Math.round(margin * mmToPixels);
       const gapPx = Math.round(gap * mmToPixels);
+      const currentFitMode = fitMode;
 
       const photosPerPage = parseInt(document.getElementById('photosPerPage').value);
       const pages = [];
@@ -634,7 +814,7 @@
       try {
         for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
           const pagePhotos = pages[pageIndex];
-          const blob = await createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, document.getElementById('bgColorText').value);
+          const blob = await createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, document.getElementById('bgColorText').value, currentFitMode);
           const fileName = pages.length > 1
             ? `photo-grid-${paperSize}-${orientation}-page${pageIndex + 1}-${dpi}dpi.jpg`
             : `photo-grid-${paperSize}-${orientation}-${dpi}dpi.jpg`;
@@ -658,7 +838,11 @@
       }
     }
 
-    renderGrid();
+    // Initial call
+    document.addEventListener('DOMContentLoaded', () => {
+        setFitMode('cover'); 
+        renderGrid();
+    });
   </script>
 </body>
 </html>
