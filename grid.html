@@ -10,7 +10,7 @@
     .app-container { min-height: 100vh; background-color: #f9fafb; display: flex; }
     
     /* Sidebar Styles */
-    .sidebar { width: 320px; background-color: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; z-index: 30; }
+    .sidebar { width: 320px; background-color: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; z-index: 30; flex-shrink: 0; }
     .sidebar-header { padding: 24px; border-bottom: 1px solid #e5e7eb; }
     .sidebar-header h1 { font-size: 24px; font-weight: 600; color: #111827; margin-bottom: 4px; }
     .sidebar-header p { font-size: 14px; color: #6b7280; }
@@ -44,8 +44,8 @@
     .color-input-group input[type="color"] { width: 48px; height: 40px; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; }
     .color-input-group input[type="text"] { flex: 1; font-family: 'Courier New', monospace; }
     
-    /* Main Canvas Area */
-    .main-canvas { flex: 1; padding: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; height: 100vh; position: relative; background-color: #f3f4f6; }
+    /* Main Canvas Area - UPDATED PADDING */
+    .main-canvas { flex: 1; padding: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; height: 100vh; position: relative; background-color: #f3f4f6; }
     .canvas-wrapper { display: flex; align-items: center; justify-content: center; flex: 1; width: 100%; min-height: 0; }
     
     .canvas { 
@@ -60,7 +60,7 @@
     
     /* Page Navigation Controls */
     .page-nav-controls {
-      margin-top: 16px;
+      margin-top: 24px;
       display: flex;
       align-items: center;
       gap: 16px;
@@ -350,11 +350,6 @@
         : { width: size.width, height: size.height };
     }
 
-    // --- OPTIMIZED GRID ALGORITHM ---
-    // 1. Find best row count.
-    // 2. Distribute photos.
-    // 3. Scale to fill height (max 10% distortion).
-    // 4. IF OVERFLOW: Scale whole grid down to fit (prevent cut-off).
     function calculateOptimalGrid(pagePhotos, width, height, gap) {
       if (pagePhotos.length === 0) return { cells: [], totalHeight: 0 };
 
@@ -421,44 +416,27 @@
       let currentTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
 
       // --- OVERFLOW PROTECTION ---
-      // If the clamp prevented us from shrinking enough (e.g. we needed 0.8 scale but stopped at 0.9),
-      // the grid is now taller than the page. We must shrink everything proportionally to fit.
       let fitScale = 1;
       if (currentTotalHeight > height) {
          fitScale = height / currentTotalHeight;
-         // Recalculate height to match page exactly
          currentTotalHeight = height; 
       }
 
-      // Construct cells
       const cells = [];
-      // Center vertically if not full (fitScale will be 1 here)
       let yPos = (currentTotalHeight < height) ? (height - currentTotalHeight) / 2 : 0;
-
-      // If we shrink to fit vertically, the width also shrinks. Calculate horizontal offset.
       const finalTotalWidth = width * fitScale;
       const xOffset = (width - finalTotalWidth) / 2;
 
       rows.forEach(row => {
-        // Apply both scales: the 10% adjustment AND the safety fit scale
         const finalRowHeight = row.height * finalScale * fitScale;
         const rowGapTotal = (row.photos.length - 1) * gap * fitScale;
-        
-        // The width of the row content (excluding gaps)
         const availableRowWidth = finalTotalWidth - rowGapTotal;
         
         let xPos = xOffset;
-        
         row.photos.forEach(photo => {
-          // Calculate cell width maintaining the calculated aspect ratio
           const cellWidth = (photo.aspectRatio / row.aspectSum) * availableRowWidth;
-          
           cells.push({
-            x: xPos,
-            y: yPos,
-            width: cellWidth,
-            height: finalRowHeight,
-            photo: photo
+            x: xPos, y: yPos, width: cellWidth, height: finalRowHeight, photo: photo
           });
           xPos += cellWidth + (gap * fitScale);
         });
@@ -472,8 +450,28 @@
       const paper = getPaperDimensions();
       const aspectRatio = paper.width / paper.height;
       const isMobile = window.innerWidth <= 900;
-      const displayWidth = isMobile ? Math.min(window.innerWidth - 32, 900) : Math.min(800, window.innerWidth - 400);
-      const displayHeight = displayWidth / aspectRatio;
+      
+      // INCREASED PADDING LOGIC
+      const padding = 80; // More breathing room
+      const sidebarWidth = isMobile ? 0 : 320;
+      const navHeight = 80; 
+      
+      // Calculate exact max width/height available for the "paper"
+      const maxWidth = window.innerWidth - sidebarWidth - (padding * 2);
+      const maxHeight = window.innerHeight - (padding * 2) - navHeight;
+
+      // Determine size that fits both constraints
+      let displayWidth = maxWidth;
+      let displayHeight = displayWidth / aspectRatio;
+
+      if (displayHeight > maxHeight) {
+        displayHeight = maxHeight;
+        displayWidth = displayHeight * aspectRatio;
+      }
+      
+      // Prevent negative/zero values if window is tiny
+      displayWidth = Math.max(100, displayWidth);
+      displayHeight = Math.max(100, displayHeight);
 
       const margin = parseInt(document.getElementById('margin').value) || 10;
       const gap = parseInt(document.getElementById('gap').value) || 5;
@@ -488,7 +486,7 @@
       canvasWrapper.innerHTML = '';
 
       if (photos.length === 0) {
-        navControls.style.display = 'none';
+        document.getElementById('pageNav').style.display = 'none';
         const emptyCanvas = document.createElement('div');
         emptyCanvas.className = 'canvas';
         emptyCanvas.style.width = displayWidth + 'px';
@@ -595,7 +593,6 @@
           for (let i = 0; i < grid.cells.length; i++) {
             const cell = grid.cells[i];
             const photo = cell.photo;
-
             const img = await loadImage(photo.src);
 
             const cellAspect = cell.width / cell.height;
@@ -647,9 +644,7 @@
       const gapPx = Math.round(gap * mmToPixels);
       const photosPerPage = parseInt(document.getElementById('photosPerPage').value);
       const pages = [];
-      for (let i = 0; i < photos.length; i += photosPerPage) {
-        pages.push(photos.slice(i, i + photosPerPage));
-      }
+      for (let i = 0; i < photos.length; i += photosPerPage) pages.push(photos.slice(i, i + photosPerPage));
       const paperSize = document.getElementById('paperSize').value;
       const btn = document.getElementById('exportBtn');
       btn.disabled = true;
