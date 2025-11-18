@@ -351,28 +351,23 @@
     }
 
     // --- OPTIMIZED GRID ALGORITHM ---
-    // 1. Find the number of rows that creates a total height CLOSEST to the page height.
-    // 2. Distribute photos evenly.
-    // 3. Scale vertically to fill page, but CAP scaling at 10% distortion.
+    // 1. Find best row count.
+    // 2. Distribute photos.
+    // 3. Scale to fill height (max 10% distortion).
+    // 4. IF OVERFLOW: Scale whole grid down to fit (prevent cut-off).
     function calculateOptimalGrid(pagePhotos, width, height, gap) {
       if (pagePhotos.length === 0) return { cells: [], totalHeight: 0 };
 
-      // Helper to create a layout with specific Row Count
       function createLayout(targetRows) {
         const rows = [];
-        const photosCopy = [...pagePhotos];
-        
-        // Distribute photos as evenly as possible
         const baseCount = Math.floor(pagePhotos.length / targetRows);
         const extras = pagePhotos.length % targetRows;
         
         let photoIdx = 0;
         for (let r = 0; r < targetRows; r++) {
-          // Some rows get 1 extra photo to balance
           const count = baseCount + (r < extras ? 1 : 0);
           const rowPhotos = [];
           let aspectSum = 0;
-          
           for (let i = 0; i < count; i++) {
             if (photoIdx < pagePhotos.length) {
                rowPhotos.push(pagePhotos[photoIdx]);
@@ -380,62 +375,41 @@
                photoIdx++;
             }
           }
-          
           if (rowPhotos.length > 0) {
             const gaps = (rowPhotos.length - 1) * gap;
-            // Standard Justified Height
             const rowHeight = (width - gaps) / aspectSum; 
             rows.push({ photos: rowPhotos, height: rowHeight, aspectSum });
           }
         }
-        
         const totalGapHeight = (rows.length - 1) * gap;
         const naturalHeight = rows.reduce((sum, r) => sum + r.height, 0) + totalGapHeight;
-        
         return { rows, naturalHeight, totalGapHeight };
       }
 
-      // Try reasonable row counts to find Best Fit
-      // Heuristic range: from 1 row up to N rows
       let bestLayout = null;
-      let bestScore = Infinity; // Lower is better
+      let bestScore = Infinity;
       
-      // We only check 1 to N. For performance, N is fine since N<=36 usually.
       for (let r = 1; r <= pagePhotos.length; r++) {
         const layout = createLayout(r);
         const contentHeight = layout.naturalHeight - layout.totalGapHeight;
-        
-        // How much must we scale content to fill exactly?
-        // Target: layout.naturalHeight * scale = height
-        // Actually: (contentHeight * scale) + gapHeight = height
         const requiredContentHeight = height - layout.totalGapHeight;
         
-        if (requiredContentHeight <= 0) continue; // Impossible (too many gaps)
+        if (requiredContentHeight <= 0) continue;
         
         const scale = requiredContentHeight / contentHeight;
-        
-        // We want scale to be close to 1.0, ideally between 0.9 and 1.1
-        // Score logic:
-        // If 0.9 <= scale <= 1.1: We can fill page perfectly. Score based on how close to 1.0.
-        // If scale > 1.1 or < 0.9: We can't fill page perfectly (clamped). Score penalty.
-        
         let score;
         if (scale >= 0.9 && scale <= 1.1) {
-           // Perfect fit possible. 
            score = Math.abs(1 - scale); 
         } else {
-           // Penalty = 100 + distance from valid range
            if (scale < 0.9) score = 100 + (0.9 - scale);
            else score = 100 + (scale - 1.1);
         }
-        
         if (score < bestScore) {
           bestScore = score;
           bestLayout = { ...layout, optimalScale: scale };
         }
       }
 
-      // Apply the best layout found
       const rows = bestLayout.rows;
       let finalScale = bestLayout.optimalScale;
       
@@ -443,21 +417,42 @@
       if (finalScale < 0.9) finalScale = 0.9;
       if (finalScale > 1.1) finalScale = 1.1;
 
+      // Calculate Total Height with this clamped scale
+      let currentTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
+
+      // --- OVERFLOW PROTECTION ---
+      // If the clamp prevented us from shrinking enough (e.g. we needed 0.8 scale but stopped at 0.9),
+      // the grid is now taller than the page. We must shrink everything proportionally to fit.
+      let fitScale = 1;
+      if (currentTotalHeight > height) {
+         fitScale = height / currentTotalHeight;
+         // Recalculate height to match page exactly
+         currentTotalHeight = height; 
+      }
+
       // Construct cells
       const cells = [];
-      const finalTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
-      
-      // Center vertically if not full
-      let yPos = (finalTotalHeight < height) ? (height - finalTotalHeight) / 2 : 0;
+      // Center vertically if not full (fitScale will be 1 here)
+      let yPos = (currentTotalHeight < height) ? (height - currentTotalHeight) / 2 : 0;
+
+      // If we shrink to fit vertically, the width also shrinks. Calculate horizontal offset.
+      const finalTotalWidth = width * fitScale;
+      const xOffset = (width - finalTotalWidth) / 2;
 
       rows.forEach(row => {
-        const finalRowHeight = row.height * finalScale;
-        const rowGapTotal = (row.photos.length - 1) * gap;
-        const availableRowWidth = width - rowGapTotal;
-        let xPos = 0;
+        // Apply both scales: the 10% adjustment AND the safety fit scale
+        const finalRowHeight = row.height * finalScale * fitScale;
+        const rowGapTotal = (row.photos.length - 1) * gap * fitScale;
+        
+        // The width of the row content (excluding gaps)
+        const availableRowWidth = finalTotalWidth - rowGapTotal;
+        
+        let xPos = xOffset;
         
         row.photos.forEach(photo => {
+          // Calculate cell width maintaining the calculated aspect ratio
           const cellWidth = (photo.aspectRatio / row.aspectSum) * availableRowWidth;
+          
           cells.push({
             x: xPos,
             y: yPos,
@@ -465,33 +460,20 @@
             height: finalRowHeight,
             photo: photo
           });
-          xPos += cellWidth + gap;
+          xPos += cellWidth + (gap * fitScale);
         });
-        yPos += finalRowHeight + gap;
+        yPos += finalRowHeight + (gap * fitScale);
       });
 
-      return { cells, totalHeight: finalTotalHeight };
+      return { cells, totalHeight: currentTotalHeight };
     }
 
     function renderGrid() {
       const paper = getPaperDimensions();
       const aspectRatio = paper.width / paper.height;
       const isMobile = window.innerWidth <= 900;
-      
-      const sidebarWidth = isMobile ? 0 : 320;
-      const paddingHorizontal = isMobile ? 32 : 64; 
-      const paddingVertical = isMobile ? 48 : 80;   
-      
-      const availableWidth = window.innerWidth - sidebarWidth - paddingHorizontal;
-      const availableHeight = window.innerHeight - paddingVertical;
-      
-      let displayHeight = availableHeight;
-      let displayWidth = displayHeight * aspectRatio;
-      
-      if (displayWidth > availableWidth) {
-        displayWidth = availableWidth;
-        displayHeight = displayWidth / aspectRatio;
-      }
+      const displayWidth = isMobile ? Math.min(window.innerWidth - 32, 900) : Math.min(800, window.innerWidth - 400);
+      const displayHeight = displayWidth / aspectRatio;
 
       const margin = parseInt(document.getElementById('margin').value) || 10;
       const gap = parseInt(document.getElementById('gap').value) || 5;
@@ -499,11 +481,10 @@
       
       const marginPx = (margin / paper.width) * displayWidth;
       const gapPx = (gap / paper.width) * displayWidth;
-      const gridAvailableWidth = displayWidth - (2 * marginPx);
-      const gridAvailableHeight = displayHeight - (2 * marginPx);
+      const availableWidth = displayWidth - (2 * marginPx);
+      const availableHeight = displayHeight - (2 * marginPx);
 
       const canvasWrapper = document.getElementById('canvasWrapper');
-      const navControls = document.getElementById('pageNav');
       canvasWrapper.innerHTML = '';
 
       if (photos.length === 0) {
@@ -532,6 +513,7 @@
       if (currentPageIndex >= totalPages) currentPageIndex = totalPages - 1;
       if (currentPageIndex < 0) currentPageIndex = 0;
 
+      const navControls = document.getElementById('pageNav');
       navControls.style.display = 'flex';
       document.getElementById('pageIndicator').textContent = `Side ${currentPageIndex + 1} av ${totalPages}`;
       document.getElementById('prevBtn').disabled = currentPageIndex === 0;
@@ -549,12 +531,12 @@
 
       const gridEl = document.createElement('div');
       gridEl.className = 'grid-container';
-      gridEl.style.width = gridAvailableWidth + 'px';
-      gridEl.style.height = gridAvailableHeight + 'px';
+      gridEl.style.width = availableWidth + 'px';
+      gridEl.style.height = availableHeight + 'px';
       gridEl.style.left = marginPx + 'px';
       gridEl.style.top = marginPx + 'px';
 
-      const grid = calculateOptimalGrid(pagePhotos, gridAvailableWidth, gridAvailableHeight, gapPx);
+      const grid = calculateOptimalGrid(pagePhotos, availableWidth, availableHeight, gapPx);
 
       grid.cells.forEach((cell) => {
         const div = document.createElement('div');
