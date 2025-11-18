@@ -94,6 +94,8 @@
     .dropzone-subtitle { font-size: 14px; }
     
     .grid-container { position: absolute; transition: top 0.3s ease; }
+    
+    /* Drag Style */
     .photo-cell { 
       position: absolute; 
       overflow: hidden; 
@@ -108,7 +110,6 @@
     .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background-color: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; transition: all 0.15s; z-index: 5; }
     .remove-btn:hover { background-color: #dc2626; }
 
-    /* Responsive */
     @media (max-width: 900px) {
       .app-container { flex-direction: column; }
       .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #e5e7eb; height: auto; max-height: 40vh; }
@@ -143,16 +144,17 @@
         <div class="control-group">
           <label>Bilder per side</label>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="range" id="photosPerPage" min="1" max="36" value="36" oninput="updateParam('photosPerPage', this.value)" style="flex: 1;">
-            <input type="number" id="photosPerPageInput" min="1" max="36" value="36" oninput="updateParam('photosPerPage', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            <input type="range" id="photosPerPage" min="1" max="36" value="36" oninput="handleSliderChange('photosPerPage', this.value)" style="flex: 1;">
+            <input type="number" id="photosPerPageInput" min="1" max="36" value="36" oninput="handleInputChange('photosPerPage', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
           </div>
+          <p class="photo-count"><span id="photosPerPageValue">36</span> bilder per side</p>
         </div>
 
         <div class="control-group">
             <label>Toleranse: +/- <span id="toleranceValue">0</span></label>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="range" id="pageTolerance" min="0" max="5" value="0" oninput="updateParam('tolerance', this.value)">
-              <input type="number" id="pageToleranceInput" min="0" max="5" value="0" oninput="updateParam('tolerance', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+              <input type="range" id="pageTolerance" min="0" max="5" value="0" oninput="handleSliderChange('tolerance', this.value)">
+              <input type="number" id="pageToleranceInput" min="0" max="5" value="0" oninput="handleInputChange('tolerance', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
             </div>
             <p class="photo-count" style="margin-top:4px;">Tillat avvik i antall for bedre layout</p>
         </div>
@@ -180,16 +182,16 @@
         <div class="control-group">
           <label>Marg: <span id="marginValue">2</span>mm</label>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="range" id="margin" min="0" max="50" value="2" oninput="updateParam('margin', this.value)">
-            <input type="number" id="marginInput" min="0" max="50" value="2" oninput="updateParam('margin', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            <input type="range" id="margin" min="0" max="50" value="2" oninput="handleSliderChange('margin', this.value)">
+            <input type="number" id="marginInput" min="0" max="50" value="2" oninput="handleInputChange('margin', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
           </div>
         </div>
 
         <div class="control-group">
           <label>Avstand: <span id="gapValue">2</span>mm</label>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="range" id="gap" min="0" max="20" value="2" oninput="updateParam('gap', this.value)">
-            <input type="number" id="gapInput" min="0" max="20" value="2" oninput="updateParam('gap', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            <input type="range" id="gap" min="0" max="20" value="2" oninput="handleSliderChange('gap', this.value)">
+            <input type="number" id="gapInput" min="0" max="20" value="2" oninput="handleInputChange('gap', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
           </div>
         </div>
 
@@ -227,17 +229,11 @@
     </div>
 
     <div class="main-canvas">
-      <div id="canvasWrapper" class="canvas-wrapper">
-        </div>
-      
+      <div id="canvasWrapper" class="canvas-wrapper"></div>
       <div id="pageNav" class="page-nav-controls" style="display: none;">
-        <button class="nav-btn" id="prevBtn" onclick="changePage(-1)" title="Forrige side (Pil Venstre)">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        </button>
+        <button class="nav-btn" id="prevBtn" onclick="changePage(-1)" title="Forrige side"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
         <span id="pageIndicator" class="nav-info">Side 1 av 1</span>
-        <button class="nav-btn" id="nextBtn" onclick="changePage(1)" title="Neste side (Pil Høyre)">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </button>
+        <button class="nav-btn" id="nextBtn" onclick="changePage(1)" title="Neste side"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
       </div>
     </div>
   </div>
@@ -257,38 +253,54 @@
     let currentPageIndex = 0;
     let computedPages = [];
 
-    // --- UNIFIED PARAMETER UPDATE ---
-    function updateParam(type, value) {
+    // --- ROBUST INPUT HANDLING ---
+    
+    // Called when SLIDER is moved. Updates number input and label, then renders.
+    function handleSliderChange(type, value) {
+      const val = parseInt(value) || 0;
+      
+      if (type === 'photosPerPage') {
+        document.getElementById('photosPerPageInput').value = val;
+        document.getElementById('photosPerPageValue').textContent = val;
+      } else if (type === 'tolerance') {
+        document.getElementById('pageToleranceInput').value = val;
+        document.getElementById('toleranceValue').textContent = val;
+      } else if (type === 'margin') {
+        document.getElementById('marginInput').value = val;
+        document.getElementById('marginValue').textContent = val;
+      } else if (type === 'gap') {
+        document.getElementById('gapInput').value = val;
+        document.getElementById('gapValue').textContent = val;
+      }
+      resetAndRender();
+    }
+
+    // Called when NUMBER INPUT is changed. Updates slider and label, then renders.
+    function handleInputChange(type, value) {
       const val = parseInt(value) || 0;
       
       if (type === 'photosPerPage') {
         document.getElementById('photosPerPage').value = val;
-        document.getElementById('photosPerPageInput').value = val;
         document.getElementById('photosPerPageValue').textContent = val;
       } else if (type === 'tolerance') {
         document.getElementById('pageTolerance').value = val;
-        document.getElementById('pageToleranceInput').value = val;
         document.getElementById('toleranceValue').textContent = val;
       } else if (type === 'margin') {
         document.getElementById('margin').value = val;
-        document.getElementById('marginInput').value = val;
         document.getElementById('marginValue').textContent = val;
       } else if (type === 'gap') {
         document.getElementById('gap').value = val;
-        document.getElementById('gapInput').value = val;
         document.getElementById('gapValue').textContent = val;
       }
-
-      // FORCE RECALCULATION of pages
       resetAndRender();
     }
 
     function resetAndRender() {
-      computedPages = []; // Crucial: clears the cache
+      computedPages = []; 
       renderGrid();
     }
 
-    // --- DRAG AND DROP HANDLERS ---
+    // --- DRAG AND DROP ---
     let draggedPhotoId = null;
 
     function handleDragStart(e, id) {
@@ -296,42 +308,25 @@
       e.target.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
     }
-
-    function handleDragOver(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      return false;
-    }
-
+    function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; return false; }
     function handleDragEnter(e) {
       e.preventDefault();
       const target = e.target.closest('.photo-cell');
-      if (target && target.dataset.id !== String(draggedPhotoId)) {
-        target.classList.add('drag-over');
-      }
+      if (target && target.dataset.id !== String(draggedPhotoId)) target.classList.add('drag-over');
     }
-
     function handleDragLeave(e) {
       const target = e.target.closest('.photo-cell');
-      if (target) {
-        target.classList.remove('drag-over');
-      }
+      if (target) target.classList.remove('drag-over');
     }
-
     function handleDrop(e, targetId) {
-      e.stopPropagation();
-      e.preventDefault();
-      
+      e.stopPropagation(); e.preventDefault();
       document.querySelectorAll('.photo-cell').forEach(el => {
         el.classList.remove('dragging');
         el.classList.remove('drag-over');
       });
-
       if (draggedPhotoId === null || draggedPhotoId === targetId) return;
-
       const fromIndex = photos.findIndex(p => p.id === draggedPhotoId);
       const toIndex = photos.findIndex(p => p.id === targetId);
-
       if (fromIndex > -1 && toIndex > -1) {
         const item = photos.splice(fromIndex, 1)[0];
         photos.splice(toIndex, 0, item);
@@ -340,13 +335,13 @@
       draggedPhotoId = null;
       return false;
     }
-
     function handleDragEnd(e) {
       e.target.classList.remove('dragging');
       document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
       draggedPhotoId = null;
     }
-    // ------------------------------
+
+    // --- CORE APP LOGIC ---
 
     function changePage(delta) {
       const totalPages = computedPages.length || 1;
@@ -371,9 +366,7 @@
       handleFiles(Array.from(e.dataTransfer.files));
     });
 
-    function handleFileUpload(e) {
-      handleFiles(Array.from(e.target.files));
-    }
+    function handleFileUpload(e) { handleFiles(Array.from(e.target.files)); }
 
     function handleFiles(files) {
       const loadPromises = [];
@@ -499,12 +492,10 @@
 
       const rows = bestLayout.rows;
       let finalScale = bestLayout.optimalScale;
-      
       if (finalScale < 0.9) finalScale = 0.9;
       if (finalScale > 1.1) finalScale = 1.1;
 
       let currentTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
-
       let fitScale = 1;
       if (currentTotalHeight > height) {
          fitScale = height / currentTotalHeight;
@@ -553,19 +544,15 @@
 
         for (let c = minCount; c <= maxCount; c++) {
           if (c > remaining) break;
-          
           const chunk = allPhotos.slice(currentIndex, currentIndex + c);
           const result = calculateOptimalGrid(chunk, width, height, gap);
-          
           const targetDeviation = Math.abs(target - c) * 0.05; 
           const totalScore = result.fitScore + targetDeviation;
-          
           if (totalScore < bestChunkScore) {
             bestChunkScore = totalScore;
             bestCount = c;
           }
         }
-        
         pages.push(allPhotos.slice(currentIndex, currentIndex + bestCount));
         currentIndex += bestCount;
       }
@@ -580,18 +567,15 @@
       const padding = 80; 
       const sidebarWidth = isMobile ? 0 : 320;
       const navHeight = 80; 
-      
       const maxWidth = window.innerWidth - sidebarWidth - (padding * 2);
       const maxHeight = window.innerHeight - (padding * 2) - navHeight;
 
       let displayWidth = maxWidth;
       let displayHeight = displayWidth / aspectRatio;
-
       if (displayHeight > maxHeight) {
         displayHeight = maxHeight;
         displayWidth = displayHeight * aspectRatio;
       }
-      
       displayWidth = Math.max(100, displayWidth);
       displayHeight = Math.max(100, displayHeight);
 
@@ -630,7 +614,6 @@
         return;
       }
 
-      // Recalculate pages if invalid
       if (computedPages.length === 0) {
          computedPages = partitionPhotosIntoPages(photos, photosPerPage, tolerance, availableWidth, availableHeight, gapPx);
       }
@@ -639,14 +622,12 @@
       if (currentPageIndex >= totalPages) currentPageIndex = totalPages - 1;
       if (currentPageIndex < 0) currentPageIndex = 0;
 
-      const navControls = document.getElementById('pageNav');
-      navControls.style.display = 'flex';
+      document.getElementById('pageNav').style.display = 'flex';
       document.getElementById('pageIndicator').textContent = `Side ${currentPageIndex + 1} av ${totalPages}`;
       document.getElementById('prevBtn').disabled = currentPageIndex === 0;
       document.getElementById('nextBtn').disabled = currentPageIndex === totalPages - 1;
 
       const pagePhotos = computedPages[currentPageIndex];
-
       const canvasEl = document.createElement('div');
       canvasEl.className = 'canvas';
       canvasEl.style.width = displayWidth + 'px';
@@ -682,7 +663,7 @@
         const img = document.createElement('img');
         img.src = cell.photo.src;
         img.alt = cell.photo.name;
-
+        
         const btn = document.createElement('button');
         btn.className = 'remove-btn';
         btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
@@ -718,39 +699,27 @@
           canvas.width = exportWidth;
           canvas.height = exportHeight;
           const ctx = canvas.getContext('2d');
-
           ctx.fillStyle = bgColor;
           ctx.fillRect(0, 0, exportWidth, exportHeight);
 
           const availableWidth = exportWidth - 2 * marginPx;
           const availableHeight = exportHeight - 2 * marginPx;
-
           const grid = calculateOptimalGrid(pagePhotos, availableWidth, availableHeight, gapPx);
 
           for (let i = 0; i < grid.cells.length; i++) {
             const cell = grid.cells[i];
             const photo = cell.photo;
             const img = await loadImage(photo.src);
-
             const cellAspect = cell.width / cell.height;
             const photoAspect = photo.aspectRatio;
             let drawWidth, drawHeight, offsetX, offsetY;
-
             if (photoAspect > cellAspect) {
-              drawHeight = cell.height;
-              drawWidth = drawHeight * photoAspect;
-              offsetX = (cell.width - drawWidth) / 2;
-              offsetY = 0;
+              drawHeight = cell.height; drawWidth = drawHeight * photoAspect; offsetX = (cell.width - drawWidth) / 2; offsetY = 0;
             } else {
-              drawWidth = cell.width;
-              drawHeight = drawWidth / photoAspect;
-              offsetX = 0;
-              offsetY = (cell.height - drawHeight) / 2;
+              drawWidth = cell.width; drawHeight = drawWidth / photoAspect; offsetX = 0; offsetY = (cell.height - drawHeight) / 2;
             }
-
             const x = Math.round(marginPx + cell.x + offsetX);
             const y = Math.round(marginPx + cell.y + offsetY);
-
             ctx.save();
             ctx.beginPath();
             ctx.rect(Math.round(marginPx + cell.x), Math.round(marginPx + cell.y), Math.round(cell.width), Math.round(cell.height));
@@ -758,13 +727,10 @@
             ctx.drawImage(img, x, y, Math.round(drawWidth), Math.round(drawHeight));
             ctx.restore();
           }
-
           canvas.toBlob((blob) => {
             if (blob) resolve(blob); else reject(new Error('Failed to create blob'));
           }, 'image/jpeg', 0.95);
-        } catch (err) {
-          reject(err);
-        }
+        } catch (err) { reject(err); }
       });
     }
 
@@ -786,7 +752,6 @@
       const layoutAvailableHeight = exportHeight - (2 * marginPx);
       
       const pages = partitionPhotosIntoPages(photos, photosPerPage, tolerance, layoutAvailableWidth, layoutAvailableHeight, gapPx);
-
       const paperSize = document.getElementById('paperSize').value;
       const btn = document.getElementById('exportBtn');
       btn.disabled = true;
@@ -828,12 +793,9 @@
       const gapPx = Math.round(gap * mmToPixels);
       const photosPerPage = parseInt(document.getElementById('photosPerPage').value);
       const tolerance = parseInt(document.getElementById('pageTolerance').value) || 0;
-
       const layoutAvailableWidth = exportWidth - (2 * marginPx);
       const layoutAvailableHeight = exportHeight - (2 * marginPx);
-      
       const pages = partitionPhotosIntoPages(photos, photosPerPage, tolerance, layoutAvailableWidth, layoutAvailableHeight, gapPx);
-
       const zip = new JSZip();
       const paperSize = document.getElementById('paperSize').value;
       const btn = document.getElementById('downloadAllBtn');
