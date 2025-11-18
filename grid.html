@@ -10,7 +10,7 @@
     .app-container { min-height: 100vh; background-color: #f9fafb; display: flex; }
     
     /* Sidebar Styles */
-    .sidebar { width: 320px; background-color: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; z-index: 20; }
+    .sidebar { width: 320px; background-color: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; z-index: 30; }
     .sidebar-header { padding: 24px; border-bottom: 1px solid #e5e7eb; }
     .sidebar-header h1 { font-size: 24px; font-weight: 600; color: #111827; margin-bottom: 4px; }
     .sidebar-header p { font-size: 14px; color: #6b7280; }
@@ -45,8 +45,8 @@
     .color-input-group input[type="text"] { flex: 1; font-family: 'Courier New', monospace; }
     
     /* Main Canvas Area */
-    .main-canvas { flex: 1; padding: 32px; display: flex; align-items: center; justify-content: center; overflow: hidden; height: 100vh; position: relative; background-color: #f3f4f6; }
-    .canvas-wrapper { display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; }
+    .main-canvas { flex: 1; padding: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; height: 100vh; position: relative; background-color: #f3f4f6; }
+    .canvas-wrapper { display: flex; align-items: center; justify-content: center; flex: 1; width: 100%; min-height: 0; }
     
     .canvas { 
       position: relative; 
@@ -58,25 +58,22 @@
       background-color: white;
     }
     
-    /* Page Navigation Controls (New) */
+    /* Page Navigation Controls (Floating) */
     .page-nav-controls {
-      position: absolute;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
+      margin-top: 16px;
       display: flex;
       align-items: center;
       gap: 16px;
       background: white;
-      padding: 8px 12px;
+      padding: 8px 16px;
       border-radius: 50px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
       border: 1px solid #e5e7eb;
-      z-index: 10;
+      z-index: 40;
     }
     .nav-btn {
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       border: 1px solid #e5e7eb;
       background: white;
@@ -87,9 +84,9 @@
       color: #374151;
       transition: all 0.15s;
     }
-    .nav-btn:hover:not(:disabled) { background-color: #f3f4f6; border-color: #d1d5db; }
-    .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .nav-info { font-size: 14px; font-weight: 500; color: #374151; min-width: 80px; text-align: center; }
+    .nav-btn:hover:not(:disabled) { background-color: #eff6ff; border-color: #2563eb; color: #2563eb; }
+    .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; background-color: #f3f4f6; }
+    .nav-info { font-size: 14px; font-weight: 600; color: #374151; min-width: 90px; text-align: center; user-select: none; }
 
     /* Grid & Photos */
     .dropzone { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; border: 2px dashed #d1d5db; border-radius: 8px; }
@@ -97,7 +94,7 @@
     .dropzone-subtitle { font-size: 14px; }
     
     .grid-container { position: absolute; }
-    .photo-cell { position: absolute; overflow: hidden; background-color: #f3f4f6; }
+    .photo-cell { position: absolute; overflow: hidden; background-color: #f3f4f6; transition: all 0.2s ease; }
     .photo-cell img { width: 100%; height: 100%; object-fit: cover; }
     .photo-cell:hover .remove-btn { opacity: 1; }
     .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background-color: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; transition: all 0.15s; z-index: 5; }
@@ -107,8 +104,7 @@
     @media (max-width: 900px) {
       .app-container { flex-direction: column; }
       .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #e5e7eb; height: auto; max-height: 40vh; }
-      .main-canvas { padding: 16px; height: 60vh; overflow: hidden; }
-      .page-nav-controls { bottom: 16px; }
+      .main-canvas { padding: 16px; height: 60vh; }
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -219,12 +215,12 @@
         </div>
       
       <div id="pageNav" class="page-nav-controls" style="display: none;">
-        <button class="nav-btn" id="prevBtn" onclick="changePage(-1)">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        <button class="nav-btn" id="prevBtn" onclick="changePage(-1)" title="Forrige side (Pil Venstre)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
         </button>
         <span id="pageIndicator" class="nav-info">Side 1 av 1</span>
-        <button class="nav-btn" id="nextBtn" onclick="changePage(1)">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        <button class="nav-btn" id="nextBtn" onclick="changePage(1)" title="Neste side (Pil Høyre)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
       </div>
     </div>
@@ -242,13 +238,13 @@
 
     let photos = [];
     let orientation = 'portrait';
-    let currentPageIndex = 0; // Track current page
+    let currentPageIndex = 0;
 
     function updatePhotosPerPage() {
       const value = parseInt(document.getElementById('photosPerPage').value);
       document.getElementById('photosPerPageValue').textContent = value;
       document.getElementById('photosPerPageInput').value = value;
-      currentPageIndex = 0; // Reset to first page on layout change
+      currentPageIndex = 0; 
       renderGrid();
     }
 
@@ -259,7 +255,7 @@
       document.getElementById('photosPerPageInput').value = value;
       document.getElementById('photosPerPageValue').textContent = value;
       document.getElementById('photosPerPage').value = value;
-      currentPageIndex = 0; // Reset to first page on layout change
+      currentPageIndex = 0; 
       renderGrid();
     }
 
@@ -274,8 +270,11 @@
       }
     }
 
-    // Keyboard navigation
+    // Keyboard navigation for pages
     window.addEventListener('keydown', (e) => {
+      // Only trigger if we aren't typing in an input
+      if (document.activeElement.tagName === 'INPUT') return;
+      
       if (e.key === 'ArrowLeft') changePage(-1);
       if (e.key === 'ArrowRight') changePage(1);
     });
@@ -320,6 +319,7 @@
       });
 
       Promise.all(loadPromises).then(newPhotos => {
+        // Default sort by name, but the grid algo will effectively reorder them visually for best fit
         newPhotos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
         photos.push(...newPhotos);
         updateUI();
@@ -355,121 +355,166 @@
         : { width: size.width, height: size.height };
     }
 
-    function calculateAdaptiveGrid(photos, width, height, gap) {
-      if (photos.length === 0) return { cells: [] };
+    // --- NEW ALGORITHM START: Reordering to minimize crop & Fill Page ---
+    function calculateSmartFillGrid(pagePhotos, width, height, gap) {
+      if (pagePhotos.length === 0) return { cells: [] };
+
+      let availablePhotos = [...pagePhotos];
+      const rows = [];
       
-      let bestLayout = null;
-      let bestWaste = Infinity;
-      
-      const minRows = Math.max(1, Math.floor(photos.length / 6));
-      const maxRows = Math.min(photos.length, Math.ceil(photos.length / 1));
-      
-      for (let targetRows = minRows; targetRows <= maxRows; targetRows++) {
-        const rows = [];
-        let photoIndex = 0;
-        const estimatedRowHeight = (height - (targetRows - 1) * gap) / targetRows;
+      // Heuristic: Estimate optimal row height based on total photo area
+      const totalAspect = availablePhotos.reduce((sum, p) => sum + p.aspectRatio, 0);
+      const pageAspect = width / height;
+      // Approximate number of rows needed to fill the area
+      const targetRows = Math.round(Math.sqrt(totalAspect / pageAspect));
+      const idealRowHeight = (height - (targetRows - 1) * gap) / targetRows;
+
+      // 1. REORDERING PHASE: Build rows by picking best matches
+      while (availablePhotos.length > 0) {
+        const currentRow = [];
+        let currentAspectSum = 0;
+        let currentRowWidth = 0;
         
-        while (photoIndex < photos.length && rows.length < targetRows) {
-          const rowPhotos = [];
-          let rowAspectSum = 0;
-          const photosRemaining = photos.length - photoIndex;
-          const rowsRemaining = targetRows - rows.length;
-          const minPhotosForRow = Math.floor(photosRemaining / rowsRemaining);
-          const maxPhotosForRow = Math.ceil(photosRemaining / rowsRemaining) + 2;
+        // While row isn't "full"
+        while (true) {
+          // Calculate what aspect ratio we need to complete this row perfectly
+          const remainingWidth = width - (currentRow.length * gap); // gap for next item
+          const targetAspect = remainingWidth / idealRowHeight; 
+
+          // If we have no photos in row, just take the first one
+          if (currentRow.length === 0) {
+            const p = availablePhotos.shift();
+            currentRow.push(p);
+            currentAspectSum += p.aspectRatio;
+            continue;
+          }
+
+          // If we are running out of horizontal space, stop
+          if (availablePhotos.length === 0) break;
+
+          // Look ahead in the next few photos to find the best fit
+          let bestCandidateIndex = -1;
+          let bestScore = Infinity;
           
-          while (photoIndex < photos.length && rowPhotos.length < maxPhotosForRow) {
-            const photo = photos[photoIndex];
-            const projectedWidth = (rowAspectSum + photo.aspectRatio) * estimatedRowHeight;
+          // Check the next 6 photos (or fewer) to see which one makes the row end nicely
+          const lookAhead = Math.min(availablePhotos.length, 6);
+          
+          // Check if adding another photo makes the row "too wide" (height too small)
+          // The height of the row if we added candidate C would be: (Width - gaps) / (CurrentAspect + C.aspect)
+          // We want this height to be close to idealRowHeight
+          
+          for (let i = 0; i < lookAhead; i++) {
+            const candidate = availablePhotos[i];
+            const newAspectSum = currentAspectSum + candidate.aspectRatio;
+            const gaps = (currentRow.length) * gap;
+            const estimatedHeight = (width - gaps) / newAspectSum;
             
-            if (projectedWidth <= width + gap || rowPhotos.length < minPhotosForRow) {
-              rowPhotos.push({ photo, index: photoIndex });
-              rowAspectSum += photo.aspectRatio;
-              photoIndex++;
-            } else {
-              break;
+            // Score is difference from ideal height
+            const score = Math.abs(estimatedHeight - idealRowHeight);
+            
+            if (score < bestScore) {
+              bestScore = score;
+              bestCandidateIndex = i;
             }
           }
-          
-          if (rowPhotos.length > 0) {
-            const gapWidth = (rowPhotos.length - 1) * gap;
-            const availableWidth = width - gapWidth;
-            const rowHeight = availableWidth / rowAspectSum;
-            rows.push({ photos: rowPhotos, height: rowHeight, aspectSum: rowAspectSum });
+
+          // Decide: Is it better to add this best candidate, or stop the row here?
+          const currentGaps = (currentRow.length - 1) * gap;
+          const currentHeight = (width - currentGaps) / currentAspectSum;
+          const currentScore = Math.abs(currentHeight - idealRowHeight);
+
+          // If adding the best candidate makes it WORSE than it currently is, verify if we should stop
+          // Usually we want at least 2 photos unless the 1 photo is panoramic
+          if (currentRow.length >= 1 && currentScore < bestScore * 0.8) {
+             break; // Stop row here
           }
+
+          // Add best candidate
+          const p = availablePhotos.splice(bestCandidateIndex, 1)[0];
+          currentRow.push(p);
+          currentAspectSum += p.aspectRatio;
         }
-        
-        const totalGapHeight = (rows.length - 1) * gap;
-        const totalContentHeight = rows.reduce((sum, row) => sum + row.height, 0);
-        const totalHeight = totalContentHeight + totalGapHeight;
-        const waste = Math.abs(height - totalHeight);
-        
-        if (waste < bestWaste && photoIndex === photos.length) {
-          bestWaste = waste;
-          bestLayout = { rows, totalHeight };
-        }
+
+        // Finalize row dimensions
+        const gaps = (currentRow.length - 1) * gap;
+        const rowHeight = (width - gaps) / currentAspectSum;
+        rows.push({ photos: currentRow, height: rowHeight, aspectSum: currentAspectSum });
       }
+
+      // 2. VERTICAL FILL PHASE: Distribute extra vertical space
+      const totalGapHeight = (rows.length - 1) * gap;
+      const usedHeight = rows.reduce((sum, r) => sum + r.height, 0) + totalGapHeight;
       
-      if (!bestLayout) {
-        const rowAspectSum = photos.reduce((sum, p) => sum + p.aspectRatio, 0);
-        const rowHeight = width / rowAspectSum;
-        bestLayout = {
-          rows: [{ photos: photos.map((photo, index) => ({ photo, index })), height: rowHeight, aspectSum: rowAspectSum }],
-          totalHeight: rowHeight
-        };
-      }
+      // How much space is left at the bottom?
+      const remainingHeight = height - usedHeight;
       
-      // Final Safety Scale
-      const totalGapHeight = (bestLayout.rows.length - 1) * gap;
-      const calculatedTotalHeight = bestLayout.totalHeight + totalGapHeight;
+      // If we have a positive gap (empty space), distribute it to rows
+      // Note: If remainingHeight is negative (overflow), we scale down instead.
       
-      let finalScale = 1;
-      if (calculatedTotalHeight > height) {
-        finalScale = height / calculatedTotalHeight;
-      } else if (Math.abs(height - calculatedTotalHeight) < height * 0.05) {
-         finalScale = height / calculatedTotalHeight;
+      let heightScaleFactor = 1;
+      let extraHeightPerRow = 0;
+
+      if (remainingHeight > 0) {
+        // Add height to fill gap
+        extraHeightPerRow = remainingHeight / rows.length;
+      } else {
+        // We overflowed, shrink to fit
+        const totalTarget = height;
+        heightScaleFactor = height / usedHeight;
       }
 
       const cells = [];
       let yPos = 0;
-      
-      const finalTotalWidth = width * finalScale;
-      const xOffset = (width - finalTotalWidth) / 2;
-      
-      bestLayout.rows.forEach((row) => {
-        const scaledRowHeight = row.height * finalScale;
-        const scaledGap = gap * finalScale;
+
+      rows.forEach(row => {
+        // Calculate final height for this row
+        let finalRowHeight = (row.height * heightScaleFactor) + extraHeightPerRow;
         
-        const availableWidth = (width - (row.photos.length - 1) * gap) * finalScale;
-        let xPos = xOffset;
+        // Re-calculate gaps based on scale (only if scaling down)
+        const finalGap = (remainingHeight < 0) ? gap * heightScaleFactor : gap;
+
+        let xPos = 0;
+        const rowGapTotal = (row.photos.length - 1) * finalGap;
         
-        row.photos.forEach(({ photo }) => {
-          const cellWidth = scaledRowHeight * photo.aspectRatio;
-          cells.push({
-            x: xPos,
-            y: yPos,
-            width: cellWidth,
-            height: scaledRowHeight
-          });
-          xPos += cellWidth + scaledGap;
+        // Calculate widths based on the new forced height
+        // This effectively fills the width.
+        const availableRowWidth = width - rowGapTotal;
+        
+        // If we stretched vertically, we need to decide how to handle width. 
+        // To keep it full width, we just re-partition the width based on aspect ratios.
+        // The cropping happens because the aspect ratio of the cell changes slightly here.
+        
+        row.photos.forEach(photo => {
+           const cellWidth = (photo.aspectRatio / row.aspectSum) * availableRowWidth;
+           
+           cells.push({
+             x: xPos,
+             y: yPos,
+             width: cellWidth,
+             height: finalRowHeight
+           });
+           xPos += cellWidth + finalGap;
         });
-        
-        yPos += scaledRowHeight + scaledGap;
+
+        yPos += finalRowHeight + finalGap;
       });
-      
+
       return { cells };
     }
+    // --- NEW ALGORITHM END ---
 
     function renderGrid() {
       const paper = getPaperDimensions();
       const aspectRatio = paper.width / paper.height;
       const isMobile = window.innerWidth <= 900;
       
+      // Layout Calculations
       const sidebarWidth = isMobile ? 0 : 320;
       const paddingHorizontal = isMobile ? 32 : 64; 
-      const paddingVertical = isMobile ? 32 : 64;   
+      const paddingVertical = isMobile ? 48 : 80;   
       
       const availableWidth = window.innerWidth - sidebarWidth - paddingHorizontal;
-      const availableHeight = window.innerHeight - paddingVertical;
+      const availableHeight = window.innerHeight - paddingVertical; // Leave room for nav
       
       let displayHeight = availableHeight;
       let displayWidth = displayHeight * aspectRatio;
@@ -493,7 +538,7 @@
       canvasWrapper.innerHTML = '';
 
       if (photos.length === 0) {
-        navControls.style.display = 'none'; // Hide nav
+        navControls.style.display = 'none';
         const emptyCanvas = document.createElement('div');
         emptyCanvas.className = 'canvas';
         emptyCanvas.style.width = displayWidth + 'px';
@@ -514,20 +559,16 @@
         return;
       }
 
-      // Calculate Pagination
       const totalPages = Math.ceil(photos.length / photosPerPage);
-      
-      // Ensure currentPageIndex is valid
       if (currentPageIndex >= totalPages) currentPageIndex = totalPages - 1;
       if (currentPageIndex < 0) currentPageIndex = 0;
 
-      // Show controls and update text
+      // Update Nav
       navControls.style.display = 'flex';
       document.getElementById('pageIndicator').textContent = `Side ${currentPageIndex + 1} av ${totalPages}`;
       document.getElementById('prevBtn').disabled = currentPageIndex === 0;
       document.getElementById('nextBtn').disabled = currentPageIndex === totalPages - 1;
 
-      // Get ONLY the photos for the CURRENT page
       const startIndex = currentPageIndex * photosPerPage;
       const endIndex = Math.min(startIndex + photosPerPage, photos.length);
       const pagePhotos = photos.slice(startIndex, endIndex);
@@ -543,12 +584,59 @@
       gridEl.style.left = marginPx + 'px';
       gridEl.style.top = marginPx + 'px';
 
-      const grid = calculateAdaptiveGrid(pagePhotos, gridAvailableWidth, gridAvailableHeight, gapPx);
+      // USE NEW ALGORITHM
+      const grid = calculateSmartFillGrid(pagePhotos, gridAvailableWidth, gridAvailableHeight, gapPx);
 
       pagePhotos.forEach((photo, i) => {
         if (i >= grid.cells.length) return;
-        const cell = grid.cells[i];
+        // Find the photo in the results (since they are reordered now!)
+        // Wait, calculateSmartFillGrid reorders the INPUT array logic internally, but returns cells in order of generation.
+        // We need to map correctly. The new algo returns cells in order of rows.
+        // But we are iterating 'pagePhotos' which is the ORIGINAL order. This is mismatch.
         
+        // FIX: Iterate the grid cells, because the grid cells should contain the photo ID reference?
+        // Better: Modify algo to return { cell, photo } objects.
+      });
+      
+      // Rewriting render loop to match the reordered cells
+      grid.cells.forEach((cellData, index) => {
+        // We need to know WHICH photo this cell belongs to.
+        // The algorithm 'consumed' photos from the list. 
+        // Let's assume we just render the resulting cells, but we need the image source.
+        // The simplest way: Update calculateSmartFillGrid to return the photo object attached to the cell.
+        // (I will patch the function logic in memory below - actually I'll just fix the loop above)
+      });
+      
+      // Let's actually fix the algorithm call in this scope:
+      // The algo logic I wrote above needs to pass the photo back.
+      // Re-implementing the loop here properly:
+      
+      // 1. Run algo. Note: calculateSmartFillGrid above needs to associate photo with cell.
+      // I will update the loop inside calculateSmartFillGrid to include photo data.
+      // (See updated function below or logic injection)
+      
+      // *Corrected Loop Logic:*
+      let cellIndex = 0;
+      // We need to access the reordered photos. The 'rows' in calculateSmartFillGrid held them.
+      // To make this robust without changing the function signature excessively, 
+      // let's look at how calculateSmartFillGrid constructs 'cells'.
+      // It iterates 'rows' then 'row.photos'.
+      // So 'grid.cells[0]' corresponds to the first photo in the first row.
+      
+      // We need the ordered list of photos as determined by the algorithm.
+      // Let's assume the algorithm returns cells in draw order.
+      // But we need the IMG src.
+      
+      // Quick fix: Pass the photo object into the cell object in the algorithm.
+      // (I have updated the algorithm code block above to use 'row.photos.forEach')
+      // So we need to grab the photo from the cell.
+      
+      // RE-PATCHING calculateSmartFillGrid to attach photo:
+      // In the loop: cells.push({ ... photo: photo });
+      
+      const gridWithPhotos = calculateSmartFillGridWithPhotos(pagePhotos, gridAvailableWidth, gridAvailableHeight, gapPx);
+      
+      gridWithPhotos.cells.forEach((cell) => {
         const div = document.createElement('div');
         div.className = 'photo-cell';
         div.style.left = cell.x + 'px';
@@ -557,14 +645,14 @@
         div.style.height = cell.height + 'px';
 
         const img = document.createElement('img');
-        img.src = photo.src;
-        img.alt = photo.name;
+        img.src = cell.photo.src; // Attached photo
+        img.alt = cell.photo.name;
 
         const btn = document.createElement('button');
         btn.className = 'remove-btn';
         btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
         btn.onclick = () => {
-          photos = photos.filter(p => p.id !== photo.id);
+          photos = photos.filter(p => p.id !== cell.photo.id);
           updateUI();
         };
 
@@ -572,9 +660,102 @@
         div.appendChild(btn);
         gridEl.appendChild(div);
       });
-      
+
       canvasEl.appendChild(gridEl);
       canvasWrapper.appendChild(canvasEl);
+    }
+
+    // Redefining the function to ensure it attaches photos (Self-contained for the HTML file)
+    function calculateSmartFillGridWithPhotos(pagePhotos, width, height, gap) {
+      if (pagePhotos.length === 0) return { cells: [] };
+
+      let availablePhotos = [...pagePhotos];
+      const rows = [];
+      const totalAspect = availablePhotos.reduce((sum, p) => sum + p.aspectRatio, 0);
+      const pageAspect = width / height;
+      const targetRows = Math.max(1, Math.round(Math.sqrt(totalAspect / pageAspect)));
+      const idealRowHeight = (height - (targetRows - 1) * gap) / targetRows;
+
+      while (availablePhotos.length > 0) {
+        const currentRow = [];
+        let currentAspectSum = 0;
+        
+        while (true) {
+          if (currentRow.length === 0) {
+            const p = availablePhotos.shift();
+            currentRow.push(p);
+            currentAspectSum += p.aspectRatio;
+            continue;
+          }
+          if (availablePhotos.length === 0) break;
+
+          let bestCandidateIndex = -1;
+          let bestScore = Infinity;
+          const lookAhead = Math.min(availablePhotos.length, 6);
+          
+          for (let i = 0; i < lookAhead; i++) {
+            const candidate = availablePhotos[i];
+            const newAspectSum = currentAspectSum + candidate.aspectRatio;
+            const gaps = (currentRow.length) * gap;
+            const estimatedHeight = (width - gaps) / newAspectSum;
+            const score = Math.abs(estimatedHeight - idealRowHeight);
+            if (score < bestScore) { bestScore = score; bestCandidateIndex = i; }
+          }
+
+          const currentGaps = (currentRow.length - 1) * gap;
+          const currentHeight = (width - currentGaps) / currentAspectSum;
+          const currentScore = Math.abs(currentHeight - idealRowHeight);
+
+          if (currentRow.length >= 1 && currentScore < bestScore * 0.85) break;
+
+          const p = availablePhotos.splice(bestCandidateIndex, 1)[0];
+          currentRow.push(p);
+          currentAspectSum += p.aspectRatio;
+        }
+        
+        const gaps = (currentRow.length - 1) * gap;
+        const rowHeight = (width - gaps) / currentAspectSum;
+        rows.push({ photos: currentRow, height: rowHeight, aspectSum: currentAspectSum });
+      }
+
+      const totalGapHeight = (rows.length - 1) * gap;
+      const usedHeight = rows.reduce((sum, r) => sum + r.height, 0) + totalGapHeight;
+      const remainingHeight = height - usedHeight;
+      
+      let heightScaleFactor = 1;
+      let extraHeightPerRow = 0;
+
+      if (remainingHeight > 0) {
+        extraHeightPerRow = remainingHeight / rows.length;
+      } else {
+        heightScaleFactor = height / usedHeight;
+      }
+
+      const cells = [];
+      let yPos = 0;
+
+      rows.forEach(row => {
+        let finalRowHeight = (row.height * heightScaleFactor) + extraHeightPerRow;
+        const finalGap = (remainingHeight < 0) ? gap * heightScaleFactor : gap;
+        let xPos = 0;
+        const rowGapTotal = (row.photos.length - 1) * finalGap;
+        const availableRowWidth = width - rowGapTotal;
+        
+        row.photos.forEach(photo => {
+           const cellWidth = (photo.aspectRatio / row.aspectSum) * availableRowWidth;
+           cells.push({
+             x: xPos,
+             y: yPos,
+             width: cellWidth,
+             height: finalRowHeight,
+             photo: photo // Attach photo object here
+           });
+           xPos += cellWidth + finalGap;
+        });
+        yPos += finalRowHeight + finalGap;
+      });
+
+      return { cells };
     }
 
     function loadImage(src) {
@@ -600,17 +781,17 @@
           const availableWidth = exportWidth - 2 * marginPx;
           const availableHeight = exportHeight - 2 * marginPx;
 
-          const grid = calculateAdaptiveGrid(pagePhotos, availableWidth, availableHeight, gapPx);
+          // Use same SmartFill logic for export
+          const grid = calculateSmartFillGridWithPhotos(pagePhotos, availableWidth, availableHeight, gapPx);
 
-          for (let i = 0; i < pagePhotos.length && i < grid.cells.length; i++) {
-            const photo = pagePhotos[i];
+          for (let i = 0; i < grid.cells.length; i++) {
             const cell = grid.cells[i];
+            const photo = cell.photo;
 
             const img = await loadImage(photo.src);
 
             const cellAspect = cell.width / cell.height;
             const photoAspect = photo.aspectRatio;
-
             let drawWidth, drawHeight, offsetX, offsetY;
 
             if (photoAspect > cellAspect) {
@@ -684,7 +865,6 @@
           a.click();
           a.remove();
           URL.revokeObjectURL(url);
-
           await new Promise(r => setTimeout(r, 200));
         }
       } catch (err) {
@@ -697,22 +877,19 @@
 
     async function downloadAllZip() {
       if (photos.length === 0) return;
-
       const paper = getPaperDimensions();
       const dpi = parseInt(document.getElementById('dpi').value);
       const mmToPixels = dpi / 25.4;
       const exportWidth = Math.round(paper.width * mmToPixels);
       const exportHeight = Math.round(paper.height * mmToPixels);
-
       const margin = parseInt(document.getElementById('margin').value);
       const gap = parseInt(document.getElementById('gap').value);
       const marginPx = Math.round(margin * mmToPixels);
       const gapPx = Math.round(gap * mmToPixels);
-
       const photosPerPage = parseInt(document.getElementById('photosPerPage').value);
       const pages = [];
       for (let i = 0; i < photos.length; i += photosPerPage) pages.push(photos.slice(i, i + photosPerPage));
-
+      
       const zip = new JSZip();
       const paperSize = document.getElementById('paperSize').value;
       const btn = document.getElementById('downloadAllBtn');
