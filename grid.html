@@ -93,7 +93,7 @@
     .dropzone-title { margin-top: 16px; font-size: 18px; font-weight: 500; }
     .dropzone-subtitle { font-size: 14px; }
     
-    .grid-container { position: absolute; transition: top 0.3s ease; } /* Animated centering */
+    .grid-container { position: absolute; transition: top 0.3s ease; }
     .photo-cell { position: absolute; overflow: hidden; background-color: #f3f4f6; transition: all 0.2s ease; }
     .photo-cell img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
     .photo-cell:hover .remove-btn { opacity: 1; }
@@ -290,7 +290,6 @@
 
     function handleFiles(files) {
       const loadPromises = [];
-
       files.forEach(file => {
         if (file.type.startsWith('image/')) {
           const promise = new Promise((resolve) => {
@@ -351,176 +350,128 @@
         : { width: size.width, height: size.height };
     }
 
-    // --- ALGORITHM START: 10% Max Crop & Smart Reordering & Page Fill ---
-    function calculateSmartFillGridWithPhotos(pagePhotos, width, height, gap) {
+    // --- OPTIMIZED GRID ALGORITHM ---
+    // 1. Find the number of rows that creates a total height CLOSEST to the page height.
+    // 2. Distribute photos evenly.
+    // 3. Scale vertically to fill page, but CAP scaling at 10% distortion.
+    function calculateOptimalGrid(pagePhotos, width, height, gap) {
       if (pagePhotos.length === 0) return { cells: [], totalHeight: 0 };
 
-      // Use a "pool" of available photos to pick the best fit from ANYWHERE in the list
-      let availablePhotos = [...pagePhotos];
-      const rows = [];
-      const MAX_CROP = 0.10; // 10% max aspect deviation
-
-      const totalAspect = availablePhotos.reduce((sum, p) => sum + p.aspectRatio, 0);
-      const pageAspect = width / height;
-      // Estimate target rows. We prefer fewer rows (taller images) if logical.
-      const targetRows = Math.max(1, Math.round(Math.sqrt(totalAspect / pageAspect)));
-      const idealRowHeight = (height - (targetRows - 1) * gap) / targetRows;
-
-      while (availablePhotos.length > 0) {
-        const currentRow = [];
-        let currentAspectSum = 0;
+      // Helper to create a layout with specific Row Count
+      function createLayout(targetRows) {
+        const rows = [];
+        const photosCopy = [...pagePhotos];
         
-        // Greedily fill the row by picking best candidates from the entire pool
-        while (true) {
-          if (currentRow.length === 0) {
-            // Always start with the first available to ensure we progress
-            const p = availablePhotos.shift();
-            currentRow.push(p);
-            currentAspectSum += p.aspectRatio;
-            continue;
-          }
-          if (availablePhotos.length === 0) break;
-
-          // Search ENTIRE pool for best fit
-          let bestCandidateIndex = -1;
-          let bestScore = Infinity;
+        // Distribute photos as evenly as possible
+        const baseCount = Math.floor(pagePhotos.length / targetRows);
+        const extras = pagePhotos.length % targetRows;
+        
+        let photoIdx = 0;
+        for (let r = 0; r < targetRows; r++) {
+          // Some rows get 1 extra photo to balance
+          const count = baseCount + (r < extras ? 1 : 0);
+          const rowPhotos = [];
+          let aspectSum = 0;
           
-          for (let i = 0; i < availablePhotos.length; i++) {
-            const candidate = availablePhotos[i];
-            const newAspectSum = currentAspectSum + candidate.aspectRatio;
-            const gaps = (currentRow.length) * gap;
-            // Height if we stop here
-            const estimatedHeight = (width - gaps) / newAspectSum;
-            
-            // Score: How close is this to ideal height?
-            const score = Math.abs(estimatedHeight - idealRowHeight);
-            
-            if (score < bestScore) {
-              bestScore = score;
-              bestCandidateIndex = i;
+          for (let i = 0; i < count; i++) {
+            if (photoIdx < pagePhotos.length) {
+               rowPhotos.push(pagePhotos[photoIdx]);
+               aspectSum += pagePhotos[photoIdx].aspectRatio;
+               photoIdx++;
             }
           }
-
-          // Check if we should stop the row or add the candidate
-          const currentGaps = (currentRow.length - 1) * gap;
-          const currentHeight = (width - currentGaps) / currentAspectSum;
-          const currentScore = Math.abs(currentHeight - idealRowHeight);
-
-          // If current row is already "good enough" and adding makes it worse
-          // Or if adding makes the row too short (images too small)
-          // 0.85 factor creates a bias towards slightly fuller rows
-          if (currentRow.length >= 1 && currentScore < bestScore * 0.85) {
-             break; 
+          
+          if (rowPhotos.length > 0) {
+            const gaps = (rowPhotos.length - 1) * gap;
+            // Standard Justified Height
+            const rowHeight = (width - gaps) / aspectSum; 
+            rows.push({ photos: rowPhotos, height: rowHeight, aspectSum });
           }
-
-          // Add the winner
-          const p = availablePhotos.splice(bestCandidateIndex, 1)[0];
-          currentRow.push(p);
-          currentAspectSum += p.aspectRatio;
         }
         
-        const gaps = (currentRow.length - 1) * gap;
-        const rowHeight = (width - gaps) / currentAspectSum;
-        rows.push({ photos: currentRow, height: rowHeight, aspectSum: currentAspectSum });
+        const totalGapHeight = (rows.length - 1) * gap;
+        const naturalHeight = rows.reduce((sum, r) => sum + r.height, 0) + totalGapHeight;
+        
+        return { rows, naturalHeight, totalGapHeight };
       }
 
-      // VERTICAL FILL LOGIC with 10% Constraint
-      const totalGapHeight = (rows.length - 1) * gap;
-      let currentUsedHeight = rows.reduce((sum, r) => sum + r.height, 0) + totalGapHeight;
-      const remainingHeight = height - currentUsedHeight;
-
-      // If we are overflowing (too tall), simply scale down to fit (safe)
-      // If we have extra space, we try to expand rows vertically, BUT check crop limit
+      // Try reasonable row counts to find Best Fit
+      // Heuristic range: from 1 row up to N rows
+      let bestLayout = null;
+      let bestScore = Infinity; // Lower is better
       
-      if (remainingHeight < 0) {
-         // Overflow: Scale everything down to fit
-         const scale = height / currentUsedHeight;
-         rows.forEach(row => row.height *= scale);
-         currentUsedHeight = height;
-      } else if (remainingHeight > 0) {
-         // Underflow: Try to expand rows
-         // We calculate max allowed height for each row based on 10% crop
-         
-         // We want to distribute remainingHeight
-         // Let's iterate and expand rows that allow it
-         let heightToDistribute = remainingHeight;
-         
-         // Optimization: multiple passes to distribute height to rows that can take it
-         for (let pass = 0; pass < 3; pass++) {
-           if (heightToDistribute <= 1) break;
-           
-           const splitHeight = heightToDistribute / rows.length;
-           
-           rows.forEach(row => {
-              const currentH = row.height;
-              const potentialH = currentH + splitHeight;
-              
-              // Check 10% constraint for EVERY photo in this row
-              // Original Aspect: photo.aspectRatio
-              // New Cell Aspect: cellWidth / potentialH
-              // cellWidth is derived from row.height, but wait...
-              // In our layout, CellWidth is Proportional to aspect ratio.
-              // CellWidth = (photoAspect / rowAspectSum) * (Width - gaps)
-              // So Width is FIXED based on page width. Only Height changes.
-              // New Aspect = CellWidth / potentialH
-              
-              let canExpand = true;
-              const rowGapTotal = (row.photos.length - 1) * gap;
-              const availableRowWidth = width - rowGapTotal;
-
-              for (let p of row.photos) {
-                const cellWidth = (p.aspectRatio / row.aspectSum) * availableRowWidth;
-                const newAspect = cellWidth / potentialH;
-                const deviation = Math.abs(1 - (newAspect / p.aspectRatio));
-                
-                if (deviation > MAX_CROP) {
-                  canExpand = false;
-                  break;
-                }
-              }
-              
-              if (canExpand) {
-                row.height = potentialH;
-                heightToDistribute -= splitHeight;
-              }
-           });
-         }
-         
-         // Recalculate final used height
-         currentUsedHeight = rows.reduce((sum, r) => sum + r.height, 0) + totalGapHeight;
+      // We only check 1 to N. For performance, N is fine since N<=36 usually.
+      for (let r = 1; r <= pagePhotos.length; r++) {
+        const layout = createLayout(r);
+        const contentHeight = layout.naturalHeight - layout.totalGapHeight;
+        
+        // How much must we scale content to fill exactly?
+        // Target: layout.naturalHeight * scale = height
+        // Actually: (contentHeight * scale) + gapHeight = height
+        const requiredContentHeight = height - layout.totalGapHeight;
+        
+        if (requiredContentHeight <= 0) continue; // Impossible (too many gaps)
+        
+        const scale = requiredContentHeight / contentHeight;
+        
+        // We want scale to be close to 1.0, ideally between 0.9 and 1.1
+        // Score logic:
+        // If 0.9 <= scale <= 1.1: We can fill page perfectly. Score based on how close to 1.0.
+        // If scale > 1.1 or < 0.9: We can't fill page perfectly (clamped). Score penalty.
+        
+        let score;
+        if (scale >= 0.9 && scale <= 1.1) {
+           // Perfect fit possible. 
+           score = Math.abs(1 - scale); 
+        } else {
+           // Penalty = 100 + distance from valid range
+           if (scale < 0.9) score = 100 + (0.9 - scale);
+           else score = 100 + (scale - 1.1);
+        }
+        
+        if (score < bestScore) {
+          bestScore = score;
+          bestLayout = { ...layout, optimalScale: scale };
+        }
       }
 
-      // Build final Cells
+      // Apply the best layout found
+      const rows = bestLayout.rows;
+      let finalScale = bestLayout.optimalScale;
+      
+      // Clamp scale to strict 10% limits
+      if (finalScale < 0.9) finalScale = 0.9;
+      if (finalScale > 1.1) finalScale = 1.1;
+
+      // Construct cells
       const cells = [];
-      let yPos = 0;
+      const finalTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
       
-      // Center Vertically if we couldn't fill the page due to 10% limit
-      if (currentUsedHeight < height) {
-        yPos = (height - currentUsedHeight) / 2;
-      }
+      // Center vertically if not full
+      let yPos = (finalTotalHeight < height) ? (height - finalTotalHeight) / 2 : 0;
 
       rows.forEach(row => {
+        const finalRowHeight = row.height * finalScale;
         const rowGapTotal = (row.photos.length - 1) * gap;
         const availableRowWidth = width - rowGapTotal;
         let xPos = 0;
         
         row.photos.forEach(photo => {
-           const cellWidth = (photo.aspectRatio / row.aspectSum) * availableRowWidth;
-           cells.push({
-             x: xPos,
-             y: yPos,
-             width: cellWidth,
-             height: row.height,
-             photo: photo
-           });
-           xPos += cellWidth + gap;
+          const cellWidth = (photo.aspectRatio / row.aspectSum) * availableRowWidth;
+          cells.push({
+            x: xPos,
+            y: yPos,
+            width: cellWidth,
+            height: finalRowHeight,
+            photo: photo
+          });
+          xPos += cellWidth + gap;
         });
-        yPos += row.height + gap;
+        yPos += finalRowHeight + gap;
       });
 
-      return { cells, totalHeight: currentUsedHeight };
+      return { cells, totalHeight: finalTotalHeight };
     }
-    // --- ALGORITHM END ---
 
     function renderGrid() {
       const paper = getPaperDimensions();
@@ -603,7 +554,7 @@
       gridEl.style.left = marginPx + 'px';
       gridEl.style.top = marginPx + 'px';
 
-      const grid = calculateSmartFillGridWithPhotos(pagePhotos, gridAvailableWidth, gridAvailableHeight, gapPx);
+      const grid = calculateOptimalGrid(pagePhotos, gridAvailableWidth, gridAvailableHeight, gapPx);
 
       grid.cells.forEach((cell) => {
         const div = document.createElement('div');
@@ -657,7 +608,7 @@
           const availableWidth = exportWidth - 2 * marginPx;
           const availableHeight = exportHeight - 2 * marginPx;
 
-          const grid = calculateSmartFillGridWithPhotos(pagePhotos, availableWidth, availableHeight, gapPx);
+          const grid = calculateOptimalGrid(pagePhotos, availableWidth, availableHeight, gapPx);
 
           for (let i = 0; i < grid.cells.length; i++) {
             const cell = grid.cells[i];
@@ -703,28 +654,23 @@
 
     async function exportGrid() {
       if (photos.length === 0) return;
-
       const paper = getPaperDimensions();
       const dpi = parseInt(document.getElementById('dpi').value);
       const mmToPixels = dpi / 25.4;
       const exportWidth = Math.round(paper.width * mmToPixels);
       const exportHeight = Math.round(paper.height * mmToPixels);
-
       const margin = parseInt(document.getElementById('margin').value);
       const gap = parseInt(document.getElementById('gap').value);
       const marginPx = Math.round(margin * mmToPixels);
       const gapPx = Math.round(gap * mmToPixels);
-
       const photosPerPage = parseInt(document.getElementById('photosPerPage').value);
       const pages = [];
       for (let i = 0; i < photos.length; i += photosPerPage) {
         pages.push(photos.slice(i, i + photosPerPage));
       }
-
       const paperSize = document.getElementById('paperSize').value;
       const btn = document.getElementById('exportBtn');
       btn.disabled = true;
-
       try {
         for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
           const pagePhotos = pages[pageIndex];
@@ -764,12 +710,10 @@
       const photosPerPage = parseInt(document.getElementById('photosPerPage').value);
       const pages = [];
       for (let i = 0; i < photos.length; i += photosPerPage) pages.push(photos.slice(i, i + photosPerPage));
-      
       const zip = new JSZip();
       const paperSize = document.getElementById('paperSize').value;
       const btn = document.getElementById('downloadAllBtn');
       btn.disabled = true;
-
       try {
         for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
           const pagePhotos = pages[pageIndex];
@@ -779,7 +723,6 @@
             : `photo-grid-${paperSize}-${orientation}-${dpi}dpi.jpg`;
           zip.file(fileName, blob);
         }
-
         const zipBlob = await zip.generateAsync({ type: 'blob' });
         const url = URL.createObjectURL(zipBlob);
         const a = document.createElement('a');
