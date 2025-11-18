@@ -115,7 +115,7 @@
             <button id="landscapeBtn" onclick="setOrientation('landscape')">Landskap</button>
           </div>
         </div>
-        
+
         <div class="control-group">
           <label>Marg: <span id="marginValue">2</span>mm</label>
           <div style="display: flex; gap: 8px; align-items: center;">
@@ -183,7 +183,6 @@
 
     let photos = [];
     let orientation = 'portrait';
-    // Removed fitMode state variable
     
     // --- Drag & Drop State Variables ---
     let draggedElement = null;
@@ -293,113 +292,150 @@
         : { width: size.width, height: size.height };
     }
 
-    // --- UPDATED: Force Fill Logic ---
+    // --- NEW ALGORITHM: Balanced Height Partitioning ---
+    // This logic finds the optimal number of rows and distributes photos
+    // so that *every* row is close to the ideal height, then stretches evenly.
     function calculateAdaptiveGrid(photos, width, height, gap) {
       if (photos.length === 0) return { cells: [] };
       
       let bestLayout = null;
-      let bestWaste = Infinity;
+      let bestDeviation = Infinity;
       
+      // Estimate reasonable range of rows
       const minRows = Math.max(1, Math.floor(photos.length / 8));
       const maxRows = Math.min(photos.length, 12);
       
-      for (let targetRows = minRows; targetRows <= maxRows; targetRows++) {
+      // Try to fit photos into exactly 'k' rows
+      for (let k = minRows; k <= maxRows; k++) {
+        // The exact height each row *must* be to fit perfectly (minus gaps)
+        const targetRowHeight = (height - (k - 1) * gap) / k;
+        
+        // If target height is ridiculously small, skip
+        if (targetRowHeight < 20) continue;
+
         const rows = [];
         let photoIndex = 0;
-        
-        while (photoIndex < photos.length && rows.length < targetRows) {
-          const rowPhotos = [];
-          let rowAspectSum = 0;
-          const photosRemaining = photos.length - photoIndex;
-          const rowsRemaining = targetRows - rows.length;
-          
-          let maxPhotosForRow = photosRemaining;
-          if (rowsRemaining > 0) {
-             maxPhotosForRow = Math.ceil(photosRemaining / rowsRemaining) + 2;
-          }
-          
-          let tempAspectSum = 0;
-          let tempPhotos = [];
-          
-          for(let i = 0; i < maxPhotosForRow && (photoIndex + i) < photos.length; i++) {
-              tempAspectSum += photos[photoIndex + i].aspectRatio;
-              tempPhotos.push({ photo: photos[photoIndex + i], index: photoIndex + i });
-          }
-          
-          const gapWidth = (tempPhotos.length - 1) * gap;
-          const availableWidth = width - gapWidth;
-          let rowHeight = availableWidth / tempAspectSum;
-          
-          rowPhotos.push(...tempPhotos);
-          rowAspectSum = tempAspectSum;
-          photoIndex += tempPhotos.length;
-          
-          if (rowPhotos.length > 0) {
-            rows.push({ photos: rowPhotos, height: rowHeight, aspectSum: rowAspectSum });
-          }
+        let currentTotalDeviation = 0;
+        let validConfiguration = true;
+
+        // Partition photos into k rows
+        for (let r = 0; r < k; r++) {
+           if (photoIndex >= photos.length) {
+             validConfiguration = false; // Ran out of photos before filling rows
+             break;
+           }
+
+           const rowPhotos = [];
+           let rowAspectSum = 0;
+           
+           // Add photos to this row until adding another makes it TOO short compared to target
+           // (or until we run out of photos)
+           while (photoIndex < photos.length) {
+             const photo = photos[photoIndex];
+             const nextAspectSum = rowAspectSum + photo.aspectRatio;
+             
+             // Calculate what the height WOULD be if we stopped here
+             const currentGapWidth = Math.max(0, (rowPhotos.length - 1) * gap);
+             const currentHeight = (width - currentGapWidth) / rowAspectSum; // Height with CURRENT photos (before adding new one)
+             
+             // Calculate what height WOULD be if we add this new photo
+             const nextGapWidth = (rowPhotos.length) * gap;
+             const nextHeight = (width - nextGapWidth) / nextAspectSum;
+
+             // Logic: We want the row height to be close to 'targetRowHeight'.
+             // As we add photos, the row height shrinks.
+             // We switch to a new row when the deviation starts increasing.
+             
+             if (rowPhotos.length > 0) {
+                const diffCurrent = Math.abs(currentHeight - targetRowHeight);
+                const diffNext = Math.abs(nextHeight - targetRowHeight);
+                
+                // If adding this photo makes us drift FURTHER from the target height,
+                // stop here and start a new row.
+                // Exception: if this is the LAST row, we MUST take all remaining photos.
+                if (r < k - 1 && diffNext > diffCurrent) {
+                    break; 
+                }
+             }
+             
+             rowPhotos.push({ photo, index: photoIndex });
+             rowAspectSum += photo.aspectRatio;
+             photoIndex++;
+           }
+           
+           if (rowPhotos.length === 0) {
+             validConfiguration = false;
+             break;
+           }
+           
+           // Calculate actual height of this formed row (before stretching)
+           const gapWidth = (rowPhotos.length - 1) * gap;
+           const rawRowHeight = (width - gapWidth) / rowAspectSum;
+           
+           rows.push({ photos: rowPhotos, height: rawRowHeight, aspectSum: rowAspectSum });
+           currentTotalDeviation += Math.abs(rawRowHeight - targetRowHeight);
         }
-        
-        // Basic height check (without stretching yet)
-        const totalGapHeight = (rows.length - 1) * gap;
-        const totalContentHeight = rows.reduce((sum, row) => sum + row.height, 0);
-        let totalHeight = totalContentHeight + totalGapHeight;
-        
-        const waste = Math.abs(height - totalHeight);
-        
-        // We accept nearly any layout here, because we will force-stretch it later
-        // We prioritize layouts that are closest to the target to minimize distortion amount
-        if (waste < bestWaste && photoIndex === photos.length) {
-          bestWaste = waste;
-          bestLayout = { rows, totalHeight };
+
+        // If we successfully partitioned into k rows AND used all photos
+        if (validConfiguration && photoIndex === photos.length) {
+            // We found a valid layout with k rows.
+            // Is it better than our previous best?
+            // We prefer lower deviation (rows naturally closer to target)
+            if (currentTotalDeviation < bestDeviation) {
+                bestDeviation = currentTotalDeviation;
+                bestLayout = { rows: rows };
+            }
         }
       }
       
+      // Fallback: if balanced partition fails (rare), use single row
       if (!bestLayout) {
         const rowAspectSum = photos.reduce((sum, p) => sum + p.aspectRatio, 0);
         const rowHeight = width / rowAspectSum;
         bestLayout = {
-          rows: [{ photos: photos.map((photo, index) => ({ photo, index: index })), height: rowHeight, aspectSum: rowAspectSum }],
-          totalHeight: rowHeight
+          rows: [{ photos: photos.map((photo, index) => ({ photo, index: index })), height: rowHeight, aspectSum: rowAspectSum }]
         };
       }
       
-      // --- FORCE STRETCH TO FILL HEIGHT ---
+      // --- UNIFORM STRETCH ---
+      // Now we have rows that are relatively balanced.
+      // We force them to fit the page height exactly.
       const totalGapHeight = (bestLayout.rows.length - 1) * gap;
-      const currentContentHeight = bestLayout.rows.reduce((sum, row) => sum + row.height, 0);
-      
-      // The height available for content (total height minus gaps)
       const targetContentHeight = height - totalGapHeight;
       
-      // Calculate scale factor to stretch rows vertically to fill the page
-      // If current content is 0 (edge case), don't scale
-      const verticalScale = currentContentHeight > 0 ? targetContentHeight / currentContentHeight : 1;
+      // Calculate the raw total height of our layout
+      const currentTotalHeight = bestLayout.rows.reduce((sum, row) => sum + row.height, 0);
+      
+      // Scale factor: stretch (or squash) everything equally to hit target
+      const verticalScale = currentTotalHeight > 0 ? targetContentHeight / currentTotalHeight : 1;
       
       const cells = [];
       let yPos = 0;
       
       bestLayout.rows.forEach((row) => {
-        // Apply the vertical stretch to the row height
-        const stretchedRowHeight = row.height * verticalScale;
+        // Apply scale to row height
+        const finalRowHeight = row.height * verticalScale;
         const gapWidth = (row.photos.length - 1) * gap;
         const availableWidth = width - gapWidth;
         
         let xPos = 0;
         row.photos.forEach(({ photo }) => {
-          // Width calculation stays based on the original aspect logic to fill width
-          // But the cell is now taller.
+          // Calculate width based on Aspect Ratio (width fills row normally)
+          // Note: We do NOT scale width here, because the render step crops.
+          // The cell just defines the box.
           const properWidth = (photo.aspectRatio / row.aspectSum) * availableWidth;
 
           cells.push({
             x: xPos,
             y: yPos,
             width: properWidth,
-            height: stretchedRowHeight
+            height: finalRowHeight
           });
           
           xPos += properWidth + gap;
         });
         
-        yPos += stretchedRowHeight + gap;
+        yPos += finalRowHeight + gap;
       });
       
       return { cells };
