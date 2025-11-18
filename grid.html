@@ -94,27 +94,15 @@
     .dropzone-subtitle { font-size: 14px; }
     
     .grid-container { position: absolute; transition: top 0.3s ease; }
-    
-    /* Drag and Drop Styles */
     .photo-cell { 
       position: absolute; 
       overflow: hidden; 
       background-color: #f3f4f6; 
       transition: all 0.2s ease; 
-      cursor: grab; 
+      cursor: grab;
     }
-    .photo-cell.dragging { 
-      opacity: 0.4; 
-      cursor: grabbing;
-      border: 2px dashed #2563eb;
-    }
-    .photo-cell.drag-over { 
-      outline: 3px solid #2563eb; 
-      z-index: 10;
-      transform: scale(1.02);
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    }
-    
+    .photo-cell.dragging { opacity: 0.4; cursor: grabbing; border: 2px dashed #2563eb; }
+    .photo-cell.drag-over { outline: 3px solid #2563eb; z-index: 10; transform: scale(1.02); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
     .photo-cell img { width: 100%; height: 100%; object-fit: cover; object-position: center; pointer-events: none; }
     .photo-cell:hover .remove-btn { opacity: 1; }
     .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background-color: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; transition: all 0.15s; z-index: 5; }
@@ -158,7 +146,15 @@
             <input type="range" id="photosPerPage" min="1" max="36" value="36" oninput="updatePhotosPerPage()" style="flex: 1;">
             <input type="number" id="photosPerPageInput" min="1" max="36" value="36" oninput="updatePhotosPerPageFromInput()" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
           </div>
-          <p class="photo-count"><span id="photosPerPageValue">36</span> bilder per side</p>
+        </div>
+
+        <div class="control-group">
+            <label>Toleranse: +/- <span id="toleranceValue">0</span></label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="range" id="pageTolerance" min="0" max="5" value="0" oninput="updateTolerance()">
+              <input type="number" id="pageToleranceInput" min="0" max="5" value="0" oninput="updateToleranceFromInput()" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            </div>
+            <p class="photo-count" style="margin-top:4px;">Tillat avvik i antall for bedre layout</p>
         </div>
 
         <div class="control-group">
@@ -259,6 +255,8 @@
     let photos = [];
     let orientation = 'portrait';
     let currentPageIndex = 0;
+    // Cached pages structure
+    let computedPages = [];
 
     // --- DRAG AND DROP HANDLERS ---
     let draggedPhotoId = null;
@@ -267,7 +265,6 @@
       draggedPhotoId = id;
       e.target.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
-      // Optional: Set a transparent drag image if desired, but default ghost is usually fine
     }
 
     function handleDragOver(e) {
@@ -295,7 +292,6 @@
       e.stopPropagation();
       e.preventDefault();
       
-      // Remove all drag states
       document.querySelectorAll('.photo-cell').forEach(el => {
         el.classList.remove('dragging');
         el.classList.remove('drag-over');
@@ -307,10 +303,10 @@
       const toIndex = photos.findIndex(p => p.id === targetId);
 
       if (fromIndex > -1 && toIndex > -1) {
-        // Move item in array
         const item = photos.splice(fromIndex, 1)[0];
         photos.splice(toIndex, 0, item);
-        // Re-render the grid with new order
+        // Invalidate pages cache to recalc structure
+        computedPages = []; 
         renderGrid();
       }
       draggedPhotoId = null;
@@ -328,6 +324,7 @@
       const value = parseInt(document.getElementById('photosPerPage').value);
       document.getElementById('photosPerPageValue').textContent = value;
       document.getElementById('photosPerPageInput').value = value;
+      computedPages = []; // Invalidate cache
       currentPageIndex = 0; 
       renderGrid();
     }
@@ -339,13 +336,35 @@
       document.getElementById('photosPerPageInput').value = value;
       document.getElementById('photosPerPageValue').textContent = value;
       document.getElementById('photosPerPage').value = value;
+      computedPages = []; // Invalidate cache
       currentPageIndex = 0; 
       renderGrid();
     }
 
+    function updateTolerance() {
+      const value = parseInt(document.getElementById('pageTolerance').value);
+      document.getElementById('toleranceValue').textContent = value;
+      document.getElementById('pageToleranceInput').value = value;
+      computedPages = []; // Invalidate cache
+      currentPageIndex = 0;
+      renderGrid();
+    }
+
+    function updateToleranceFromInput() {
+      let value = parseInt(document.getElementById('pageToleranceInput').value);
+      if (isNaN(value) || value < 0) value = 0;
+      if (value > 10) value = 10;
+      document.getElementById('pageToleranceInput').value = value;
+      document.getElementById('toleranceValue').textContent = value;
+      document.getElementById('pageTolerance').value = value;
+      computedPages = []; // Invalidate cache
+      currentPageIndex = 0;
+      renderGrid();
+    }
+
     function changePage(delta) {
-      const photosPerPage = parseInt(document.getElementById('photosPerPage').value) || 1;
-      const totalPages = Math.ceil(photos.length / photosPerPage) || 1;
+      // Use computedPages.length instead of math
+      const totalPages = computedPages.length || 1;
       
       let newIndex = currentPageIndex + delta;
       if (newIndex >= 0 && newIndex < totalPages) {
@@ -401,6 +420,7 @@
       Promise.all(loadPromises).then(newPhotos => {
         newPhotos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
         photos.push(...newPhotos);
+        computedPages = []; // Invalidate cache
         updateUI();
       });
     }
@@ -409,12 +429,14 @@
       orientation = ori;
       document.getElementById('portraitBtn').className = ori === 'portrait' ? 'active' : '';
       document.getElementById('landscapeBtn').className = ori === 'landscape' ? 'active' : '';
+      computedPages = []; // Invalidate cache
       renderGrid();
     }
 
     function clearAll() {
       photos = [];
       currentPageIndex = 0;
+      computedPages = [];
       updateUI();
     }
 
@@ -434,8 +456,11 @@
         : { width: size.width, height: size.height };
     }
 
+    // --- GRID ALGORITHMS ---
+
+    // Return calculated grid AND a quality score (deviation from 1.0 scale)
     function calculateOptimalGrid(pagePhotos, width, height, gap) {
-      if (pagePhotos.length === 0) return { cells: [], totalHeight: 0 };
+      if (pagePhotos.length === 0) return { cells: [], totalHeight: 0, fitScore: Infinity };
 
       function createLayout(targetRows) {
         const rows = [];
@@ -466,8 +491,9 @@
       }
 
       let bestLayout = null;
-      let bestScore = Infinity;
+      let bestScore = Infinity; // Lower is better (closer to scale 1.0)
       
+      // We only check 1 to N rows
       for (let r = 1; r <= pagePhotos.length; r++) {
         const layout = createLayout(r);
         const contentHeight = layout.naturalHeight - layout.totalGapHeight;
@@ -477,12 +503,15 @@
         
         const scale = requiredContentHeight / contentHeight;
         let score;
+        // Score based on deviation from 1.0
         if (scale >= 0.9 && scale <= 1.1) {
            score = Math.abs(1 - scale); 
         } else {
+           // Heavy penalty for being out of bounds
            if (scale < 0.9) score = 100 + (0.9 - scale);
            else score = 100 + (scale - 1.1);
         }
+        
         if (score < bestScore) {
           bestScore = score;
           bestLayout = { ...layout, optimalScale: scale };
@@ -492,6 +521,7 @@
       const rows = bestLayout.rows;
       let finalScale = bestLayout.optimalScale;
       
+      // Clamp scale
       if (finalScale < 0.9) finalScale = 0.9;
       if (finalScale > 1.1) finalScale = 1.1;
 
@@ -503,6 +533,7 @@
          currentTotalHeight = height; 
       }
 
+      // Only generate cells if asked (optimization: we could skip cell gen if just scoring, but it's fast enough)
       const cells = [];
       let yPos = (currentTotalHeight < height) ? (height - currentTotalHeight) / 2 : 0;
       const finalTotalWidth = width * fitScale;
@@ -512,7 +543,6 @@
         const finalRowHeight = row.height * finalScale * fitScale;
         const rowGapTotal = (row.photos.length - 1) * gap * fitScale;
         const availableRowWidth = finalTotalWidth - rowGapTotal;
-        
         let xPos = xOffset;
         row.photos.forEach(photo => {
           const cellWidth = (photo.aspectRatio / row.aspectSum) * availableRowWidth;
@@ -524,8 +554,58 @@
         yPos += finalRowHeight + (gap * fitScale);
       });
 
-      return { cells, totalHeight: currentTotalHeight };
+      return { cells, totalHeight: currentTotalHeight, fitScore: bestScore };
     }
+
+    // --- NEW: Partition Logic for Dynamic Pages ---
+    function partitionPhotosIntoPages(allPhotos, target, tolerance, width, height, gap) {
+      const pages = [];
+      let currentIndex = 0;
+      
+      while (currentIndex < allPhotos.length) {
+        // Determine best next chunk
+        let bestCount = target;
+        let bestChunkScore = Infinity;
+        
+        const minCount = Math.max(1, target - tolerance);
+        const maxCount = target + tolerance;
+        const remaining = allPhotos.length - currentIndex;
+
+        // Optimization: If remaining is small, just take it if it fits max bounds
+        if (remaining <= maxCount) {
+           // If it's within min/max, check score, but favor taking all to finish
+           // Actually, just taking 'remaining' is usually best to avoid leaving 1 photo alone.
+           // But if remaining > maxCount (not possible here), or remaining < minCount...
+           // If remaining < minCount, we might have stranded photos. 
+           // But simple greedy: just take them.
+           pages.push(allPhotos.slice(currentIndex));
+           break; 
+        }
+
+        // Try all valid counts
+        for (let c = minCount; c <= maxCount; c++) {
+          if (c > remaining) break;
+          
+          const chunk = allPhotos.slice(currentIndex, currentIndex + c);
+          const result = calculateOptimalGrid(chunk, width, height, gap);
+          
+          // We prefer counts closer to Target if scores are very similar
+          // Penalize deviation from target slightly
+          const targetDeviation = Math.abs(target - c) * 0.05; 
+          const totalScore = result.fitScore + targetDeviation;
+          
+          if (totalScore < bestChunkScore) {
+            bestChunkScore = totalScore;
+            bestCount = c;
+          }
+        }
+        
+        pages.push(allPhotos.slice(currentIndex, currentIndex + bestCount));
+        currentIndex += bestCount;
+      }
+      return pages;
+    }
+
 
     function renderGrid() {
       const paper = getPaperDimensions();
@@ -553,6 +633,7 @@
       const margin = parseInt(document.getElementById('margin').value) || 10;
       const gap = parseInt(document.getElementById('gap').value) || 5;
       const photosPerPage = parseInt(document.getElementById('photosPerPage').value) || 10;
+      const tolerance = parseInt(document.getElementById('pageTolerance').value) || 0;
       
       const marginPx = (margin / paper.width) * displayWidth;
       const gapPx = (gap / paper.width) * displayWidth;
@@ -577,236 +658,4 @@
               <polyline points="21 15 16 10 5 21"></polyline>
             </svg>
             <p class="dropzone-title">Drop photos here</p>
-            <p class="dropzone-subtitle">or use the upload button</p>
-          </div>
-        `;
-        canvasWrapper.appendChild(emptyCanvas);
-        return;
-      }
-
-      const totalPages = Math.ceil(photos.length / photosPerPage);
-      if (currentPageIndex >= totalPages) currentPageIndex = totalPages - 1;
-      if (currentPageIndex < 0) currentPageIndex = 0;
-
-      const navControls = document.getElementById('pageNav');
-      navControls.style.display = 'flex';
-      document.getElementById('pageIndicator').textContent = `Side ${currentPageIndex + 1} av ${totalPages}`;
-      document.getElementById('prevBtn').disabled = currentPageIndex === 0;
-      document.getElementById('nextBtn').disabled = currentPageIndex === totalPages - 1;
-
-      const startIndex = currentPageIndex * photosPerPage;
-      const endIndex = Math.min(startIndex + photosPerPage, photos.length);
-      const pagePhotos = photos.slice(startIndex, endIndex);
-
-      const canvasEl = document.createElement('div');
-      canvasEl.className = 'canvas';
-      canvasEl.style.width = displayWidth + 'px';
-      canvasEl.style.height = displayHeight + 'px';
-      canvasEl.style.backgroundColor = document.getElementById('bgColorText').value;
-
-      const gridEl = document.createElement('div');
-      gridEl.className = 'grid-container';
-      gridEl.style.width = availableWidth + 'px';
-      gridEl.style.height = availableHeight + 'px';
-      gridEl.style.left = marginPx + 'px';
-      gridEl.style.top = marginPx + 'px';
-
-      const grid = calculateOptimalGrid(pagePhotos, availableWidth, availableHeight, gapPx);
-
-      grid.cells.forEach((cell) => {
-        const div = document.createElement('div');
-        div.className = 'photo-cell';
-        div.style.left = cell.x + 'px';
-        div.style.top = cell.y + 'px';
-        div.style.width = cell.width + 'px';
-        div.style.height = cell.height + 'px';
-        
-        // --- ENABLE DRAG AND DROP ---
-        div.draggable = true;
-        div.dataset.id = cell.photo.id;
-        div.ondragstart = (e) => handleDragStart(e, cell.photo.id);
-        div.ondragover = handleDragOver;
-        div.ondragenter = handleDragEnter;
-        div.ondragleave = handleDragLeave;
-        div.ondrop = (e) => handleDrop(e, cell.photo.id);
-        div.ondragend = handleDragEnd;
-
-        const img = document.createElement('img');
-        img.src = cell.photo.src;
-        img.alt = cell.photo.name;
-
-        const btn = document.createElement('button');
-        btn.className = 'remove-btn';
-        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-        btn.onclick = (e) => {
-          e.stopPropagation(); // Prevent drag start
-          photos = photos.filter(p => p.id !== cell.photo.id);
-          updateUI();
-        };
-
-        div.appendChild(img);
-        div.appendChild(btn);
-        gridEl.appendChild(div);
-      });
-
-      canvasEl.appendChild(gridEl);
-      canvasWrapper.appendChild(canvasEl);
-    }
-
-    function loadImage(src) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = (e) => reject(e);
-        img.src = src;
-      });
-    }
-
-    function createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, bgColor) {
-      return new Promise(async (resolve, reject) => {
-        try {
-          const canvas = document.createElement('canvas');
-          canvas.width = exportWidth;
-          canvas.height = exportHeight;
-          const ctx = canvas.getContext('2d');
-
-          ctx.fillStyle = bgColor;
-          ctx.fillRect(0, 0, exportWidth, exportHeight);
-
-          const availableWidth = exportWidth - 2 * marginPx;
-          const availableHeight = exportHeight - 2 * marginPx;
-
-          const grid = calculateOptimalGrid(pagePhotos, availableWidth, availableHeight, gapPx);
-
-          for (let i = 0; i < grid.cells.length; i++) {
-            const cell = grid.cells[i];
-            const photo = cell.photo;
-            const img = await loadImage(photo.src);
-
-            const cellAspect = cell.width / cell.height;
-            const photoAspect = photo.aspectRatio;
-            let drawWidth, drawHeight, offsetX, offsetY;
-
-            if (photoAspect > cellAspect) {
-              drawHeight = cell.height;
-              drawWidth = drawHeight * photoAspect;
-              offsetX = (cell.width - drawWidth) / 2;
-              offsetY = 0;
-            } else {
-              drawWidth = cell.width;
-              drawHeight = drawWidth / photoAspect;
-              offsetX = 0;
-              offsetY = (cell.height - drawHeight) / 2;
-            }
-
-            const x = Math.round(marginPx + cell.x + offsetX);
-            const y = Math.round(marginPx + cell.y + offsetY);
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(Math.round(marginPx + cell.x), Math.round(marginPx + cell.y), Math.round(cell.width), Math.round(cell.height));
-            ctx.clip();
-            ctx.drawImage(img, x, y, Math.round(drawWidth), Math.round(drawHeight));
-            ctx.restore();
-          }
-
-          canvas.toBlob((blob) => {
-            if (blob) resolve(blob); else reject(new Error('Failed to create blob'));
-          }, 'image/jpeg', 0.95);
-        } catch (err) {
-          reject(err);
-        }
-      });
-    }
-
-    async function exportGrid() {
-      if (photos.length === 0) return;
-      const paper = getPaperDimensions();
-      const dpi = parseInt(document.getElementById('dpi').value);
-      const mmToPixels = dpi / 25.4;
-      const exportWidth = Math.round(paper.width * mmToPixels);
-      const exportHeight = Math.round(paper.height * mmToPixels);
-      const margin = parseInt(document.getElementById('margin').value);
-      const gap = parseInt(document.getElementById('gap').value);
-      const marginPx = Math.round(margin * mmToPixels);
-      const gapPx = Math.round(gap * mmToPixels);
-      const photosPerPage = parseInt(document.getElementById('photosPerPage').value);
-      const pages = [];
-      for (let i = 0; i < photos.length; i += photosPerPage) pages.push(photos.slice(i, i + photosPerPage));
-      const paperSize = document.getElementById('paperSize').value;
-      const btn = document.getElementById('exportBtn');
-      btn.disabled = true;
-      try {
-        for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
-          const pagePhotos = pages[pageIndex];
-          const blob = await createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, document.getElementById('bgColorText').value);
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          const fileName = pages.length > 1 
-            ? `photo-grid-${paperSize}-${orientation}-page${pageIndex + 1}-${dpi}dpi.jpg`
-            : `photo-grid-${paperSize}-${orientation}-${dpi}dpi.jpg`;
-          a.href = url;
-          a.download = fileName;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-          await new Promise(r => setTimeout(r, 200));
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Feil ved eksport: ' + err.message);
-      } finally {
-        btn.disabled = false;
-      }
-    }
-
-    async function downloadAllZip() {
-      if (photos.length === 0) return;
-      const paper = getPaperDimensions();
-      const dpi = parseInt(document.getElementById('dpi').value);
-      const mmToPixels = dpi / 25.4;
-      const exportWidth = Math.round(paper.width * mmToPixels);
-      const exportHeight = Math.round(paper.height * mmToPixels);
-      const margin = parseInt(document.getElementById('margin').value);
-      const gap = parseInt(document.getElementById('gap').value);
-      const marginPx = Math.round(margin * mmToPixels);
-      const gapPx = Math.round(gap * mmToPixels);
-      const photosPerPage = parseInt(document.getElementById('photosPerPage').value);
-      const pages = [];
-      for (let i = 0; i < photos.length; i += photosPerPage) pages.push(photos.slice(i, i + photosPerPage));
-      const zip = new JSZip();
-      const paperSize = document.getElementById('paperSize').value;
-      const btn = document.getElementById('downloadAllBtn');
-      btn.disabled = true;
-      try {
-        for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
-          const pagePhotos = pages[pageIndex];
-          const blob = await createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, document.getElementById('bgColorText').value);
-          const fileName = pages.length > 1
-            ? `photo-grid-${paperSize}-${orientation}-page${pageIndex + 1}-${dpi}dpi.jpg`
-            : `photo-grid-${paperSize}-${orientation}-${dpi}dpi.jpg`;
-          zip.file(fileName, blob);
-        }
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        const url = URL.createObjectURL(zipBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `photo-grid-${paperSize}-${orientation}-${dpi}dpi.zip`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      } catch (err) {
-        console.error(err);
-        alert('Feil ved oppretting av zip: ' + err.message);
-      } finally {
-        btn.disabled = false;
-      }
-    }
-
-    window.addEventListener('resize', () => renderGrid());
-    renderGrid();
-  </script>
-</body>
-</html>
+            <p class="dropzone-subtitle">or use the upload
