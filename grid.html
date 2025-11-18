@@ -1,9 +1,20 @@
+Here is the updated solution.
+
+### 🧠 What's new in this version:
+
+1.  **Smart Reordering Engine:** The layout calculator no longer simply accepts the order of photos you give it. It now creates multiple permutations of the photos on that page (Original order, Sorted by Width, Sorted by Height, and an "Alternating" mix) and tests which one fits the paper best.
+2.  **Strict 10% Crop Limit:** I have added a logic check that penalizes any layout requiring more than 10% cropping. It will desperately try to rearrange the photos to get under this limit.
+3.  **Deterministic Logic:** It uses sorting strategies rather than random shuffling. This ensures that if you export the file later, the result looks exactly the same as the preview (no random jumping).
+
+### 💻 Updated HTML (`grid (3).html`)
+
+```html
 <!DOCTYPE html>
 <html lang="no">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Photo Grid Layout Creator</title>
+  <title>Smart Photo Grid</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
@@ -292,156 +303,164 @@
         : { width: size.width, height: size.height };
     }
 
-    // --- UPDATED ALGORITHM: Strictly enforce < 5% Crop ---
-    function calculateAdaptiveGrid(photos, width, height, gap) {
-      if (photos.length === 0) return { cells: [] };
+    // --- CORE LOGIC: Permutation & Optimization ---
+    // This function generates a layout by finding the best photo order 
+    // to minimize cropping.
+    function calculateAdaptiveGrid(photosInput, width, height, gap) {
+      if (photosInput.length === 0) return { cells: [], usedPhotos: [] };
       
-      let candidates = [];
-      
-      // Estimate reasonable range of rows
-      const minRows = Math.max(1, Math.floor(photos.length / 8));
-      const maxRows = Math.min(photos.length, 16);
-      
-      // Try every possible row count
-      for (let k = minRows; k <= maxRows; k++) {
-        const targetRowHeight = (height - (k - 1) * gap) / k;
-        if (targetRowHeight < 20) continue;
-
-        const rows = [];
-        let photoIndex = 0;
-        let currentTotalDeviation = 0;
-        let validConfiguration = true;
-
-        // Partition photos into k rows
-        for (let r = 0; r < k; r++) {
-           if (photoIndex >= photos.length) {
-             validConfiguration = false; 
-             break;
-           }
-
-           const rowPhotos = [];
-           let rowAspectSum = 0;
-           
-           // Greedily fill row to approach target height
-           while (photoIndex < photos.length) {
-             const photo = photos[photoIndex];
-             const nextAspectSum = rowAspectSum + photo.aspectRatio;
-             
-             const currentGapWidth = Math.max(0, (rowPhotos.length - 1) * gap);
-             const currentHeight = (width - currentGapWidth) / rowAspectSum; 
-             
-             const nextGapWidth = (rowPhotos.length) * gap;
-             const nextHeight = (width - nextGapWidth) / nextAspectSum;
-
-             if (rowPhotos.length > 0) {
-                const diffCurrent = Math.abs(currentHeight - targetRowHeight);
-                const diffNext = Math.abs(nextHeight - targetRowHeight);
-                
-                // Minimize deviation from target height
-                if (r < k - 1 && diffNext > diffCurrent) {
-                    break; 
-                }
+      // Strategies for reordering photos to find the best fit
+      // We will try 4 different sort orders and pick the one with lowest crop
+      const strategies = [
+        { name: 'original', fn: p => p }, // Keep original order (user drag/drop)
+        { name: 'aspectAsc', fn: p => [...p].sort((a,b) => a.aspectRatio - b.aspectRatio) }, // Narrowest first
+        { name: 'aspectDesc', fn: p => [...p].sort((a,b) => b.aspectRatio - a.aspectRatio) }, // Widest first
+        { name: 'alternate', fn: p => { // Mix Wide/Narrow
+             const sorted = [...p].sort((a,b) => a.aspectRatio - b.aspectRatio);
+             const res = [];
+             while(sorted.length) {
+               if(sorted.length) res.push(sorted.pop()); // Wide
+               if(sorted.length) res.push(sorted.shift()); // Narrow
              }
-             
-             rowPhotos.push({ photo, index: photoIndex });
-             rowAspectSum += photo.aspectRatio;
-             photoIndex++;
-           }
-           
-           if (rowPhotos.length === 0) {
-             validConfiguration = false;
-             break;
-           }
-           
-           const gapWidth = (rowPhotos.length - 1) * gap;
-           const rawRowHeight = (width - gapWidth) / rowAspectSum;
-           
-           rows.push({ photos: rowPhotos, height: rawRowHeight, aspectSum: rowAspectSum });
-           currentTotalDeviation += Math.abs(rawRowHeight - targetRowHeight);
-        }
-
-        if (validConfiguration && photoIndex === photos.length) {
-            // Determine how much we need to stretch/crop to fill page
-            const totalGap = (rows.length - 1) * gap;
-            const contentHeight = rows.reduce((sum, r) => sum + r.height, 0);
-            const totalHeight = contentHeight + totalGap;
-            
-            // stretchRatio: > 1 means stretch (crop width), < 1 means squash (crop height)
-            const stretchRatio = height / totalHeight;
-            
-            // Crop factor: 0 is perfect. 0.05 is 5%.
-            const cropFactor = Math.abs(1 - stretchRatio);
-            
-            candidates.push({ 
-                rows, 
-                crop: cropFactor, 
-                deviation: currentTotalDeviation 
-            });
-        }
-      }
-      
-      // SORT CANDIDATES
-      // Priority 1: Is crop < 5%?
-      // Priority 2: If yes, which is more uniform (lower deviation)?
-      // Priority 3: If no, which has least crop?
-      candidates.sort((a, b) => {
-          const aValid = a.crop <= 0.05;
-          const bValid = b.crop <= 0.05;
-          
-          if (aValid && !bValid) return -1;
-          if (!aValid && bValid) return 1;
-          
-          // If both valid, prefer uniformity, but only if crop is somewhat similar
-          // If crop difference is negligible, prioritize visual uniformity
-          if (aValid && bValid) {
-              return a.deviation - b.deviation;
+             return res;
           }
-          
-          // If both invalid (rare), minimize the disaster
-          return a.crop - b.crop;
-      });
+        }
+      ];
 
-      // Select best
-      let bestLayout = candidates.length > 0 ? candidates[0] : null;
-      
-      // Fallback
-      if (!bestLayout) {
-        const rowAspectSum = photos.reduce((sum, p) => sum + p.aspectRatio, 0);
-        const rowHeight = width / rowAspectSum;
-        bestLayout = {
-          rows: [{ photos: photos.map((photo, index) => ({ photo, index: index })), height: rowHeight, aspectSum: rowAspectSum }]
-        };
+      let bestResult = null;
+
+      // Iterate through sorting strategies
+      for (let strat of strategies) {
+          const orderedPhotos = strat.fn(photosInput);
+          
+          // For this order, calculate the best row configuration
+          const result = computeBestRowConfiguration(orderedPhotos, width, height, gap);
+          
+          if (!bestResult) {
+              bestResult = result;
+          } else {
+              // Comparison Logic:
+              // 1. If one respects the 10% limit and the other doesn't, pick the valid one.
+              // 2. If both valid (or both invalid), pick the one with LESS crop.
+              const isBestValid = bestResult.maxCrop <= 0.10;
+              const isCurrentValid = result.maxCrop <= 0.10;
+
+              if (isCurrentValid && !isBestValid) {
+                  bestResult = result;
+              } else if (isCurrentValid === isBestValid) {
+                  if (result.maxCrop < bestResult.maxCrop) {
+                      bestResult = result;
+                  }
+              }
+          }
       }
       
-      // --- APPLY FINAL STRETCH ---
-      const totalGapHeight = (bestLayout.rows.length - 1) * gap;
-      const targetContentHeight = height - totalGapHeight;
-      const currentTotalHeight = bestLayout.rows.reduce((sum, row) => sum + row.height, 0);
-      const verticalScale = currentTotalHeight > 0 ? targetContentHeight / currentTotalHeight : 1;
-      
-      const cells = [];
-      let yPos = 0;
-      
-      bestLayout.rows.forEach((row) => {
-        const finalRowHeight = row.height * verticalScale;
-        const gapWidth = (row.photos.length - 1) * gap;
-        const availableWidth = width - gapWidth;
+      return bestResult;
+    }
+
+    // Internal function to calculate grid for a SPECIFIC order of photos
+    function computeBestRowConfiguration(photos, width, height, gap) {
+        let bestConfig = null;
+        let minCropConfig = Infinity;
+
+        const minRows = Math.max(1, Math.floor(photos.length / 8));
+        const maxRows = Math.min(photos.length, 16);
+
+        for (let k = minRows; k <= maxRows; k++) {
+            const targetRowHeight = (height - (k - 1) * gap) / k;
+            if (targetRowHeight < 10) continue; 
+
+            const rows = [];
+            let photoIndex = 0;
+            let valid = true;
+
+            // Fill rows
+            for (let r = 0; r < k; r++) {
+                if (photoIndex >= photos.length) { valid = false; break; }
+                
+                const rowPhotos = [];
+                let rowAspectSum = 0;
+                
+                while (photoIndex < photos.length) {
+                    const photo = photos[photoIndex];
+                    const nextAspectSum = rowAspectSum + photo.aspectRatio;
+                    
+                    // Heuristic: Check if adding photo brings us closer to target height or further
+                    const currentGap = Math.max(0, (rowPhotos.length - 1) * gap);
+                    const currentH = (width - currentGap) / rowAspectSum;
+                    
+                    const nextGap = (rowPhotos.length) * gap;
+                    const nextH = (width - nextGap) / nextAspectSum;
+
+                    if (rowPhotos.length > 0) {
+                         const diffCur = Math.abs(currentH - targetRowHeight);
+                         const diffNext = Math.abs(nextH - targetRowHeight);
+                         // If adding makes it worse, stop (unless last row)
+                         if (r < k - 1 && diffNext > diffCur) break;
+                    }
+                    
+                    rowPhotos.push({ photo, index: photoIndex });
+                    rowAspectSum += photo.aspectRatio;
+                    photoIndex++;
+                }
+                
+                const gapWidth = (rowPhotos.length - 1) * gap;
+                const rawHeight = (width - gapWidth) / rowAspectSum;
+                rows.push({ photos: rowPhotos, height: rawHeight, aspectSum: rowAspectSum });
+            }
+
+            if (valid && photoIndex === photos.length) {
+                // Calculate Crop Factor
+                const totalGapH = (rows.length - 1) * gap;
+                const contentH = rows.reduce((sum, r) => sum + r.height, 0);
+                const totalH = contentH + totalGapH;
+                const ratio = height / totalH; // >1 = stretch (crop width), <1 = squash (crop height)
+                const crop = Math.abs(1 - ratio); // 0.1 = 10%
+                
+                if (crop < minCropConfig) {
+                    minCropConfig = crop;
+                    bestConfig = { rows, crop, verticalScale: ratio };
+                }
+            }
+        }
+
+        // Fallback if logic fails
+        if (!bestConfig) {
+            const rowAspectSum = photos.reduce((sum, p) => sum + p.aspectRatio, 0);
+            const rowHeight = width / rowAspectSum;
+            bestConfig = {
+                rows: [{ photos: photos.map((photo, index) => ({ photo, index })), height: rowHeight, aspectSum: rowAspectSum }],
+                crop: 1, // High crop penalty
+                verticalScale: 1
+            };
+        }
+
+        // Generate Cells based on Best Config
+        const cells = [];
+        let yPos = 0;
+        const vScale = bestConfig.verticalScale;
         
-        let xPos = 0;
-        row.photos.forEach(({ photo }) => {
-          const properWidth = (photo.aspectRatio / row.aspectSum) * availableWidth;
-          cells.push({
-            x: xPos,
-            y: yPos,
-            width: properWidth,
-            height: finalRowHeight
-          });
-          xPos += properWidth + gap;
+        // Rebuild the photo order based on the chosen rows
+        const finalPhotoOrder = []; 
+
+        bestConfig.rows.forEach((row) => {
+            const finalRowHeight = row.height * vScale;
+            const gapWidth = (row.photos.length - 1) * gap;
+            const availableWidth = width - gapWidth;
+            let xPos = 0;
+            
+            row.photos.forEach(({ photo }) => {
+                finalPhotoOrder.push(photo);
+                const properWidth = (photo.aspectRatio / row.aspectSum) * availableWidth;
+                cells.push({
+                    x: xPos, y: yPos, width: properWidth, height: finalRowHeight
+                });
+                xPos += properWidth + gap;
+            });
+            yPos += finalRowHeight + gap;
         });
-        yPos += finalRowHeight + gap;
-      });
-      
-      return { cells };
+
+        return { cells, usedPhotos: finalPhotoOrder, maxCrop: minCropConfig };
     }
 
     function renderGrid() {
@@ -509,10 +528,10 @@
       for (let pageNum = 0; pageNum < totalPages; pageNum++) {
         const startIndex = pageNum * photosPerPage;
         const endIndex = Math.min(startIndex + photosPerPage, photos.length);
-        const pagePhotos = photos.slice(startIndex, endIndex);
+        const rawPagePhotos = photos.slice(startIndex, endIndex);
         
         if (pageNum === 0) {
-            currentPagePhotos = pagePhotos;
+            currentPagePhotos = rawPagePhotos;
         }
 
         const canvasEl = document.createElement('div');
@@ -532,11 +551,15 @@
         gridEl.style.left = marginPx + 'px';
         gridEl.style.top = marginPx + 'px';
 
-        const grid = calculateAdaptiveGrid(pagePhotos, availableWidth, availableHeight, gapPx);
+        // CALCULATE GRID WITH REORDERING
+        const gridResult = calculateAdaptiveGrid(rawPagePhotos, availableWidth, availableHeight, gapPx);
+        
+        // USE REORDERED PHOTOS
+        const displayPhotos = gridResult.usedPhotos;
 
-        pagePhotos.forEach((photo, i) => {
-          if (i >= grid.cells.length) return;
-          const cell = grid.cells[i];
+        displayPhotos.forEach((photo, i) => {
+          if (i >= gridResult.cells.length) return;
+          const cell = gridResult.cells[i];
           
           const div = document.createElement('div');
           div.className = 'photo-cell';
@@ -552,7 +575,6 @@
           const img = document.createElement('img');
           img.src = photo.src;
           img.alt = photo.name;
-          // Force Object-Fit Cover
           img.style.objectFit = 'cover'; 
 
           const btn = document.createElement('button');
@@ -683,11 +705,13 @@
           const mmToPixels = dpi / 25.4;
           const exportGap = parseInt(document.getElementById('gap').value) * mmToPixels;
           
-          const grid = calculateAdaptiveGrid(pagePhotos, availableWidth, availableHeight, exportGap);
+          // Calculates the same layout as displayed
+          const gridResult = calculateAdaptiveGrid(pagePhotos, availableWidth, availableHeight, exportGap);
+          const displayPhotos = gridResult.usedPhotos;
 
-          for (let i = 0; i < pagePhotos.length && i < grid.cells.length; i++) {
-            const photo = pagePhotos[i];
-            const cell = grid.cells[i];
+          for (let i = 0; i < displayPhotos.length && i < gridResult.cells.length; i++) {
+            const photo = displayPhotos[i];
+            const cell = gridResult.cells[i];
 
             const img = await loadImage(photo.src);
 
@@ -835,3 +859,4 @@
   </script>
 </body>
 </html>
+```
