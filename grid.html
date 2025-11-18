@@ -44,7 +44,7 @@
     .color-input-group input[type="color"] { width: 48px; height: 40px; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; }
     .color-input-group input[type="text"] { flex: 1; font-family: 'Courier New', monospace; }
     
-    /* Main Canvas Area - UPDATED PADDING */
+    /* Main Canvas Area */
     .main-canvas { flex: 1; padding: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; height: 100vh; position: relative; background-color: #f3f4f6; }
     .canvas-wrapper { display: flex; align-items: center; justify-content: center; flex: 1; width: 100%; min-height: 0; }
     
@@ -94,8 +94,28 @@
     .dropzone-subtitle { font-size: 14px; }
     
     .grid-container { position: absolute; transition: top 0.3s ease; }
-    .photo-cell { position: absolute; overflow: hidden; background-color: #f3f4f6; transition: all 0.2s ease; }
-    .photo-cell img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+    
+    /* Drag and Drop Styles */
+    .photo-cell { 
+      position: absolute; 
+      overflow: hidden; 
+      background-color: #f3f4f6; 
+      transition: all 0.2s ease; 
+      cursor: grab; 
+    }
+    .photo-cell.dragging { 
+      opacity: 0.4; 
+      cursor: grabbing;
+      border: 2px dashed #2563eb;
+    }
+    .photo-cell.drag-over { 
+      outline: 3px solid #2563eb; 
+      z-index: 10;
+      transform: scale(1.02);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .photo-cell img { width: 100%; height: 100%; object-fit: cover; object-position: center; pointer-events: none; }
     .photo-cell:hover .remove-btn { opacity: 1; }
     .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background-color: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; transition: all 0.15s; z-index: 5; }
     .remove-btn:hover { background-color: #dc2626; }
@@ -239,6 +259,70 @@
     let photos = [];
     let orientation = 'portrait';
     let currentPageIndex = 0;
+
+    // --- DRAG AND DROP HANDLERS ---
+    let draggedPhotoId = null;
+
+    function handleDragStart(e, id) {
+      draggedPhotoId = id;
+      e.target.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      // Optional: Set a transparent drag image if desired, but default ghost is usually fine
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      return false;
+    }
+
+    function handleDragEnter(e) {
+      e.preventDefault();
+      const target = e.target.closest('.photo-cell');
+      if (target && target.dataset.id !== String(draggedPhotoId)) {
+        target.classList.add('drag-over');
+      }
+    }
+
+    function handleDragLeave(e) {
+      const target = e.target.closest('.photo-cell');
+      if (target) {
+        target.classList.remove('drag-over');
+      }
+    }
+
+    function handleDrop(e, targetId) {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      // Remove all drag states
+      document.querySelectorAll('.photo-cell').forEach(el => {
+        el.classList.remove('dragging');
+        el.classList.remove('drag-over');
+      });
+
+      if (draggedPhotoId === null || draggedPhotoId === targetId) return;
+
+      const fromIndex = photos.findIndex(p => p.id === draggedPhotoId);
+      const toIndex = photos.findIndex(p => p.id === targetId);
+
+      if (fromIndex > -1 && toIndex > -1) {
+        // Move item in array
+        const item = photos.splice(fromIndex, 1)[0];
+        photos.splice(toIndex, 0, item);
+        // Re-render the grid with new order
+        renderGrid();
+      }
+      draggedPhotoId = null;
+      return false;
+    }
+
+    function handleDragEnd(e) {
+      e.target.classList.remove('dragging');
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      draggedPhotoId = null;
+    }
+    // ------------------------------
 
     function updatePhotosPerPage() {
       const value = parseInt(document.getElementById('photosPerPage').value);
@@ -408,14 +492,11 @@
       const rows = bestLayout.rows;
       let finalScale = bestLayout.optimalScale;
       
-      // Clamp scale to strict 10% limits
       if (finalScale < 0.9) finalScale = 0.9;
       if (finalScale > 1.1) finalScale = 1.1;
 
-      // Calculate Total Height with this clamped scale
       let currentTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
 
-      // --- OVERFLOW PROTECTION ---
       let fitScale = 1;
       if (currentTotalHeight > height) {
          fitScale = height / currentTotalHeight;
@@ -451,16 +532,13 @@
       const aspectRatio = paper.width / paper.height;
       const isMobile = window.innerWidth <= 900;
       
-      // INCREASED PADDING LOGIC
-      const padding = 80; // More breathing room
+      const padding = 80; 
       const sidebarWidth = isMobile ? 0 : 320;
       const navHeight = 80; 
       
-      // Calculate exact max width/height available for the "paper"
       const maxWidth = window.innerWidth - sidebarWidth - (padding * 2);
       const maxHeight = window.innerHeight - (padding * 2) - navHeight;
 
-      // Determine size that fits both constraints
       let displayWidth = maxWidth;
       let displayHeight = displayWidth / aspectRatio;
 
@@ -469,7 +547,6 @@
         displayWidth = displayHeight * aspectRatio;
       }
       
-      // Prevent negative/zero values if window is tiny
       displayWidth = Math.max(100, displayWidth);
       displayHeight = Math.max(100, displayHeight);
 
@@ -543,6 +620,16 @@
         div.style.top = cell.y + 'px';
         div.style.width = cell.width + 'px';
         div.style.height = cell.height + 'px';
+        
+        // --- ENABLE DRAG AND DROP ---
+        div.draggable = true;
+        div.dataset.id = cell.photo.id;
+        div.ondragstart = (e) => handleDragStart(e, cell.photo.id);
+        div.ondragover = handleDragOver;
+        div.ondragenter = handleDragEnter;
+        div.ondragleave = handleDragLeave;
+        div.ondrop = (e) => handleDrop(e, cell.photo.id);
+        div.ondragend = handleDragEnd;
 
         const img = document.createElement('img');
         img.src = cell.photo.src;
@@ -551,7 +638,8 @@
         const btn = document.createElement('button');
         btn.className = 'remove-btn';
         btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-        btn.onclick = () => {
+        btn.onclick = (e) => {
+          e.stopPropagation(); // Prevent drag start
           photos = photos.filter(p => p.id !== cell.photo.id);
           updateUI();
         };
