@@ -127,17 +127,6 @@
           </div>
         </div>
 
-        <div class="control-group">
-          <label>Eksport kvalitet</label>
-          <select id="quality">
-            <option value="0.92">Høy kvalitet (anbefalt)</option>
-            <option value="0.85">Medium kvalitet</option>
-            <option value="0.75">Lav kvalitet (mindre filer)</option>
-          </select>
-        </div>
-
-      
-
         <button id="clearBtn" class="btn-danger" onclick="clearAll()" style="display:none">Fjern alle bilder</button>
       </div>
 
@@ -259,7 +248,6 @@
       renderPreview();
     }
 
-    // Add window resize listener to update carousel on orientation changes
     let resizeTimeout;
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimeout);
@@ -534,7 +522,6 @@
 
       let displayWidth, displayHeight;
 
-      // Get viewport width for responsive sizing
       const viewportWidth = window.innerWidth;
       const isMobile = viewportWidth <= 900;
 
@@ -542,7 +529,6 @@
           displayWidth = isMobile ? Math.min(320, viewportWidth - 40) : 320;
           displayHeight = Math.round(displayWidth * 16 / 9);
       } else {
-          // Base the size on width instead of height for better mobile support
           if (isMobile) {
             displayWidth = Math.min(400, viewportWidth - 40);
           } else {
@@ -905,7 +891,7 @@
       ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, drawX, drawY, drawW, drawH);
 
       return new Promise((resolve) => {
-        const quality = parseFloat(document.getElementById('quality').value);
+        const quality = 1.0; // Maximum quality
         canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
       });
     }
