@@ -34,11 +34,10 @@
     .color-input-group { display: flex; gap: 8px; }
     .color-input-group input[type="color"] { width: 48px; height: 40px; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; }
     .color-input-group input[type="text"] { flex: 1; font-family: 'Courier New', monospace; }
-    /* UPDATED: Added max-height: 100vh to prevent scrolling issues in layout */
     .main-canvas { flex: 1; padding: 32px; display: flex; align-items: center; justify-content: center; overflow: hidden; height: 100vh; }
     .canvas-wrapper { display: flex; gap: 24px; align-items: center; justify-content: center; height: 100%; width: 100%; }
-    /* UPDATED: Added border to canvas so white paper is visible on white bg */
-    .canvas { position: relative; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); flex-shrink: 0; border: 1px solid #d1d5db; transition: width 0.2s, height 0.2s; }
+    /* UPDATED: overflow: hidden ensures content never bleeds out visually */
+    .canvas { position: relative; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); flex-shrink: 0; border: 1px solid #d1d5db; transition: width 0.2s, height 0.2s; overflow: hidden; }
     .dropzone { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; border: 2px dashed #d1d5db; border-radius: 8px; }
     .dropzone svg { stroke-width: 1; }
     .dropzone-title { margin-top: 16px; font-size: 18px; font-weight: 500; }
@@ -287,11 +286,9 @@
     function calculateAdaptiveGrid(photos, width, height, gap) {
       if (photos.length === 0) return { cells: [] };
       
-      // Try different row configurations to find the best fit
       let bestLayout = null;
       let bestWaste = Infinity;
       
-      // Estimate reasonable number of rows to try
       const minRows = Math.max(1, Math.floor(photos.length / 6));
       const maxRows = Math.min(photos.length, Math.ceil(photos.length / 1));
       
@@ -300,7 +297,6 @@
         let photoIndex = 0;
         const estimatedRowHeight = (height - (targetRows - 1) * gap) / targetRows;
         
-        // Distribute photos across rows
         while (photoIndex < photos.length && rows.length < targetRows) {
           const rowPhotos = [];
           let rowAspectSum = 0;
@@ -309,7 +305,6 @@
           const minPhotosForRow = Math.floor(photosRemaining / rowsRemaining);
           const maxPhotosForRow = Math.ceil(photosRemaining / rowsRemaining) + 2;
           
-          // Add photos to this row
           while (photoIndex < photos.length && rowPhotos.length < maxPhotosForRow) {
             const photo = photos[photoIndex];
             const projectedWidth = (rowAspectSum + photo.aspectRatio) * estimatedRowHeight;
@@ -331,7 +326,6 @@
           }
         }
         
-        // Calculate how well this fits
         const totalGapHeight = (rows.length - 1) * gap;
         const totalContentHeight = rows.reduce((sum, row) => sum + row.height, 0);
         const totalHeight = totalContentHeight + totalGapHeight;
@@ -344,7 +338,6 @@
       }
       
       if (!bestLayout) {
-        // Fallback: single row
         const rowAspectSum = photos.reduce((sum, p) => sum + p.aspectRatio, 0);
         const rowHeight = width / rowAspectSum;
         bestLayout = {
@@ -353,37 +346,58 @@
         };
       }
       
-      // Build final cells - scale slightly to fill height if close enough
+      // --- NEW LOGIC START: Final Safety Scale ---
+      // Determine the actual height of the layout including gaps
+      const totalGapHeight = (bestLayout.rows.length - 1) * gap;
+      const calculatedTotalHeight = bestLayout.totalHeight + totalGapHeight;
+      
+      // If the grid is taller than the page, scale it down to fit
+      let finalScale = 1;
+      if (calculatedTotalHeight > height) {
+        finalScale = height / calculatedTotalHeight;
+      } 
+      // Optional: Scale UP slightly if it's very close (95%+) to fill the page
+      else if (Math.abs(height - calculatedTotalHeight) < height * 0.05) {
+         finalScale = height / calculatedTotalHeight;
+      }
+
       const cells = [];
       let yPos = 0;
-      const totalGapHeight = (bestLayout.rows.length - 1) * gap;
-      const heightDiff = height - bestLayout.totalHeight;
-      const shouldScale = Math.abs(heightDiff) < height * 0.05; // Only scale if within 5%
-      const scale = shouldScale ? height / (bestLayout.totalHeight + totalGapHeight) : 1;
+      
+      // Because we might scale down, the width will shrink. We need to center it horizontally.
+      const finalTotalWidth = width * finalScale;
+      const xOffset = (width - finalTotalWidth) / 2;
       
       bestLayout.rows.forEach((row) => {
-        const scaledRowHeight = row.height * scale;
-        const gapWidth = (row.photos.length - 1) * gap;
-        const availableWidth = width - gapWidth;
+        // Scale the row height and gap
+        const scaledRowHeight = row.height * finalScale;
+        const scaledGap = gap * finalScale;
+        const gapWidth = (row.photos.length - 1) * scaledGap;
         
-        let xPos = 0;
+        // Calculate available width for this row specifically
+        // Use the original width calculation logic but apply the scale
+        const availableWidth = (width - (row.photos.length - 1) * gap) * finalScale;
+
+        let xPos = xOffset;
+        
         row.photos.forEach(({ photo }) => {
-          // Calculate width to maintain aspect ratio with the scaled height
+          // Recalculate width based on the new scaled row height
+          // This ensures aspect ratio is perfect
           const cellWidth = scaledRowHeight * photo.aspectRatio;
-          const properWidth = (photo.aspectRatio / row.aspectSum) * availableWidth;
           
           cells.push({
             x: xPos,
             y: yPos,
-            width: properWidth,
+            width: cellWidth,
             height: scaledRowHeight
           });
           
-          xPos += properWidth + gap;
+          xPos += cellWidth + scaledGap;
         });
         
-        yPos += scaledRowHeight + gap;
+        yPos += scaledRowHeight + scaledGap;
       });
+      // --- NEW LOGIC END ---
       
       return { cells };
     }
@@ -393,26 +407,20 @@
       const aspectRatio = paper.width / paper.height;
       const isMobile = window.innerWidth <= 900;
       
-      // --- NEW SIZE CALCULATION LOGIC START ---
-      // Calculate sidebar and padding
       const sidebarWidth = isMobile ? 0 : 320;
-      const paddingHorizontal = isMobile ? 32 : 64; // Total horizontal padding
-      const paddingVertical = isMobile ? 32 : 64;   // Total vertical padding
+      const paddingHorizontal = isMobile ? 32 : 64; 
+      const paddingVertical = isMobile ? 32 : 64;   
       
-      // Get available dimensions
       const availableWidth = window.innerWidth - sidebarWidth - paddingHorizontal;
       const availableHeight = window.innerHeight - paddingVertical;
       
-      // 1. Try fitting by height first (since we want to see the full height)
       let displayHeight = availableHeight;
       let displayWidth = displayHeight * aspectRatio;
       
-      // 2. If that makes it too wide, fit by width instead
       if (displayWidth > availableWidth) {
         displayWidth = availableWidth;
         displayHeight = displayWidth / aspectRatio;
       }
-      // --- NEW SIZE CALCULATION LOGIC END ---
 
       const margin = parseInt(document.getElementById('margin').value) || 10;
       const gap = parseInt(document.getElementById('gap').value) || 5;
@@ -448,7 +456,6 @@
         return;
       }
 
-      // Split photos into pages
       const totalPages = Math.ceil(photos.length / photosPerPage);
       document.getElementById('pageCount').textContent = totalPages;
 
@@ -616,7 +623,6 @@
           a.remove();
           URL.revokeObjectURL(url);
 
-          // Small pause to allow browser to process large downloads
           await new Promise(r => setTimeout(r, 200));
         }
       } catch (err) {
@@ -677,9 +683,7 @@
       }
     }
 
-    // Add event listener to update grid when window is resized
     window.addEventListener('resize', () => renderGrid());
-
     renderGrid();
   </script>
 </body>
