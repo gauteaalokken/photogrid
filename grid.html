@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fotogrid Pro</title>
   
-  <link rel="manifest" href='data:application/manifest+json;base64,ewogICJuYW1lIjogIkZvdG9ncmlkIFBybyIsCiAgInNob3J0X25hbWUiOiAiRm90b2dyaWQiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAiYnJvd3NlciIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiMyNTYzZWIiLAogICJpY29ucyI6IFt7CiAgICAic3JjIjogImh0dHBzOi8vdmlhLnBsYWNlaG9sZGVyLmNvbS8xOTIiLAogICAgInNpemVzIjogIjE5MngxOTIiLAogICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogIH1dCn0=' />
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+
+  <link rel="manifest" href='data:application/manifest+json;base64,ewogICJuYW1lIjogIkZvdG9ncmlkIFBybyIsCiAgInNob3J0X25hbWUiOiAiRm90b2dyaWQiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAiYnJvd3NlciIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiMyNTYzZWIiLAogICJpY29ucyI6IFt7CiAgICAic3JjIjogImljb24ucG5nIiwKICAgICJzaXplcyI6ICI1MTJ4NTEyIiwKICAgICJ0eXBlIjogImltYWdlL3BuZyIKICB9XQp9' />
   <meta name="theme-color" content="#2563eb">
 
   <style>
@@ -285,7 +288,6 @@
     const MAX_HISTORY = 20;
 
     // --- DATABASE (IndexedDB) FOR AUTOLAGRING ---
-    // Dette lar oss lagre store bildemengder i nettleseren som overlever refresh
     const dbName = 'PhotoGridDB';
     const storeName = 'photos';
     const settingsStore = 'settings';
@@ -313,19 +315,16 @@
 
     async function savePhotoToDB(photo) {
       if (!db) return;
-      // Vi lagrer fil-blobben for å kunne gjenskape den senere
-      // photo.originalFile må eksistere
       const tx = db.transaction([storeName], 'readwrite');
       const store = tx.objectStore(storeName);
       
-      // Vi lagrer kun det nødvendige
       const photoRecord = {
         id: photo.id,
         name: photo.name,
         width: photo.width,
         height: photo.height,
         aspectRatio: photo.aspectRatio,
-        file: photo.originalFile // Blobben
+        file: photo.originalFile 
       };
       
       store.put(photoRecord);
@@ -341,7 +340,6 @@
           const records = request.result;
           const loadedPhotos = [];
           for (const rec of records) {
-            // Gjenskap URLer
             const originalUrl = URL.createObjectURL(rec.file);
             const thumbData = await createThumbnail(rec.file);
             loadedPhotos.push({
@@ -367,7 +365,7 @@
       
       const settings = {
         key: 'appSettings',
-        photoOrder: photos.map(p => p.id), // Bare lagre rekkefølgen av IDer
+        photoOrder: photos.map(p => p.id),
         projectName: document.getElementById('projectName').value,
         photosPerPage: document.getElementById('photosPerPage').value,
         paperSize: document.getElementById('paperSize').value,
@@ -409,7 +407,6 @@
     // --- ANGRE FUNKSJONALITET ---
     
     function pushHistory() {
-        // Vi lagrer kun ID-listen i historikk for å spare minne. Selve bildene ligger i DB/minne.
         const currentState = photos.map(p => p.id);
         historyStack.push(currentState);
         if (historyStack.length > MAX_HISTORY) historyStack.shift();
@@ -420,14 +417,6 @@
         if (historyStack.length === 0) return;
         const previousIds = historyStack.pop();
         
-        // Rekonstruer rekkefølgen basert på IDer. 
-        // OBS: Hvis vi har slettet et bilde, og det er borte fra minnet, kan vi ikke angre sletting 
-        // med denne enkle modellen uten å beholde slettede bilder i en "papirkurv". 
-        // For enkelhets skyld: Denne angre-knappen fikser rekkefølge og sortering.
-        
-        // For full restore av slettede bilder måtte vi unngått å slette fra DB med en gang.
-        // Nå implementerer vi enkel rekkefølge-angring.
-        
         const newOrder = [];
         previousIds.forEach(id => {
             const p = photos.find(x => x.id === id);
@@ -436,7 +425,7 @@
         
         if (newOrder.length > 0) {
             photos = newOrder;
-            resetAndRender(false); // False = ikke lagre historikk på nytt
+            resetAndRender(false); 
         }
         updateUndoBtn();
     }
@@ -619,7 +608,7 @@
             
             const photoObj = {
                 id: Date.now() + Math.random(),
-                originalFile: file, // Important for IndexedDB
+                originalFile: file, 
                 originalSrc: originalUrl,
                 previewSrc: thumbData.src,
                 name: file.name,
@@ -628,7 +617,6 @@
                 aspectRatio: thumbData.width / thumbData.height
             };
             
-            // Lagre til DB umiddelbart
             await savePhotoToDB(photoObj);
             return photoObj;
         });
@@ -651,7 +639,6 @@
     async function clearAll() {
       if(!confirm("Er du sikker på at du vil fjerne alle bilder?")) return;
       
-      // Frigjør minne
       photos.forEach(p => {
           URL.revokeObjectURL(p.originalSrc);
           URL.revokeObjectURL(p.previewSrc);
@@ -671,7 +658,7 @@
       document.getElementById('exportBtn').disabled = photos.length === 0;
       document.getElementById('downloadAllBtn').style.display = photos.length > 0 ? 'block' : 'none';
       document.getElementById('clearBtn').style.display = photos.length > 0 ? 'block' : 'none';
-      renderGrid(false); // UI update doesn't need save
+      renderGrid(false); 
     }
 
     function getPaperDimensions() {
@@ -945,7 +932,7 @@
     function getProjectName() {
         let name = document.getElementById('projectName').value.trim();
         if(!name) name = "fotogrid-prosjekt";
-        return name.replace(/[^a-z0-9æøå]/gi, '-'); // Rens for filnavn
+        return name.replace(/[^a-z0-9æøå]/gi, '-'); 
     }
 
     function loadImage(src) {
@@ -1113,7 +1100,7 @@
                 document.getElementById('photosPerPage').value = savedSettings.photosPerPage;
                 document.getElementById('paperSize').value = savedSettings.paperSize;
                 orientation = savedSettings.orientation || 'portrait';
-                setOrientation(orientation); // Update buttons
+                setOrientation(orientation); 
                 document.getElementById('margin').value = savedSettings.margin;
                 document.getElementById('gap').value = savedSettings.gap;
                 if(savedSettings.bgColor) {
@@ -1121,19 +1108,16 @@
                     document.getElementById('bgColorPicker').value = savedSettings.bgColor;
                 }
                 
-                // Update inputs
                 handleSliderChange('photosPerPage', savedSettings.photosPerPage);
                 handleSliderChange('margin', savedSettings.margin);
                 handleSliderChange('gap', savedSettings.gap);
             }
 
             if (loadedPhotos.length > 0) {
-                // Restore photos based on saved order if available
                 if (savedSettings && savedSettings.photoOrder) {
                     const orderMap = new Map(loadedPhotos.map(p => [p.id, p]));
                     photos = savedSettings.photoOrder.map(id => orderMap.get(id)).filter(p => p);
                     
-                    // Add any photos that might be in DB but not in order list (edge case)
                     const usedIds = new Set(photos.map(p => p.id));
                     loadedPhotos.forEach(p => {
                         if (!usedIds.has(p.id)) photos.push(p);
