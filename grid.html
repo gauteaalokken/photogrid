@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro V056</title>
+  <title>Fotogrid Pro V057</title>
   
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
@@ -17,7 +17,7 @@
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     .app-container { min-height: 100vh; background-color: #f9fafb; display: flex; }
     
-    /* Version Tag */
+    /* VERSION TAG */
     .version-tag {
         position: fixed;
         top: 0;
@@ -25,11 +25,11 @@
         background-color: #fbbf24;
         color: #000;
         font-weight: bold;
-        padding: 4px 8px;
-        font-size: 12px;
+        padding: 4px 12px;
+        font-size: 14px;
         z-index: 9999;
-        border-bottom-left-radius: 4px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        border-bottom-left-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         pointer-events: none;
     }
 
@@ -123,7 +123,7 @@
     
     .grid-container { position: absolute; transition: top 0.3s ease; }
     
-    /* Drag Style & Controls */
+    /* Drag Style */
     .photo-cell { 
       position: absolute; 
       overflow: hidden; 
@@ -200,7 +200,8 @@
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
-  <div class="version-tag">V 056</div>
+  
+  <div class="version-tag">V 057</div>
 
   <div class="app-container">
     <div class="sidebar">
@@ -276,14 +277,6 @@
             <button id="portraitBtn" class="active" onclick="setOrientation('portrait')">Portrett</button>
             <button id="landscapeBtn" onclick="setOrientation('landscape')">Landskap</button>
           </div>
-        </div>
-        
-        <div class="control-group">
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; background:#eff6ff; padding:8px; border-radius:6px; border:1px solid #dbeafe;">
-                <input type="checkbox" id="centerFocus" onchange="resetAndRender()" style="width:auto; margin:0;">
-                <span style="font-weight:600; color:#1e40af;">Fremhev midten</span>
-            </label>
-            <p style="font-size:11px; color:#6b7280; margin-left:24px; margin-top:-4px;">Gjør midterste rader større (Fiskeøye)</p>
         </div>
 
         <div class="control-group">
@@ -404,7 +397,7 @@
         height: photo.height,
         aspectRatio: photo.aspectRatio,
         file: photo.originalFile,
-        weight: photo.weight || 1
+        weight: photo.weight || 1 // Support weighting
       };
       
       store.put(photoRecord);
@@ -453,8 +446,7 @@
         orientation: orientation,
         margin: document.getElementById('margin').value,
         gap: document.getElementById('gap').value,
-        bgColor: document.getElementById('bgColorText').value,
-        centerFocus: document.getElementById('centerFocus').checked
+        bgColor: document.getElementById('bgColorText').value
       };
       store.put(settings);
       
@@ -508,7 +500,16 @@
             }
         });
         
+        // Handle images in current set not in previous set (keep them, append at end)
+        // Or if strictly undoing deletions, we might need more complex logic.
+        // For simple reorder/weight undo:
         if (newOrder.length > 0) {
+            // Check if any current photos are missing from history (recently added), keep them
+            const historyIds = new Set(newOrder.map(p => p.id));
+            photos.forEach(p => {
+                if(!historyIds.has(p.id)) newOrder.push(p);
+            });
+            
             photos = newOrder;
             photos.forEach(p => savePhotoToDB(p));
             resetAndRender(false); 
@@ -614,7 +615,8 @@
         const photo = photos.find(p => p.id === id);
         if (photo) {
             pushHistory();
-            photo.weight = Math.max(0.2, Math.min(10.0, (photo.weight || 1) + delta));
+            // Allow range from 0.5 (half size) to 3.0 (triple size)
+            photo.weight = Math.max(0.5, Math.min(3.0, (photo.weight || 1) + delta));
             savePhotoToDB(photo);
             resetAndRender();
         }
@@ -765,54 +767,52 @@
         : { width: size.width, height: size.height };
     }
 
-    // --- ALGORITME V056: BRUTE FORCE FIT ---
+    // --- ALGORITME V057: "Start-logikk" med Vektstøtte ---
     function calculateOptimalGrid(pagePhotos, width, height, gap) {
       if (pagePhotos.length === 0) return { cells: [], totalHeight: 0, fitScore: Infinity };
 
-      const centerFocus = document.getElementById('centerFocus').checked;
-
-      // Denne funksjonen lager et grid med X rader
+      // Hjelpefunksjon: Lager rader basert på antall og vekt
       function createLayout(targetRows) {
         const rows = [];
+        
+        // Beregn total "vekt" av alle bilder (Standard vekt er 1, men kan økes manuelt)
         const totalWeight = pagePhotos.reduce((sum, p) => sum + (p.weight || 1), 0);
+        const weightBudgetPerRow = totalWeight / targetRows;
+        
         let photoIdx = 0;
         
         for (let r = 0; r < targetRows; r++) {
             if (photoIdx >= pagePhotos.length) break;
 
-            let rowWeightBudget = totalWeight / targetRows;
-            
-            // Fiskeøye justering
-            if (centerFocus && targetRows >= 3) {
-                const progress = (r / (targetRows - 1)) * 2 - 1; 
-                const curve = 1 + (0.8 * Math.abs(progress)); 
-                rowWeightBudget = rowWeightBudget * curve;
-            }
-
             const rowPhotos = [];
             let currentLineWeight = 0;
             let aspectSum = 0;
 
+            // Fyll raden til vi når budsjettet for denne raden
             while (photoIdx < pagePhotos.length) {
                 const p = pagePhotos[photoIdx];
                 const w = p.weight || 1;
                 
+                // Alltid ta minst ett bilde
                 if (rowPhotos.length === 0) {
                     rowPhotos.push(p);
                     currentLineWeight += w;
                     aspectSum += p.aspectRatio;
                     photoIdx++;
                 } else {
-                    const distBefore = Math.abs(rowWeightBudget - currentLineWeight);
-                    const distAfter = Math.abs(rowWeightBudget - (currentLineWeight + w));
+                    // Sjekk om vi skal ta neste. 
+                    // Hvis vi er langt under budsjettet: Ta det.
+                    // Hvis vi er nære: Se om det er bedre å stoppe eller ta ett til.
+                    const distBefore = Math.abs(weightBudgetPerRow - currentLineWeight);
+                    const distAfter = Math.abs(weightBudgetPerRow - (currentLineWeight + w));
                     
-                    if (currentLineWeight < rowWeightBudget && (distAfter <= distBefore || currentLineWeight < rowWeightBudget * 0.75)) {
-                        rowPhotos.push(p);
-                        currentLineWeight += w;
-                        aspectSum += p.aspectRatio;
-                        photoIdx++;
+                    if (currentLineWeight < weightBudgetPerRow && (distAfter <= distBefore || currentLineWeight < weightBudgetPerRow * 0.7)) {
+                         rowPhotos.push(p);
+                         currentLineWeight += w;
+                         aspectSum += p.aspectRatio;
+                         photoIdx++;
                     } else {
-                        break; 
+                        break; // Raden er full
                     }
                 }
             }
@@ -824,7 +824,7 @@
             }
         }
         
-        // Legg til resten hvis budsjettet var stramt
+        // Ta med eventuelle rester i en ny rad
         if (photoIdx < pagePhotos.length) {
             const remaining = pagePhotos.slice(photoIdx);
             let aspectSum = 0;
@@ -838,73 +838,68 @@
         return { rows, naturalHeight, totalGapHeight };
       }
 
+      // 2. Finn beste antall rader som fyller siden best
       let bestLayout = null;
-      let maxImageMetric = -1; // Vi ser etter layouten som gir størst bilder
-
-      // Sjekk ALLE mulige rad-antall fra 1 til antall bilder
+      let bestScore = Infinity; 
+      
       const minRows = 1;
       const maxRows = pagePhotos.length;
 
       for (let r = minRows; r <= maxRows; r++) {
         const layout = createLayout(r);
         
-        // Beregn hvor mye vi må skalere denne layouten for å passe i høyden
-        // Hvis naturalHeight > height, blir scale < 1 (vi krymper).
-        // Hvis naturalHeight < height, blir scale 1 (vi bruker full bredde).
-        let fitScale = 1;
-        if (layout.naturalHeight > height) {
-            fitScale = height / layout.naturalHeight;
+        // Hvor høy blir denne layouten naturlig?
+        const contentHeight = layout.naturalHeight - layout.totalGapHeight;
+        const requiredContentHeight = height - layout.totalGapHeight;
+        
+        if (requiredContentHeight <= 0) continue;
+        
+        const scale = requiredContentHeight / contentHeight;
+        let score;
+        
+        // Vi ønsker scale så nærme 1 som mulig, men vi foretrekker litt for stor (som skaleres ned) 
+        // fremfor litt for liten (som etterlater tomrom).
+        if (scale >= 0.85 && scale <= 1.15) {
+           score = Math.abs(1 - scale); 
+        } else {
+           score = 100 + Math.abs(1 - scale);
         }
-
-        // Beregn gjennomsnittlig bredde på bildene i denne layouten NÅR DEN ER SKALERT TIL Å PASSE
-        // Dette er vår "Metric" for kvalitet. Vi vil ha størst mulig bilder.
-        let totalScaledWidth = 0;
-        let count = 0;
-        layout.rows.forEach(row => {
-             // row.height er "naturlig" høyde hvis bredden fylles.
-             // Faktisk høyde er row.height * fitScale.
-             const actualRowHeight = row.height * fitScale;
-             row.photos.forEach(p => {
-                 totalScaledWidth += actualRowHeight * p.aspectRatio;
-                 count++;
-             });
-        });
-        const avgWidth = totalScaledWidth / count;
-
-        if (avgWidth > maxImageMetric) {
-            maxImageMetric = avgWidth;
-            bestLayout = { ...layout, fitScale: fitScale };
+        
+        if (score < bestScore) {
+          bestScore = score;
+          bestLayout = { ...layout, optimalScale: scale };
         }
       }
 
       if (!bestLayout) return { cells: [], totalHeight: 0, fitScore: Infinity };
 
-      // GENERER CELLER BASERT PÅ BESTE LAYOUT
+      // 3. Generer celler
       const rows = bestLayout.rows;
-      const finalFitScale = bestLayout.fitScale;
+      let finalScale = bestLayout.optimalScale;
       
-      // Total høyde etter skalering
-      let currentTotalHeight = bestLayout.naturalHeight * finalFitScale;
+      // Clamp scale - ikke la bildene bli enorme eller mikroskopiske
+      if (finalScale < 0.6) finalScale = 0.6;
+      if (finalScale > 1.4) finalScale = 1.4;
+
+      let currentTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
+      let fitScale = 1;
+      
+      // Hvis totalhøyden overstiger siden, MÅ vi skalere ned for å få plass
+      if (currentTotalHeight > height) {
+         fitScale = height / currentTotalHeight;
+         currentTotalHeight = height; 
+      }
 
       const cells = [];
       let yPos = (height - currentTotalHeight) / 2;
-      if (yPos < 0) yPos = 0; // Sikring
+      if (yPos < 0) yPos = 0;
       
       rows.forEach(row => {
-        const finalRowHeight = row.height * finalFitScale;
-        // Breddeinnhold = (aspectSum * høyde) + gaps.
-        // Husk at row.height var beregnet basert på width. 
-        // Når vi skalerer høyden med finalFitScale, skalerer vi også bredden med samme faktor for å beholde aspect ratio.
-        // Men vi har allerede 'width' tilgjengelig.
+        const finalRowHeight = row.height * finalScale * fitScale;
         
-        // Triks: Vi må sentrere raden.
-        // Faktisk bredde av innholdet i raden er (AvailableWidth - gaps) * finalFitScale? Nei.
-        
-        // La oss regne nøyaktig:
-        const gapsTotal = (row.photos.length - 1) * gap * finalFitScale;
-        const photosTotalWidth = row.aspectSum * finalRowHeight;
-        const rowContentWidth = photosTotalWidth + gapsTotal;
-        
+        // Beregn bredde for å sentrere raden
+        // Bredden er (aspectSum * høyde) + gaps
+        const rowContentWidth = (row.aspectSum * finalRowHeight) + ((row.photos.length - 1) * gap * finalScale * fitScale);
         let xPos = (width - rowContentWidth) / 2;
         
         row.photos.forEach(photo => {
@@ -912,12 +907,12 @@
           cells.push({
             x: xPos, y: yPos, width: cellWidth, height: finalRowHeight, photo: photo
           });
-          xPos += cellWidth + (gap * finalFitScale);
+          xPos += cellWidth + (gap * finalScale * fitScale);
         });
-        yPos += finalRowHeight + (gap * finalFitScale);
+        yPos += finalRowHeight + (gap * finalScale * fitScale);
       });
 
-      return { cells, totalHeight: currentTotalHeight, fitScore: 0 };
+      return { cells, totalHeight: currentTotalHeight, fitScore: bestScore };
     }
 
     function partitionPhotosIntoPages(allPhotos, target, tolerance, width, height, gap) {
@@ -928,25 +923,15 @@
         const minCount = Math.max(1, target - tolerance);
         const maxCount = target + tolerance;
         
-        // Standard: Prøv å fyll opp 'target'.
-        // MEN: Hvis vi har "rester" som er mindre enn maxCount, ta alt.
         let countToTake = target;
-        
         const remaining = allPhotos.length - currentIndex;
         
         if (remaining <= maxCount) {
              countToTake = remaining;
+        } else if (remaining <= target + tolerance) {
+             countToTake = remaining; // Ta alt hvis vi er innenfor toleranse
         } else {
-             // Hvis vi må splitte, kan vi potensielt sjekke 'fitScore' her hvis vi ville være avanserte,
-             // men for å tvinge brukerens valg respekterer vi bare 'target' med mindre tolerance sier noe annet.
-             // Enkleste logikk: Ta 'target'.
              countToTake = target;
-             
-             // Liten optimalisering: Hvis 'remaining' er bare LITT mer enn target (f.eks target=36, remaining=37),
-             // og tolerance tillater det, ta 37.
-             if (remaining <= target + tolerance) {
-                 countToTake = remaining;
-             }
         }
 
         pages.push(allPhotos.slice(currentIndex, currentIndex + countToTake));
@@ -1087,7 +1072,7 @@
         const minusBtn = document.createElement('div');
         minusBtn.className = 'resize-btn';
         minusBtn.textContent = '-';
-        minusBtn.title = "Gjør mindre (mindre vekt)";
+        minusBtn.title = "Gjør mindre";
         minusBtn.onclick = (e) => {
             e.stopPropagation();
             changePhotoWeight(cell.photo.id, -0.5);
@@ -1096,7 +1081,7 @@
         const plusBtn = document.createElement('div');
         plusBtn.className = 'resize-btn';
         plusBtn.textContent = '+';
-        plusBtn.title = "Gjør større (mer vekt)";
+        plusBtn.title = "Gjør større";
         plusBtn.onclick = (e) => {
             e.stopPropagation();
             changePhotoWeight(cell.photo.id, 0.5);
@@ -1290,7 +1275,6 @@
                 setOrientation(orientation); 
                 document.getElementById('margin').value = savedSettings.margin;
                 document.getElementById('gap').value = savedSettings.gap;
-                document.getElementById('centerFocus').checked = savedSettings.centerFocus || false; 
                 if(savedSettings.bgColor) {
                     document.getElementById('bgColorText').value = savedSettings.bgColor;
                     document.getElementById('bgColorPicker').value = savedSettings.bgColor;
