@@ -3,12 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro</title>
+  <title>Fotogrid Pro - Smart Layout</title>
   
   <link rel="icon" type="image/png" href="icon.png">
-  <link rel="apple-touch-icon" href="icon.png">
-
-  <link rel="manifest" href='data:application/manifest+json;base64,ewogICJuYW1lIjogIkZvdG9ncmlkIFBybyIsCiAgInNob3J0X25hbWUiOiAiRm90b2dyaWQiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAiYnJvd3NlciIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiMyNTYzZWIiLAogICJpY29ucyI6IFt7CiAgICAic3JjIjogImljb24ucG5nIiwKICAgICJzaXplcyI6ICI1MTJ4NTEyIiwKICAgICJ0eXBlIjogImltYWdlL3BuZyIKICB9XQp9' />
   <meta name="theme-color" content="#2563eb">
 
   <style>
@@ -118,9 +115,52 @@
     .photo-cell.dragging { opacity: 0.4; cursor: grabbing; border: 2px dashed #2563eb; }
     .photo-cell.drag-over { outline: 3px solid #2563eb; z-index: 10; transform: scale(1.02); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
     .photo-cell img { width: 100%; height: 100%; object-fit: cover; object-position: center; pointer-events: none; }
-    .photo-cell:hover .remove-btn { opacity: 1; }
-    .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background-color: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; transition: all 0.15s; z-index: 5; }
-    .remove-btn:hover { background-color: #dc2626; }
+    
+    /* NYTT: Resize kontroller og knappestil */
+    .photo-cell:hover .remove-btn, 
+    .photo-cell:hover .resize-controls { opacity: 1; }
+
+    .remove-btn { 
+        position: absolute; top: 4px; right: 4px; 
+        width: 24px; height: 24px; 
+        background-color: rgba(239, 68, 68, 0.9); 
+        color: white; border: none; border-radius: 50%; 
+        cursor: pointer; opacity: 0; transition: all 0.15s; z-index: 5;
+        display: flex; align-items: center; justify-content: center; 
+    }
+    .remove-btn:hover { background-color: #dc2626; transform: scale(1.1); }
+
+    .resize-controls {
+        position: absolute;
+        bottom: 4px;
+        right: 4px;
+        display: flex;
+        gap: 4px;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 5;
+    }
+
+    .resize-btn {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 1px solid #d1d5db;
+        color: #374151;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+        transition: all 0.1s;
+    }
+    .resize-btn:hover {
+        background-color: #2563eb;
+        color: white;
+        border-color: #2563eb;
+    }
 
     @media (max-width: 900px) {
       .app-container { flex-direction: column; }
@@ -134,7 +174,7 @@
   <div class="app-container">
     <div class="sidebar">
       <div class="sidebar-header">
-        <h1>Fotogrid</h1>
+        <h1>Fotogrid Pro</h1>
         <p>Print-klare layouter</p>
       </div>
 
@@ -205,6 +245,14 @@
             <button id="portraitBtn" class="active" onclick="setOrientation('portrait')">Portrett</button>
             <button id="landscapeBtn" onclick="setOrientation('landscape')">Landskap</button>
           </div>
+        </div>
+        
+        <div class="control-group">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="centerFocus" onchange="resetAndRender()" style="width:auto;">
+                <span>Fremhev midten (Fiskeøye)</span>
+            </label>
+            <p style="font-size:11px; color:#6b7280; margin-top:-4px;">Gjør radene i midten større enn topp/bunn.</p>
         </div>
 
         <div class="control-group">
@@ -324,6 +372,7 @@
         width: photo.width,
         height: photo.height,
         aspectRatio: photo.aspectRatio,
+        weight: photo.weight || 1, // LAGRE VEKT
         file: photo.originalFile 
       };
       
@@ -348,6 +397,7 @@
               width: rec.width,
               height: rec.height,
               aspectRatio: rec.aspectRatio,
+              weight: rec.weight || 1, // LASTE VEKT
               originalFile: rec.file,
               originalSrc: originalUrl,
               previewSrc: thumbData.src
@@ -365,14 +415,15 @@
       
       const settings = {
         key: 'appSettings',
-        photoOrder: photos.map(p => p.id),
+        photoOrder: photos.map(p => ({id: p.id, weight: p.weight})), // Lagre vekt i rekkefølgen også
         projectName: document.getElementById('projectName').value,
         photosPerPage: document.getElementById('photosPerPage').value,
         paperSize: document.getElementById('paperSize').value,
         orientation: orientation,
         margin: document.getElementById('margin').value,
         gap: document.getElementById('gap').value,
-        bgColor: document.getElementById('bgColorText').value
+        bgColor: document.getElementById('bgColorText').value,
+        centerFocus: document.getElementById('centerFocus').checked
       };
       store.put(settings);
       
@@ -407,7 +458,8 @@
     // --- ANGRE FUNKSJONALITET ---
     
     function pushHistory() {
-        const currentState = photos.map(p => p.id);
+        // Lagrer både ID og vekt i historikken
+        const currentState = photos.map(p => ({id: p.id, weight: p.weight || 1}));
         historyStack.push(currentState);
         if (historyStack.length > MAX_HISTORY) historyStack.shift();
         updateUndoBtn();
@@ -415,12 +467,15 @@
 
     function undo() {
         if (historyStack.length === 0) return;
-        const previousIds = historyStack.pop();
+        const previousState = historyStack.pop();
         
         const newOrder = [];
-        previousIds.forEach(id => {
-            const p = photos.find(x => x.id === id);
-            if(p) newOrder.push(p);
+        previousState.forEach(item => {
+            const p = photos.find(x => x.id === item.id);
+            if(p) {
+                p.weight = item.weight; // Restore weight
+                newOrder.push(p);
+            }
         });
         
         if (newOrder.length > 0) {
@@ -483,7 +538,6 @@
       const val = parseInt(value) || 0;
       if (type === 'photosPerPage') {
         document.getElementById('photosPerPageInput').value = val;
-        document.getElementById('photosPerPageValue').textContent = val;
       } else if (type === 'tolerance') {
         document.getElementById('pageToleranceInput').value = val;
         document.getElementById('toleranceValue').textContent = val;
@@ -501,7 +555,6 @@
       const val = parseInt(value) || 0;
       if (type === 'photosPerPage') {
         document.getElementById('photosPerPage').value = val;
-        document.getElementById('photosPerPageValue').textContent = val;
       } else if (type === 'tolerance') {
         document.getElementById('pageTolerance').value = val;
         document.getElementById('toleranceValue').textContent = val;
@@ -614,7 +667,8 @@
                 name: file.name,
                 width: thumbData.width,
                 height: thumbData.height,
-                aspectRatio: thumbData.width / thumbData.height
+                aspectRatio: thumbData.width / thumbData.height,
+                weight: 1.0 // DEFAULT VEKT
             };
             
             await savePhotoToDB(photoObj);
@@ -669,33 +723,96 @@
         : { width: size.width, height: size.height };
     }
 
-    // --- ALGORITME (Samme som før) ---
+    // --- ENDRE BILDES VETK ---
+    function changePhotoWeight(id, delta) {
+        const photo = photos.find(p => p.id === id);
+        if (photo) {
+            pushHistory();
+            const current = photo.weight || 1;
+            // Begrens vekt mellom 0.5 og 5.0
+            photo.weight = Math.max(0.5, Math.min(5.0, current + delta));
+            savePhotoToDB(photo); // Lagre ny vekt
+            resetAndRender();
+        }
+    }
+
+    // --- ALGORITME MED VEKTING ---
     function calculateOptimalGrid(pagePhotos, width, height, gap) {
       if (pagePhotos.length === 0) return { cells: [], totalHeight: 0, fitScore: Infinity };
 
+      const centerFocus = document.getElementById('centerFocus').checked;
+
       function createLayout(targetRows) {
         const rows = [];
-        const baseCount = Math.floor(pagePhotos.length / targetRows);
-        const extras = pagePhotos.length % targetRows;
+        const totalWeight = pagePhotos.reduce((sum, p) => sum + (p.weight || 1), 0);
         
         let photoIdx = 0;
+        
         for (let r = 0; r < targetRows; r++) {
-          const count = baseCount + (r < extras ? 1 : 0);
-          const rowPhotos = [];
-          let aspectSum = 0;
-          for (let i = 0; i < count; i++) {
-            if (photoIdx < pagePhotos.length) {
-               rowPhotos.push(pagePhotos[photoIdx]);
-               aspectSum += pagePhotos[photoIdx].aspectRatio;
-               photoIdx++;
+            if (photoIdx >= pagePhotos.length) break;
+
+            // Beregn "vekt-budsjett" for denne raden
+            let rowWeightBudget = totalWeight / targetRows;
+
+            // Fiskeøye-logikk: 
+            // Midten skal ha færre bilder (høyere rader) -> Lavere budsjett (fylles fortere opp)
+            // Kantene skal ha flere bilder (lavere rader) -> Høyere budsjett
+            if (centerFocus && targetRows > 2) {
+                // Normaliser radposisjon fra -1 (topp) til 1 (bunn)
+                const progress = (r / (targetRows - 1)) * 2 - 1; 
+                // Kurve: 1 i midten, høyere på kantene.
+                // Eks: Kantene får 60% mer "budsjett" (plass til flere bilder)
+                const curve = 1 + (0.6 * Math.abs(progress)); 
+                rowWeightBudget = rowWeightBudget * curve;
             }
-          }
-          if (rowPhotos.length > 0) {
-            const gaps = (rowPhotos.length - 1) * gap;
-            const rowHeight = (width - gaps) / aspectSum; 
-            rows.push({ photos: rowPhotos, height: rowHeight, aspectSum });
-          }
+
+            const rowPhotos = [];
+            let currentLineWeight = 0;
+            let aspectSum = 0;
+
+            while (photoIdx < pagePhotos.length) {
+                const p = pagePhotos[photoIdx];
+                const w = p.weight || 1;
+                
+                // Alltid legg til minst ett bilde hvis tomt
+                if (rowPhotos.length === 0) {
+                    rowPhotos.push(p);
+                    currentLineWeight += w;
+                    aspectSum += p.aspectRatio;
+                    photoIdx++;
+                } else {
+                    // Sjekk om vi nærmer oss budsjettet
+                    const distBefore = Math.abs(rowWeightBudget - currentLineWeight);
+                    const distAfter = Math.abs(rowWeightBudget - (currentLineWeight + w));
+                    
+                    // Legg til hvis vi ikke har sprengt budsjettet, eller hvis vi kommer nærmere budsjettet ved å legge til
+                    if (currentLineWeight < rowWeightBudget && (distAfter < distBefore || currentLineWeight < rowWeightBudget * 0.75)) {
+                        rowPhotos.push(p);
+                        currentLineWeight += w;
+                        aspectSum += p.aspectRatio;
+                        photoIdx++;
+                    } else {
+                        break; // Raden er full nok
+                    }
+                }
+            }
+
+            if (rowPhotos.length > 0) {
+                const gaps = (rowPhotos.length - 1) * gap;
+                const rowHeight = (width - gaps) / aspectSum; 
+                rows.push({ photos: rowPhotos, height: rowHeight, aspectSum });
+            }
         }
+
+        // Håndter rester (hvis vektingen gjorde at vi fikk bilder til overs)
+        if (photoIdx < pagePhotos.length) {
+            const remaining = pagePhotos.slice(photoIdx);
+            let aspectSum = 0;
+            remaining.forEach(p => aspectSum += p.aspectRatio);
+            const gaps = (remaining.length - 1) * gap;
+            rows.push({ photos: remaining, height: (width - gaps) / aspectSum, aspectSum });
+        }
+
         const totalGapHeight = (rows.length - 1) * gap;
         const naturalHeight = rows.reduce((sum, r) => sum + r.height, 0) + totalGapHeight;
         return { rows, naturalHeight, totalGapHeight };
@@ -704,7 +821,10 @@
       let bestLayout = null;
       let bestScore = Infinity; 
       
-      for (let r = 1; r <= pagePhotos.length; r++) {
+      const minRows = Math.max(1, Math.floor(Math.sqrt(pagePhotos.length) * 0.5));
+      const maxRows = pagePhotos.length;
+
+      for (let r = minRows; r <= maxRows; r++) {
         const layout = createLayout(r);
         const contentHeight = layout.naturalHeight - layout.totalGapHeight;
         const requiredContentHeight = height - layout.totalGapHeight;
@@ -713,11 +833,10 @@
         
         const scale = requiredContentHeight / contentHeight;
         let score;
-        if (scale >= 0.9 && scale <= 1.1) {
+        if (scale >= 0.85 && scale <= 1.15) {
            score = Math.abs(1 - scale); 
         } else {
-           if (scale < 0.9) score = 100 + (0.9 - scale);
-           else score = 100 + (scale - 1.1);
+           score = 100 + Math.abs(1 - scale);
         }
         
         if (score < bestScore) {
@@ -730,8 +849,9 @@
 
       const rows = bestLayout.rows;
       let finalScale = bestLayout.optimalScale;
-      if (finalScale < 0.9) finalScale = 0.9;
-      if (finalScale > 1.1) finalScale = 1.1;
+      // Clamp scale
+      if (finalScale < 0.7) finalScale = 0.7;
+      if (finalScale > 1.3) finalScale = 1.3;
 
       let currentTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
       let fitScale = 1;
@@ -742,16 +862,18 @@
 
       const cells = [];
       let yPos = (currentTotalHeight < height) ? (height - currentTotalHeight) / 2 : 0;
-      const finalTotalWidth = width * fitScale;
+      const finalTotalWidth = width * fitScale; 
       const xOffset = (width - finalTotalWidth) / 2;
 
       rows.forEach(row => {
         const finalRowHeight = row.height * finalScale * fitScale;
         const rowGapTotal = (row.photos.length - 1) * gap * fitScale;
-        const availableRowWidth = finalTotalWidth - rowGapTotal;
-        let xPos = xOffset;
+        // Rekalkuler bredde basert på ny høyde for å sentrere raden pent
+        const actualRowWidth = (row.aspectSum * finalRowHeight) + rowGapTotal;
+        let xPos = (width - actualRowWidth) / 2;
+
         row.photos.forEach(photo => {
-          const cellWidth = (photo.aspectRatio / row.aspectSum) * availableRowWidth;
+          const cellWidth = finalRowHeight * photo.aspectRatio;
           cells.push({
             x: xPos, y: yPos, width: cellWidth, height: finalRowHeight, photo: photo
           });
@@ -901,10 +1023,12 @@
         img.src = previewQuality === 'low' ? cell.photo.previewSrc : cell.photo.originalSrc;
         img.alt = cell.photo.name;
         
-        const btn = document.createElement('button');
-        btn.className = 'remove-btn';
-        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-        btn.onclick = (e) => {
+        // Remove Button
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-btn';
+        removeBtn.title = "Fjern bilde";
+        removeBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+        removeBtn.onclick = (e) => {
           e.stopPropagation();
           pushHistory();
           const pIndex = photos.findIndex(p => p.id === cell.photo.id);
@@ -918,8 +1042,28 @@
           updateUI();
         };
 
+        // Resize Controls (NYTT)
+        const resizeControls = document.createElement('div');
+        resizeControls.className = 'resize-controls';
+        
+        const minusBtn = document.createElement('div');
+        minusBtn.className = 'resize-btn';
+        minusBtn.textContent = '-';
+        minusBtn.title = "Gjør mindre";
+        minusBtn.onclick = (e) => { e.stopPropagation(); changePhotoWeight(cell.photo.id, -0.25); };
+
+        const plusBtn = document.createElement('div');
+        plusBtn.className = 'resize-btn';
+        plusBtn.textContent = '+';
+        plusBtn.title = "Gjør større";
+        plusBtn.onclick = (e) => { e.stopPropagation(); changePhotoWeight(cell.photo.id, 0.25); };
+
+        resizeControls.appendChild(minusBtn);
+        resizeControls.appendChild(plusBtn);
+
         div.appendChild(img);
-        div.appendChild(btn);
+        div.appendChild(removeBtn);
+        div.appendChild(resizeControls);
         gridEl.appendChild(div);
       });
 
@@ -1107,6 +1251,9 @@
                     document.getElementById('bgColorText').value = savedSettings.bgColor;
                     document.getElementById('bgColorPicker').value = savedSettings.bgColor;
                 }
+                if(savedSettings.centerFocus !== undefined) {
+                    document.getElementById('centerFocus').checked = savedSettings.centerFocus;
+                }
                 
                 handleSliderChange('photosPerPage', savedSettings.photosPerPage);
                 handleSliderChange('margin', savedSettings.margin);
@@ -1116,7 +1263,15 @@
             if (loadedPhotos.length > 0) {
                 if (savedSettings && savedSettings.photoOrder) {
                     const orderMap = new Map(loadedPhotos.map(p => [p.id, p]));
-                    photos = savedSettings.photoOrder.map(id => orderMap.get(id)).filter(p => p);
+                    // Rekonstruer rekkefølge og vekt fra settings
+                    photos = savedSettings.photoOrder.map(item => {
+                        const p = orderMap.get(item.id);
+                        if(p) {
+                            p.weight = item.weight || p.weight || 1; 
+                            return p;
+                        }
+                        return null;
+                    }).filter(p => p);
                     
                     const usedIds = new Set(photos.map(p => p.id));
                     loadedPhotos.forEach(p => {
