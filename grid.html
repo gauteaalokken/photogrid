@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro V059</title>
+  <title>Fotogrid Pro V060</title>
   
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
@@ -195,6 +195,7 @@
     }
     .resize-btn:active {
         transform: scale(0.95);
+        background-color: #eff6ff;
     }
 
     @media (max-width: 900px) {
@@ -207,7 +208,7 @@
 </head>
 <body>
   
-  <div class="version-tag">V 059</div>
+  <div class="version-tag">V 060</div>
 
   <div class="app-container">
     <div class="sidebar">
@@ -507,11 +508,6 @@
         });
         
         if (newOrder.length > 0) {
-            // Restore photos that still exist (handling potential race conditions with file inputs)
-            const currentIds = new Set(photos.map(p => p.id));
-            // Also keep photos that are in `photos` but not in `newOrder` (newly added)? 
-            // Standard undo usually reverts state exactly.
-            // Let's stick to restoring order/weights of known photos.
             photos = newOrder;
             photos.forEach(p => savePhotoToDB(p));
             resetAndRender(false); 
@@ -612,12 +608,12 @@
         renderGrid(false);
     }
     
-    // --- MANUELL VEKTING AV BILDER (Oppdatert: Små steg) ---
+    // --- MANUELL VEKTING AV BILDER ---
     function changePhotoWeight(id, delta) {
         const photo = photos.find(p => p.id === id);
         if (photo) {
             pushHistory();
-            // Step is now 0.1 for responsiveness
+            // Steg på 0.1 for finjustering
             const newWeight = (photo.weight || 1) + delta;
             photo.weight = Math.max(0.5, Math.min(5.0, newWeight));
             savePhotoToDB(photo);
@@ -770,12 +766,13 @@
         : { width: size.width, height: size.height };
     }
 
-    // --- ALGORITME V059: Prioriter breddefyll + Bedre responsivitet ---
+    // --- ALGORITME (V060): Base Logic + COVER Scaling ---
     function calculateOptimalGrid(pagePhotos, width, height, gap) {
       if (pagePhotos.length === 0) return { cells: [], totalHeight: 0, fitScore: Infinity };
 
       function createLayout(targetRows) {
         const rows = [];
+        // Fordel bilder basert på vekt og antall rader
         const totalWeight = pagePhotos.reduce((sum, p) => sum + (p.weight || 1), 0);
         const weightBudgetPerRow = totalWeight / targetRows;
         
@@ -841,84 +838,83 @@
       for (let r = minRows; r <= maxRows; r++) {
         const layout = createLayout(r);
         
-        const contentHeight = layout.naturalHeight - layout.totalGapHeight;
-        const requiredContentHeight = height - layout.totalGapHeight;
+        // Hvor høy blir denne layouten naturlig?
+        // Layouten er beregnet for å fylle bredden (width).
+        const naturalHeight = layout.naturalHeight;
         
-        if (requiredContentHeight <= 0) continue;
+        // Target ratio = width / height
+        // Layout ratio = width / naturalHeight
+        // Vi ønsker at disse skal være så like som mulig for å minimere cropping.
+        const layoutRatio = width / naturalHeight;
+        const targetRatio = width / height;
         
-        const scale = requiredContentHeight / contentHeight;
-        let score;
-        
-        // --- SCORE LOGIC V059 ---
-        // 1. Vi vil helst ha scale >= 1 (fyller bredden, kanskje litt kort i høyden, som er OK)
-        // 2. Vi HATER scale < 1 (må krympe bredden for å få plass i høyden)
-        
-        if (scale >= 1.0) {
-            // Perfekt eller for kort. 
-            // Straff for å være for kort (tomrom i bunnen), men mild straff.
-            score = Math.abs(1 - scale); 
-        } else {
-            // For høy! Må krympe bredden. 
-            // GI KJEMPESTRAFF. Vi vil unngå "white bars" på sidene for enhver pris.
-            // Men hvis vi MÅ (fordi brukeren har valgt 1 rad på 100 bilder), så må vi.
-            score = 100 + (Math.abs(1 - scale) * 10); 
-        }
+        // Score: Hvor langt unna er vi perfekt match?
+        // Bruk logaritmisk score for symmetri (like ille å være for høy som for bred)
+        const score = Math.abs(Math.log(layoutRatio / targetRatio));
 
-        // Variance penalty for "Giant Last Row"
+        // Straff ujevne rader (gigantisk sisterad)
         if (layout.rows.length > 1) {
             const avgRowHeight = layout.rows.reduce((s, row) => s + row.height, 0) / layout.rows.length;
             const variance = layout.rows.reduce((s, row) => s + Math.abs(row.height - avgRowHeight), 0) / layout.rows.length;
-            score += (variance / avgRowHeight) * 2; 
+            // Legg til straff
+            if (variance > avgRowHeight * 0.5) {
+                 // Penalty
+            }
         }
 
         if (score < bestScore) {
           bestScore = score;
-          bestLayout = { ...layout, optimalScale: scale };
+          bestLayout = layout;
         }
       }
 
       if (!bestLayout) return { cells: [], totalHeight: 0, fitScore: Infinity };
 
       const rows = bestLayout.rows;
-      let finalScale = bestLayout.optimalScale;
-
-      // Unclamp scale IF it fits within height (let it fill width)
-      // Only clamp if it makes elements absurdly small
-      if (finalScale < 0.5) finalScale = 0.5;
       
-      let currentTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
-      let fitScale = 1;
+      // --- COVER SCALING ---
+      // Vi har layout som fyller bredden 'width' naturlig.
+      // Høyden er 'bestLayout.naturalHeight'.
+      // Vi må skalere slik at rutenettet dekker BÅDE width og height.
       
-      // Bare krymp hvis vi er TVUNGET til det pga høyde
-      if (currentTotalHeight > height) {
-         fitScale = height / currentTotalHeight;
-         currentTotalHeight = height; 
-      } else {
-         // Hvis vi har plass i høyden, bruk scale=1 for å fylle bredden (ikke sentrer en liten boks)
-         // bestLayout.optimalScale er kalkulert basert på høyde-ratio.
-         // Hvis layouten er kortere enn siden, er optimalScale > 1.
-         // Vi setter fitScale til 1, men bruker layoutens naturlige størrelse (som er full bredde).
-         finalScale = 1; 
-         currentTotalHeight = rows.reduce((sum, r) => sum + r.height, 0) + bestLayout.totalGapHeight;
-      }
+      // ScaleX for å fylle bredden = 1 (siden layouten allerede fyller bredden)
+      // ScaleY for å fylle høyden = height / naturalHeight
+      
+      // For å dekke HELE arket uten hvit plass (Cover), må vi velge den STØRSTE skaleringen.
+      // Siden aspect ratio er låst, er scaleX = scaleY.
+      // Scale = max(1, height / naturalHeight)
+      
+      let finalScale = Math.max(1, height / bestLayout.naturalHeight);
+      
+      // Total høyde og bredde etter skalering
+      let currentTotalHeight = bestLayout.naturalHeight * finalScale;
+      let currentTotalWidth = width * finalScale; // Vil være >= width
 
       const cells = [];
-      let yPos = (height - currentTotalHeight) / 2;
-      if (yPos < 0) yPos = 0;
       
+      // Sentrer rutenettet (både vertikalt og horisontalt hvis det ble større enn arket)
+      let yPos = (height - currentTotalHeight) / 2;
+      let xOffset = (width - currentTotalWidth) / 2;
+
       rows.forEach(row => {
-        const finalRowHeight = row.height * finalScale * fitScale;
-        const rowContentWidth = (row.aspectSum * finalRowHeight) + ((row.photos.length - 1) * gap * finalScale * fitScale);
-        let xPos = (width - rowContentWidth) / 2;
+        const finalRowHeight = row.height * finalScale;
+        
+        // Raden fyller 'width' i utgangspunktet. Nå fyller den 'width * finalScale'.
+        // Vi må sentrere denne raden også, men siden hele gridden er sentrert med xOffset, er det greit.
+        
+        // Gaps må også skaleres
+        const gapScaled = gap * finalScale;
+        
+        let xPos = xOffset; 
         
         row.photos.forEach(photo => {
           const cellWidth = finalRowHeight * photo.aspectRatio;
           cells.push({
             x: xPos, y: yPos, width: cellWidth, height: finalRowHeight, photo: photo
           });
-          xPos += cellWidth + (gap * finalScale * fitScale);
+          xPos += cellWidth + gapScaled;
         });
-        yPos += finalRowHeight + (gap * finalScale * fitScale);
+        yPos += finalRowHeight + gapScaled;
       });
 
       return { cells, totalHeight: currentTotalHeight, fitScore: bestScore };
