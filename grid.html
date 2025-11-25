@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro V058</title>
+  <title>Fotogrid Pro V059</title>
   
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
@@ -186,11 +186,15 @@
         font-weight: bold;
         transition: all 0.1s;
         box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        user-select: none;
     }
     .resize-btn:hover {
         background-color: #2563eb;
         color: white;
         border-color: #2563eb;
+    }
+    .resize-btn:active {
+        transform: scale(0.95);
     }
 
     @media (max-width: 900px) {
@@ -203,7 +207,7 @@
 </head>
 <body>
   
-  <div class="version-tag">V 058</div>
+  <div class="version-tag">V 059</div>
 
   <div class="app-container">
     <div class="sidebar">
@@ -399,7 +403,7 @@
         height: photo.height,
         aspectRatio: photo.aspectRatio,
         file: photo.originalFile,
-        weight: photo.weight || 1 // Support weighting
+        weight: photo.weight || 1
       };
       
       store.put(photoRecord);
@@ -503,6 +507,11 @@
         });
         
         if (newOrder.length > 0) {
+            // Restore photos that still exist (handling potential race conditions with file inputs)
+            const currentIds = new Set(photos.map(p => p.id));
+            // Also keep photos that are in `photos` but not in `newOrder` (newly added)? 
+            // Standard undo usually reverts state exactly.
+            // Let's stick to restoring order/weights of known photos.
             photos = newOrder;
             photos.forEach(p => savePhotoToDB(p));
             resetAndRender(false); 
@@ -603,13 +612,14 @@
         renderGrid(false);
     }
     
-    // --- MANUELL VEKTING AV BILDER ---
+    // --- MANUELL VEKTING AV BILDER (Oppdatert: Små steg) ---
     function changePhotoWeight(id, delta) {
         const photo = photos.find(p => p.id === id);
         if (photo) {
             pushHistory();
-            // Allow range from 0.5 (half size) to 5.0
-            photo.weight = Math.max(0.5, Math.min(5.0, (photo.weight || 1) + delta));
+            // Step is now 0.1 for responsiveness
+            const newWeight = (photo.weight || 1) + delta;
+            photo.weight = Math.max(0.5, Math.min(5.0, newWeight));
             savePhotoToDB(photo);
             resetAndRender();
         }
@@ -760,8 +770,7 @@
         : { width: size.width, height: size.height };
     }
 
-    // --- ALGORITME V058: "Balanced" Grid ---
-    // Includes variance penalty to prevent the "Huge Last Row" issue
+    // --- ALGORITME V059: Prioriter breddefyll + Bedre responsivitet ---
     function calculateOptimalGrid(pagePhotos, width, height, gap) {
       if (pagePhotos.length === 0) return { cells: [], totalHeight: 0, fitScore: Infinity };
 
@@ -840,19 +849,26 @@
         const scale = requiredContentHeight / contentHeight;
         let score;
         
-        if (scale >= 0.85 && scale <= 1.15) {
-           score = Math.abs(1 - scale); 
-        } else {
-           score = 100 + Math.abs(1 - scale);
-        }
+        // --- SCORE LOGIC V059 ---
+        // 1. Vi vil helst ha scale >= 1 (fyller bredden, kanskje litt kort i høyden, som er OK)
+        // 2. Vi HATER scale < 1 (må krympe bredden for å få plass i høyden)
         
-        // --- FIX FOR GIANT ROW ---
-        // Calculate height variance. If one row is huge and others small, penalize this layout.
+        if (scale >= 1.0) {
+            // Perfekt eller for kort. 
+            // Straff for å være for kort (tomrom i bunnen), men mild straff.
+            score = Math.abs(1 - scale); 
+        } else {
+            // For høy! Må krympe bredden. 
+            // GI KJEMPESTRAFF. Vi vil unngå "white bars" på sidene for enhver pris.
+            // Men hvis vi MÅ (fordi brukeren har valgt 1 rad på 100 bilder), så må vi.
+            score = 100 + (Math.abs(1 - scale) * 10); 
+        }
+
+        // Variance penalty for "Giant Last Row"
         if (layout.rows.length > 1) {
             const avgRowHeight = layout.rows.reduce((s, row) => s + row.height, 0) / layout.rows.length;
             const variance = layout.rows.reduce((s, row) => s + Math.abs(row.height - avgRowHeight), 0) / layout.rows.length;
-            const penalty = (variance / avgRowHeight) * 5; // Strong penalty for uneven rows
-            score += penalty;
+            score += (variance / avgRowHeight) * 2; 
         }
 
         if (score < bestScore) {
@@ -865,16 +881,25 @@
 
       const rows = bestLayout.rows;
       let finalScale = bestLayout.optimalScale;
-      
-      if (finalScale < 0.6) finalScale = 0.6;
-      if (finalScale > 1.4) finalScale = 1.4;
 
+      // Unclamp scale IF it fits within height (let it fill width)
+      // Only clamp if it makes elements absurdly small
+      if (finalScale < 0.5) finalScale = 0.5;
+      
       let currentTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
       let fitScale = 1;
       
+      // Bare krymp hvis vi er TVUNGET til det pga høyde
       if (currentTotalHeight > height) {
          fitScale = height / currentTotalHeight;
          currentTotalHeight = height; 
+      } else {
+         // Hvis vi har plass i høyden, bruk scale=1 for å fylle bredden (ikke sentrer en liten boks)
+         // bestLayout.optimalScale er kalkulert basert på høyde-ratio.
+         // Hvis layouten er kortere enn siden, er optimalScale > 1.
+         // Vi setter fitScale til 1, men bruker layoutens naturlige størrelse (som er full bredde).
+         finalScale = 1; 
+         currentTotalHeight = rows.reduce((sum, r) => sum + r.height, 0) + bestLayout.totalGapHeight;
       }
 
       const cells = [];
@@ -1059,7 +1084,7 @@
         minusBtn.title = "Gjør mindre";
         minusBtn.onclick = (e) => {
             e.stopPropagation();
-            changePhotoWeight(cell.photo.id, -0.5);
+            changePhotoWeight(cell.photo.id, -0.1);
         };
 
         const plusBtn = document.createElement('div');
@@ -1068,7 +1093,7 @@
         plusBtn.title = "Gjør større";
         plusBtn.onclick = (e) => {
             e.stopPropagation();
-            changePhotoWeight(cell.photo.id, 0.5);
+            changePhotoWeight(cell.photo.id, 0.1);
         };
         
         resizeControls.appendChild(minusBtn);
