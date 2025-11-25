@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro - AutoFit Fix</title>
+  <title>Fotogrid Pro V056</title>
   
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
@@ -17,6 +17,22 @@
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     .app-container { min-height: 100vh; background-color: #f9fafb; display: flex; }
     
+    /* Version Tag */
+    .version-tag {
+        position: fixed;
+        top: 0;
+        right: 0;
+        background-color: #fbbf24;
+        color: #000;
+        font-weight: bold;
+        padding: 4px 8px;
+        font-size: 12px;
+        z-index: 9999;
+        border-bottom-left-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        pointer-events: none;
+    }
+
     /* Sidebar Styles */
     .sidebar { width: 320px; background-color: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; z-index: 30; flex-shrink: 0; }
     .sidebar-header { padding: 24px; border-bottom: 1px solid #e5e7eb; }
@@ -184,6 +200,8 @@
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
+  <div class="version-tag">V 056</div>
+
   <div class="app-container">
     <div class="sidebar">
       <div class="sidebar-header">
@@ -747,12 +765,13 @@
         : { width: size.width, height: size.height };
     }
 
-    // --- ALGORITME (Optimal Grid med AutoFit Fix) ---
+    // --- ALGORITME V056: BRUTE FORCE FIT ---
     function calculateOptimalGrid(pagePhotos, width, height, gap) {
       if (pagePhotos.length === 0) return { cells: [], totalHeight: 0, fitScore: Infinity };
 
       const centerFocus = document.getElementById('centerFocus').checked;
 
+      // Denne funksjonen lager et grid med X rader
       function createLayout(targetRows) {
         const rows = [];
         const totalWeight = pagePhotos.reduce((sum, p) => sum + (p.weight || 1), 0);
@@ -805,6 +824,7 @@
             }
         }
         
+        // Legg til resten hvis budsjettet var stramt
         if (photoIdx < pagePhotos.length) {
             const remaining = pagePhotos.slice(photoIdx);
             let aspectSum = 0;
@@ -819,63 +839,72 @@
       }
 
       let bestLayout = null;
-      let bestScore = Infinity; 
-      
-      const minRows = Math.max(1, Math.floor(Math.sqrt(pagePhotos.length) * 0.5));
+      let maxImageMetric = -1; // Vi ser etter layouten som gir størst bilder
+
+      // Sjekk ALLE mulige rad-antall fra 1 til antall bilder
+      const minRows = 1;
       const maxRows = pagePhotos.length;
 
       for (let r = minRows; r <= maxRows; r++) {
         const layout = createLayout(r);
-        const contentHeight = layout.naturalHeight - layout.totalGapHeight;
-        const requiredContentHeight = height - layout.totalGapHeight;
         
-        if (requiredContentHeight <= 0) continue;
-        
-        const scale = requiredContentHeight / contentHeight;
-        let score;
-        
-        if (scale >= 0.85 && scale <= 1.15) {
-           score = Math.abs(1 - scale); 
-        } else {
-           score = 100 + Math.abs(1 - scale);
+        // Beregn hvor mye vi må skalere denne layouten for å passe i høyden
+        // Hvis naturalHeight > height, blir scale < 1 (vi krymper).
+        // Hvis naturalHeight < height, blir scale 1 (vi bruker full bredde).
+        let fitScale = 1;
+        if (layout.naturalHeight > height) {
+            fitScale = height / layout.naturalHeight;
         }
-        
-        if (score < bestScore) {
-          bestScore = score;
-          bestLayout = { ...layout, optimalScale: scale };
+
+        // Beregn gjennomsnittlig bredde på bildene i denne layouten NÅR DEN ER SKALERT TIL Å PASSE
+        // Dette er vår "Metric" for kvalitet. Vi vil ha størst mulig bilder.
+        let totalScaledWidth = 0;
+        let count = 0;
+        layout.rows.forEach(row => {
+             // row.height er "naturlig" høyde hvis bredden fylles.
+             // Faktisk høyde er row.height * fitScale.
+             const actualRowHeight = row.height * fitScale;
+             row.photos.forEach(p => {
+                 totalScaledWidth += actualRowHeight * p.aspectRatio;
+                 count++;
+             });
+        });
+        const avgWidth = totalScaledWidth / count;
+
+        if (avgWidth > maxImageMetric) {
+            maxImageMetric = avgWidth;
+            bestLayout = { ...layout, fitScale: fitScale };
         }
       }
 
       if (!bestLayout) return { cells: [], totalHeight: 0, fitScore: Infinity };
 
+      // GENERER CELLER BASERT PÅ BESTE LAYOUT
       const rows = bestLayout.rows;
-
-      // --- VIKTIG ENDRING: BEREGN NØYAKTIG SKALERING FOR Å PASSE ---
-      // 1. Hva er "naturlig" høyde på alt innholdet?
-      let naturalTotalHeight = rows.reduce((sum, r) => sum + r.height, 0) + bestLayout.totalGapHeight;
+      const finalFitScale = bestLayout.fitScale;
       
-      // 2. Hva er skaleringsfaktoren for å tvinge det inn på 'height'?
-      // Hvis naturlig høyde > tilgjengelig høyde, må vi skalere NED (mindre enn 1).
-      // Hvis naturlig høyde < tilgjengelig høyde, kan vi skalere OPP (større enn 1), men vi begrenser det litt så det ikke blir grotesk.
-      let finalFitScale = 1;
-      
-      if (naturalTotalHeight > height) {
-          finalFitScale = height / naturalTotalHeight; // TVING inn på siden
-      } else {
-          // Vi har plass til overs. Skaler opp litt for å fylle, men maks 20%
-          finalFitScale = Math.min(1.2, height / naturalTotalHeight);
-      }
-
-      // Beregn total høyde med den endelige skaleringen
-      let currentTotalHeight = naturalTotalHeight * finalFitScale;
+      // Total høyde etter skalering
+      let currentTotalHeight = bestLayout.naturalHeight * finalFitScale;
 
       const cells = [];
       let yPos = (height - currentTotalHeight) / 2;
-      if (yPos < 0) yPos = 0; // Sikkerhet
+      if (yPos < 0) yPos = 0; // Sikring
       
       rows.forEach(row => {
         const finalRowHeight = row.height * finalFitScale;
-        const rowContentWidth = (row.aspectSum * finalRowHeight) + ((row.photos.length - 1) * gap * finalFitScale);
+        // Breddeinnhold = (aspectSum * høyde) + gaps.
+        // Husk at row.height var beregnet basert på width. 
+        // Når vi skalerer høyden med finalFitScale, skalerer vi også bredden med samme faktor for å beholde aspect ratio.
+        // Men vi har allerede 'width' tilgjengelig.
+        
+        // Triks: Vi må sentrere raden.
+        // Faktisk bredde av innholdet i raden er (AvailableWidth - gaps) * finalFitScale? Nei.
+        
+        // La oss regne nøyaktig:
+        const gapsTotal = (row.photos.length - 1) * gap * finalFitScale;
+        const photosTotalWidth = row.aspectSum * finalRowHeight;
+        const rowContentWidth = photosTotalWidth + gapsTotal;
+        
         let xPos = (width - rowContentWidth) / 2;
         
         row.photos.forEach(photo => {
@@ -888,35 +917,40 @@
         yPos += finalRowHeight + (gap * finalFitScale);
       });
 
-      return { cells, totalHeight: currentTotalHeight, fitScore: bestScore };
+      return { cells, totalHeight: currentTotalHeight, fitScore: 0 };
     }
 
     function partitionPhotosIntoPages(allPhotos, target, tolerance, width, height, gap) {
       const pages = [];
       let currentIndex = 0;
       while (currentIndex < allPhotos.length) {
-        let bestCount = target;
-        let bestChunkScore = Infinity;
+        
         const minCount = Math.max(1, target - tolerance);
         const maxCount = target + tolerance;
+        
+        // Standard: Prøv å fyll opp 'target'.
+        // MEN: Hvis vi har "rester" som er mindre enn maxCount, ta alt.
+        let countToTake = target;
+        
         const remaining = allPhotos.length - currentIndex;
+        
         if (remaining <= maxCount) {
-           pages.push(allPhotos.slice(currentIndex));
-           break; 
+             countToTake = remaining;
+        } else {
+             // Hvis vi må splitte, kan vi potensielt sjekke 'fitScore' her hvis vi ville være avanserte,
+             // men for å tvinge brukerens valg respekterer vi bare 'target' med mindre tolerance sier noe annet.
+             // Enkleste logikk: Ta 'target'.
+             countToTake = target;
+             
+             // Liten optimalisering: Hvis 'remaining' er bare LITT mer enn target (f.eks target=36, remaining=37),
+             // og tolerance tillater det, ta 37.
+             if (remaining <= target + tolerance) {
+                 countToTake = remaining;
+             }
         }
-        for (let c = minCount; c <= maxCount; c++) {
-          if (c > remaining) break;
-          const chunk = allPhotos.slice(currentIndex, currentIndex + c);
-          const result = calculateOptimalGrid(chunk, width, height, gap);
-          const targetDeviation = Math.abs(target - c) * 0.05; 
-          const totalScore = result.fitScore + targetDeviation;
-          if (totalScore < bestChunkScore) {
-            bestChunkScore = totalScore;
-            bestCount = c;
-          }
-        }
-        pages.push(allPhotos.slice(currentIndex, currentIndex + bestCount));
-        currentIndex += bestCount;
+
+        pages.push(allPhotos.slice(currentIndex, currentIndex + countToTake));
+        currentIndex += countToTake;
       }
       return pages;
     }
