@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro V057</title>
+  <title>Fotogrid Pro V058</title>
   
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
@@ -25,12 +25,13 @@
         background-color: #fbbf24;
         color: #000;
         font-weight: bold;
-        padding: 4px 12px;
-        font-size: 14px;
+        padding: 6px 14px;
+        font-size: 16px;
         z-index: 9999;
-        border-bottom-left-radius: 6px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-bottom-left-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         pointer-events: none;
+        font-family: monospace;
     }
 
     /* Sidebar Styles */
@@ -171,19 +172,20 @@
         z-index: 20;
     }
     .resize-btn {
-        width: 24px;
-        height: 24px;
-        border-radius: 4px;
-        background-color: rgba(255, 255, 255, 0.9);
-        border: 1px solid #d1d5db;
-        color: #374151;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background-color: rgba(255, 255, 255, 0.95);
+        border: 1px solid #9ca3af;
+        color: #111827;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 16px;
         font-weight: bold;
         transition: all 0.1s;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
     .resize-btn:hover {
         background-color: #2563eb;
@@ -201,7 +203,7 @@
 </head>
 <body>
   
-  <div class="version-tag">V 057</div>
+  <div class="version-tag">V 058</div>
 
   <div class="app-container">
     <div class="sidebar">
@@ -500,16 +502,7 @@
             }
         });
         
-        // Handle images in current set not in previous set (keep them, append at end)
-        // Or if strictly undoing deletions, we might need more complex logic.
-        // For simple reorder/weight undo:
         if (newOrder.length > 0) {
-            // Check if any current photos are missing from history (recently added), keep them
-            const historyIds = new Set(newOrder.map(p => p.id));
-            photos.forEach(p => {
-                if(!historyIds.has(p.id)) newOrder.push(p);
-            });
-            
             photos = newOrder;
             photos.forEach(p => savePhotoToDB(p));
             resetAndRender(false); 
@@ -615,8 +608,8 @@
         const photo = photos.find(p => p.id === id);
         if (photo) {
             pushHistory();
-            // Allow range from 0.5 (half size) to 3.0 (triple size)
-            photo.weight = Math.max(0.5, Math.min(3.0, (photo.weight || 1) + delta));
+            // Allow range from 0.5 (half size) to 5.0
+            photo.weight = Math.max(0.5, Math.min(5.0, (photo.weight || 1) + delta));
             savePhotoToDB(photo);
             resetAndRender();
         }
@@ -767,15 +760,13 @@
         : { width: size.width, height: size.height };
     }
 
-    // --- ALGORITME V057: "Start-logikk" med Vektstøtte ---
+    // --- ALGORITME V058: "Balanced" Grid ---
+    // Includes variance penalty to prevent the "Huge Last Row" issue
     function calculateOptimalGrid(pagePhotos, width, height, gap) {
       if (pagePhotos.length === 0) return { cells: [], totalHeight: 0, fitScore: Infinity };
 
-      // Hjelpefunksjon: Lager rader basert på antall og vekt
       function createLayout(targetRows) {
         const rows = [];
-        
-        // Beregn total "vekt" av alle bilder (Standard vekt er 1, men kan økes manuelt)
         const totalWeight = pagePhotos.reduce((sum, p) => sum + (p.weight || 1), 0);
         const weightBudgetPerRow = totalWeight / targetRows;
         
@@ -788,21 +779,16 @@
             let currentLineWeight = 0;
             let aspectSum = 0;
 
-            // Fyll raden til vi når budsjettet for denne raden
             while (photoIdx < pagePhotos.length) {
                 const p = pagePhotos[photoIdx];
                 const w = p.weight || 1;
                 
-                // Alltid ta minst ett bilde
                 if (rowPhotos.length === 0) {
                     rowPhotos.push(p);
                     currentLineWeight += w;
                     aspectSum += p.aspectRatio;
                     photoIdx++;
                 } else {
-                    // Sjekk om vi skal ta neste. 
-                    // Hvis vi er langt under budsjettet: Ta det.
-                    // Hvis vi er nære: Se om det er bedre å stoppe eller ta ett til.
                     const distBefore = Math.abs(weightBudgetPerRow - currentLineWeight);
                     const distAfter = Math.abs(weightBudgetPerRow - (currentLineWeight + w));
                     
@@ -812,7 +798,7 @@
                          aspectSum += p.aspectRatio;
                          photoIdx++;
                     } else {
-                        break; // Raden er full
+                        break; 
                     }
                 }
             }
@@ -824,7 +810,6 @@
             }
         }
         
-        // Ta med eventuelle rester i en ny rad
         if (photoIdx < pagePhotos.length) {
             const remaining = pagePhotos.slice(photoIdx);
             let aspectSum = 0;
@@ -838,7 +823,6 @@
         return { rows, naturalHeight, totalGapHeight };
       }
 
-      // 2. Finn beste antall rader som fyller siden best
       let bestLayout = null;
       let bestScore = Infinity; 
       
@@ -848,7 +832,6 @@
       for (let r = minRows; r <= maxRows; r++) {
         const layout = createLayout(r);
         
-        // Hvor høy blir denne layouten naturlig?
         const contentHeight = layout.naturalHeight - layout.totalGapHeight;
         const requiredContentHeight = height - layout.totalGapHeight;
         
@@ -857,14 +840,21 @@
         const scale = requiredContentHeight / contentHeight;
         let score;
         
-        // Vi ønsker scale så nærme 1 som mulig, men vi foretrekker litt for stor (som skaleres ned) 
-        // fremfor litt for liten (som etterlater tomrom).
         if (scale >= 0.85 && scale <= 1.15) {
            score = Math.abs(1 - scale); 
         } else {
            score = 100 + Math.abs(1 - scale);
         }
         
+        // --- FIX FOR GIANT ROW ---
+        // Calculate height variance. If one row is huge and others small, penalize this layout.
+        if (layout.rows.length > 1) {
+            const avgRowHeight = layout.rows.reduce((s, row) => s + row.height, 0) / layout.rows.length;
+            const variance = layout.rows.reduce((s, row) => s + Math.abs(row.height - avgRowHeight), 0) / layout.rows.length;
+            const penalty = (variance / avgRowHeight) * 5; // Strong penalty for uneven rows
+            score += penalty;
+        }
+
         if (score < bestScore) {
           bestScore = score;
           bestLayout = { ...layout, optimalScale: scale };
@@ -873,18 +863,15 @@
 
       if (!bestLayout) return { cells: [], totalHeight: 0, fitScore: Infinity };
 
-      // 3. Generer celler
       const rows = bestLayout.rows;
       let finalScale = bestLayout.optimalScale;
       
-      // Clamp scale - ikke la bildene bli enorme eller mikroskopiske
       if (finalScale < 0.6) finalScale = 0.6;
       if (finalScale > 1.4) finalScale = 1.4;
 
       let currentTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
       let fitScale = 1;
       
-      // Hvis totalhøyden overstiger siden, MÅ vi skalere ned for å få plass
       if (currentTotalHeight > height) {
          fitScale = height / currentTotalHeight;
          currentTotalHeight = height; 
@@ -896,9 +883,6 @@
       
       rows.forEach(row => {
         const finalRowHeight = row.height * finalScale * fitScale;
-        
-        // Beregn bredde for å sentrere raden
-        // Bredden er (aspectSum * høyde) + gaps
         const rowContentWidth = (row.aspectSum * finalRowHeight) + ((row.photos.length - 1) * gap * finalScale * fitScale);
         let xPos = (width - rowContentWidth) / 2;
         
@@ -929,7 +913,7 @@
         if (remaining <= maxCount) {
              countToTake = remaining;
         } else if (remaining <= target + tolerance) {
-             countToTake = remaining; // Ta alt hvis vi er innenfor toleranse
+             countToTake = remaining; 
         } else {
              countToTake = target;
         }
