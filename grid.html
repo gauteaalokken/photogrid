@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro V061</title>
+  <title>Fotogrid Pro V062</title>
   
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
@@ -17,21 +17,22 @@
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     .app-container { min-height: 100vh; background-color: #f9fafb; display: flex; }
     
-    /* VERSION TAG */
-    .version-tag {
-        position: fixed;
-        top: 0;
-        right: 0;
-        background-color: #fbbf24;
-        color: #000;
-        font-weight: bold;
-        padding: 6px 14px;
-        font-size: 16px;
-        z-index: 9999;
-        border-bottom-left-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        pointer-events: none;
-        font-family: monospace;
+    /* Version Label Style */
+    .version-label {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background-color: rgba(255, 255, 255, 0.8);
+      border: 1px solid #e5e7eb;
+      color: #6b7280;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      z-index: 100;
+      pointer-events: none; /* Lar deg klikke gjennom den */
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      font-family: monospace;
     }
 
     /* Sidebar Styles */
@@ -69,6 +70,10 @@
     select, input[type="text"] { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
     select:focus, input[type="text"]:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
     input[type="range"] { width: 100%; }
+    /* Justering for nummer-input med desimaler */
+    input[type="number"] { -moz-appearance: textfield; }
+    input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
     .color-input-group { display: flex; gap: 8px; }
     .color-input-group input[type="color"] { width: 48px; height: 40px; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; }
     .color-input-group input[type="text"] { flex: 1; font-family: 'Courier New', monospace; }
@@ -135,68 +140,9 @@
     .photo-cell.dragging { opacity: 0.4; cursor: grabbing; border: 2px dashed #2563eb; }
     .photo-cell.drag-over { outline: 3px solid #2563eb; z-index: 10; transform: scale(1.02); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
     .photo-cell img { width: 100%; height: 100%; object-fit: cover; object-position: center; pointer-events: none; }
-    
-    .photo-cell:hover .remove-btn, 
-    .photo-cell:hover .resize-controls { opacity: 1; }
-
-    /* Delete Button */
-    .remove-btn { 
-      position: absolute; 
-      top: 4px; 
-      right: 4px; 
-      width: 24px; 
-      height: 24px; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      background-color: rgba(239, 68, 68, 0.9); 
-      color: white; 
-      border: none; 
-      border-radius: 50%; 
-      cursor: pointer; 
-      opacity: 0; 
-      transition: all 0.15s; 
-      z-index: 20; 
-    }
-    .remove-btn:hover { background-color: #dc2626; transform: scale(1.1); }
-
-    /* Resize Controls (+/-) */
-    .resize-controls {
-        position: absolute;
-        bottom: 6px;
-        right: 6px;
-        display: flex;
-        gap: 4px;
-        opacity: 0;
-        transition: opacity 0.2s;
-        z-index: 20;
-    }
-    .resize-btn {
-        width: 28px;
-        height: 28px;
-        border-radius: 6px;
-        background-color: rgba(255, 255, 255, 0.95);
-        border: 1px solid #9ca3af;
-        color: #111827;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        font-size: 16px;
-        font-weight: bold;
-        transition: all 0.1s;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        user-select: none;
-    }
-    .resize-btn:hover {
-        background-color: #2563eb;
-        color: white;
-        border-color: #2563eb;
-    }
-    .resize-btn:active {
-        transform: scale(0.95);
-        background-color: #eff6ff;
-    }
+    .photo-cell:hover .remove-btn { opacity: 1; }
+    .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background-color: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; transition: all 0.15s; z-index: 5; }
+    .remove-btn:hover { background-color: #dc2626; }
 
     @media (max-width: 900px) {
       .app-container { flex-direction: column; }
@@ -208,7 +154,7 @@
 </head>
 <body>
   
-  <div class="version-tag">V 061</div>
+  <div class="version-label">V062</div>
 
   <div class="app-container">
     <div class="sidebar">
@@ -289,16 +235,16 @@
         <div class="control-group">
           <label>Marg: <span id="marginValue">2</span>mm</label>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="range" id="margin" min="0" max="50" value="2" oninput="handleSliderChange('margin', this.value)">
-            <input type="number" id="marginInput" min="0" max="50" value="2" oninput="handleInputChange('margin', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            <input type="range" id="margin" min="0" max="50" step="0.5" value="2" oninput="handleSliderChange('margin', this.value)">
+            <input type="number" id="marginInput" min="0" max="50" step="0.5" value="2" oninput="handleInputChange('margin', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
           </div>
         </div>
 
         <div class="control-group">
           <label>Avstand: <span id="gapValue">2</span>mm</label>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="range" id="gap" min="0" max="20" value="2" oninput="handleSliderChange('gap', this.value)">
-            <input type="number" id="gapInput" min="0" max="20" value="2" oninput="handleInputChange('gap', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            <input type="range" id="gap" min="0" max="20" step="0.5" value="2" oninput="handleSliderChange('gap', this.value)">
+            <input type="number" id="gapInput" min="0" max="20" step="0.5" value="2" oninput="handleInputChange('gap', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
           </div>
         </div>
 
@@ -366,7 +312,7 @@
     let historyStack = [];
     const MAX_HISTORY = 20;
 
-    // --- DATABASE (IndexedDB) ---
+    // --- DATABASE (IndexedDB) FOR AUTOLAGRING ---
     const dbName = 'PhotoGridDB';
     const storeName = 'photos';
     const settingsStore = 'settings';
@@ -403,8 +349,7 @@
         width: photo.width,
         height: photo.height,
         aspectRatio: photo.aspectRatio,
-        file: photo.originalFile,
-        weight: photo.weight || 1
+        file: photo.originalFile 
       };
       
       store.put(photoRecord);
@@ -430,8 +375,7 @@
               aspectRatio: rec.aspectRatio,
               originalFile: rec.file,
               originalSrc: originalUrl,
-              previewSrc: thumbData.src,
-              weight: rec.weight || 1
+              previewSrc: thumbData.src
             });
           }
           resolve(loadedPhotos);
@@ -488,7 +432,7 @@
     // --- ANGRE FUNKSJONALITET ---
     
     function pushHistory() {
-        const currentState = photos.map(p => ({id: p.id, weight: p.weight}));
+        const currentState = photos.map(p => p.id);
         historyStack.push(currentState);
         if (historyStack.length > MAX_HISTORY) historyStack.shift();
         updateUndoBtn();
@@ -496,20 +440,16 @@
 
     function undo() {
         if (historyStack.length === 0) return;
-        const previousState = historyStack.pop();
+        const previousIds = historyStack.pop();
         
         const newOrder = [];
-        previousState.forEach(item => {
-            const p = photos.find(x => x.id === item.id);
-            if(p) {
-                p.weight = item.weight || 1;
-                newOrder.push(p);
-            }
+        previousIds.forEach(id => {
+            const p = photos.find(x => x.id === id);
+            if(p) newOrder.push(p);
         });
         
         if (newOrder.length > 0) {
             photos = newOrder;
-            photos.forEach(p => savePhotoToDB(p));
             resetAndRender(false); 
         }
         updateUndoBtn();
@@ -565,12 +505,16 @@
     }, 50);
 
     function handleSliderChange(type, value) {
-      const val = parseInt(value) || 0;
+      // Changed from parseInt to parseFloat to support 0.5 steps
+      const val = parseFloat(value) || 0;
+      
       if (type === 'photosPerPage') {
-        document.getElementById('photosPerPageInput').value = val;
+        const intVal = parseInt(value) || 0;
+        document.getElementById('photosPerPageInput').value = intVal;
       } else if (type === 'tolerance') {
-        document.getElementById('pageToleranceInput').value = val;
-        document.getElementById('toleranceValue').textContent = val;
+        const intVal = parseInt(value) || 0;
+        document.getElementById('pageToleranceInput').value = intVal;
+        document.getElementById('toleranceValue').textContent = intVal;
       } else if (type === 'margin') {
         document.getElementById('marginInput').value = val;
         document.getElementById('marginValue').textContent = val;
@@ -582,12 +526,15 @@
     }
 
     function handleInputChange(type, value) {
-      const val = parseInt(value) || 0;
+      const val = parseFloat(value) || 0;
+      
       if (type === 'photosPerPage') {
-        document.getElementById('photosPerPage').value = val;
+        const intVal = parseInt(value) || 0;
+        document.getElementById('photosPerPage').value = intVal;
       } else if (type === 'tolerance') {
-        document.getElementById('pageTolerance').value = val;
-        document.getElementById('toleranceValue').textContent = val;
+        const intVal = parseInt(value) || 0;
+        document.getElementById('pageTolerance').value = intVal;
+        document.getElementById('toleranceValue').textContent = intVal;
       } else if (type === 'margin') {
         document.getElementById('margin').value = val;
         document.getElementById('marginValue').textContent = val;
@@ -606,19 +553,6 @@
     function togglePreviewQuality(quality) {
         previewQuality = quality;
         renderGrid(false);
-    }
-    
-    // --- MANUELL VEKTING AV BILDER ---
-    function changePhotoWeight(id, delta) {
-        const photo = photos.find(p => p.id === id);
-        if (photo) {
-            pushHistory();
-            // Steg på 0.1 for finjustering
-            const newWeight = (photo.weight || 1) + delta;
-            photo.weight = Math.max(0.5, Math.min(5.0, newWeight));
-            savePhotoToDB(photo);
-            resetAndRender();
-        }
     }
 
     // --- DRAG AND DROP ---
@@ -647,7 +581,7 @@
       });
       if (draggedPhotoId === null || draggedPhotoId === targetId) return;
       
-      pushHistory(); 
+      pushHistory(); // Save state before move
 
       const fromIndex = photos.findIndex(p => p.id === draggedPhotoId);
       const toIndex = photos.findIndex(p => p.id === targetId);
@@ -710,8 +644,7 @@
                 name: file.name,
                 width: thumbData.width,
                 height: thumbData.height,
-                aspectRatio: thumbData.width / thumbData.height,
-                weight: 1.0 
+                aspectRatio: thumbData.width / thumbData.height
             };
             
             await savePhotoToDB(photoObj);
@@ -766,65 +699,33 @@
         : { width: size.width, height: size.height };
     }
 
-    // --- ALGORITME V061: HYBRID (Layout: Weighted Greedy | Sizing: Original Grid.html) ---
-    // Dette sikrer at vi kan bruke +/- knapper (weights), men at vi ALDRI får overflow (bilder som stikker utenfor)
-    
+    // --- ALGORITME ---
     function calculateOptimalGrid(pagePhotos, width, height, gap) {
       if (pagePhotos.length === 0) return { cells: [], totalHeight: 0, fitScore: Infinity };
 
       function createLayout(targetRows) {
         const rows = [];
-        const totalWeight = pagePhotos.reduce((sum, p) => sum + (p.weight || 1), 0);
-        const weightBudgetPerRow = totalWeight / targetRows;
+        const baseCount = Math.floor(pagePhotos.length / targetRows);
+        const extras = pagePhotos.length % targetRows;
         
         let photoIdx = 0;
-        
         for (let r = 0; r < targetRows; r++) {
-            if (photoIdx >= pagePhotos.length) break;
-
-            const rowPhotos = [];
-            let currentLineWeight = 0;
-            let aspectSum = 0;
-
-            while (photoIdx < pagePhotos.length) {
-                const p = pagePhotos[photoIdx];
-                const w = p.weight || 1;
-                
-                if (rowPhotos.length === 0) {
-                    rowPhotos.push(p);
-                    currentLineWeight += w;
-                    aspectSum += p.aspectRatio;
-                    photoIdx++;
-                } else {
-                    const distBefore = Math.abs(weightBudgetPerRow - currentLineWeight);
-                    const distAfter = Math.abs(weightBudgetPerRow - (currentLineWeight + w));
-                    
-                    if (currentLineWeight < weightBudgetPerRow && (distAfter <= distBefore || currentLineWeight < weightBudgetPerRow * 0.7)) {
-                         rowPhotos.push(p);
-                         currentLineWeight += w;
-                         aspectSum += p.aspectRatio;
-                         photoIdx++;
-                    } else {
-                        break; 
-                    }
-                }
+          const count = baseCount + (r < extras ? 1 : 0);
+          const rowPhotos = [];
+          let aspectSum = 0;
+          for (let i = 0; i < count; i++) {
+            if (photoIdx < pagePhotos.length) {
+               rowPhotos.push(pagePhotos[photoIdx]);
+               aspectSum += pagePhotos[photoIdx].aspectRatio;
+               photoIdx++;
             }
-
-            if (rowPhotos.length > 0) {
-                const gaps = (rowPhotos.length - 1) * gap;
-                const rowHeight = (width - gaps) / aspectSum; 
-                rows.push({ photos: rowPhotos, height: rowHeight, aspectSum });
-            }
+          }
+          if (rowPhotos.length > 0) {
+            const gaps = (rowPhotos.length - 1) * gap;
+            const rowHeight = (width - gaps) / aspectSum; 
+            rows.push({ photos: rowPhotos, height: rowHeight, aspectSum });
+          }
         }
-        
-        if (photoIdx < pagePhotos.length) {
-            const remaining = pagePhotos.slice(photoIdx);
-            let aspectSum = 0;
-            remaining.forEach(p => aspectSum += p.aspectRatio);
-            const gaps = (remaining.length - 1) * gap;
-            rows.push({ photos: remaining, height: (width - gaps) / aspectSum, aspectSum });
-        }
-
         const totalGapHeight = (rows.length - 1) * gap;
         const naturalHeight = rows.reduce((sum, r) => sum + r.height, 0) + totalGapHeight;
         return { rows, naturalHeight, totalGapHeight };
@@ -833,14 +734,8 @@
       let bestLayout = null;
       let bestScore = Infinity; 
       
-      // Vi sjekker alle rader fra 1 til N for å finne den layouten som passer best i forholdet bredde/høyde
-      const minRows = 1;
-      const maxRows = pagePhotos.length;
-
-      for (let r = minRows; r <= maxRows; r++) {
+      for (let r = 1; r <= pagePhotos.length; r++) {
         const layout = createLayout(r);
-        
-        // Original Sizing Logic: Sjekk scale basert på høyde
         const contentHeight = layout.naturalHeight - layout.totalGapHeight;
         const requiredContentHeight = height - layout.totalGapHeight;
         
@@ -848,8 +743,6 @@
         
         const scale = requiredContentHeight / contentHeight;
         let score;
-        
-        // Vi foretrekker scale nær 1 (perfekt fit), men aksepterer litt avvik.
         if (scale >= 0.9 && scale <= 1.1) {
            score = Math.abs(1 - scale); 
         } else {
@@ -866,48 +759,29 @@
       if (!bestLayout) return { cells: [], totalHeight: 0, fitScore: Infinity };
 
       const rows = bestLayout.rows;
-      
-      // --- HERE IS THE ORIGINAL "FIT" LOGIC RESTORED ---
-      // Instead of forcing it to cover (scale >= 1), we use the logic from grid.html
-      // that scales it down if it's too tall, or leaves it alone (and centers it) if it's too short.
-      
-      // optimalScale was calculated based on required height.
-      // But let's recalculate the exact fitScale like the original code did to be safe.
-      
+      let finalScale = bestLayout.optimalScale;
+      if (finalScale < 0.9) finalScale = 0.9;
+      if (finalScale > 1.1) finalScale = 1.1;
+
+      let currentTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
       let fitScale = 1;
-      let currentTotalHeight = bestLayout.naturalHeight; // Natural height assumes full width
-      
-      // If the natural layout is taller than the page, scale it DOWN to fit.
       if (currentTotalHeight > height) {
          fitScale = height / currentTotalHeight;
          currentTotalHeight = height; 
       }
-      // If the natural layout is shorter than the page, scale stays 1 (we don't stretch vertically),
-      // resulting in white space at top/bottom (which is centered below).
-      
+
       const cells = [];
-      
-      // Center vertically if needed (Original logic)
       let yPos = (currentTotalHeight < height) ? (height - currentTotalHeight) / 2 : 0;
-      
-      // Center horizontally (Should be 0 if fitScale is 1, but handles scale < 1 cases)
       const finalTotalWidth = width * fitScale;
       const xOffset = (width - finalTotalWidth) / 2;
 
       rows.forEach(row => {
-        const finalRowHeight = row.height * fitScale;
+        const finalRowHeight = row.height * finalScale * fitScale;
         const rowGapTotal = (row.photos.length - 1) * gap * fitScale;
-        
-        // Recalculate cell widths strictly based on Available Width to match scaling
-        // This ensures the row fits perfectly inside 'finalTotalWidth'
         const availableRowWidth = finalTotalWidth - rowGapTotal;
-        
-        let xPos = xOffset; 
-        
+        let xPos = xOffset;
         row.photos.forEach(photo => {
-          // Distribute width based on aspect ratio share
           const cellWidth = (photo.aspectRatio / row.aspectSum) * availableRowWidth;
-          
           cells.push({
             x: xPos, y: yPos, width: cellWidth, height: finalRowHeight, photo: photo
           });
@@ -923,23 +797,28 @@
       const pages = [];
       let currentIndex = 0;
       while (currentIndex < allPhotos.length) {
-        
+        let bestCount = target;
+        let bestChunkScore = Infinity;
         const minCount = Math.max(1, target - tolerance);
         const maxCount = target + tolerance;
-        
-        let countToTake = target;
         const remaining = allPhotos.length - currentIndex;
-        
         if (remaining <= maxCount) {
-             countToTake = remaining;
-        } else if (remaining <= target + tolerance) {
-             countToTake = remaining; 
-        } else {
-             countToTake = target;
+           pages.push(allPhotos.slice(currentIndex));
+           break; 
         }
-
-        pages.push(allPhotos.slice(currentIndex, currentIndex + countToTake));
-        currentIndex += countToTake;
+        for (let c = minCount; c <= maxCount; c++) {
+          if (c > remaining) break;
+          const chunk = allPhotos.slice(currentIndex, currentIndex + c);
+          const result = calculateOptimalGrid(chunk, width, height, gap);
+          const targetDeviation = Math.abs(target - c) * 0.05; 
+          const totalScore = result.fitScore + targetDeviation;
+          if (totalScore < bestChunkScore) {
+            bestChunkScore = totalScore;
+            bestCount = c;
+          }
+        }
+        pages.push(allPhotos.slice(currentIndex, currentIndex + bestCount));
+        currentIndex += bestCount;
       }
       return pages;
     }
@@ -967,8 +846,10 @@
       displayWidth = Math.max(100, displayWidth);
       displayHeight = Math.max(100, displayHeight);
 
-      const margin = parseInt(document.getElementById('margin').value) || 10;
-      const gap = parseInt(document.getElementById('gap').value) || 5;
+      // Changed: Use parseFloat instead of parseInt
+      const margin = parseFloat(document.getElementById('margin').value) || 0;
+      const gap = parseFloat(document.getElementById('gap').value) || 0;
+      
       const photosPerPage = parseInt(document.getElementById('photosPerPage').value) || 10;
       const tolerance = parseInt(document.getElementById('pageTolerance').value) || 0;
       
@@ -1052,11 +933,10 @@
         img.src = previewQuality === 'low' ? cell.photo.previewSrc : cell.photo.originalSrc;
         img.alt = cell.photo.name;
         
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'remove-btn';
-        removeBtn.title = "Fjern bilde";
-        removeBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-        removeBtn.onclick = (e) => {
+        const btn = document.createElement('button');
+        btn.className = 'remove-btn';
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+        btn.onclick = (e) => {
           e.stopPropagation();
           pushHistory();
           const pIndex = photos.findIndex(p => p.id === cell.photo.id);
@@ -1070,33 +950,8 @@
           updateUI();
         };
 
-        const resizeControls = document.createElement('div');
-        resizeControls.className = 'resize-controls';
-        
-        const minusBtn = document.createElement('div');
-        minusBtn.className = 'resize-btn';
-        minusBtn.textContent = '-';
-        minusBtn.title = "Gjør mindre";
-        minusBtn.onclick = (e) => {
-            e.stopPropagation();
-            changePhotoWeight(cell.photo.id, -0.1);
-        };
-
-        const plusBtn = document.createElement('div');
-        plusBtn.className = 'resize-btn';
-        plusBtn.textContent = '+';
-        plusBtn.title = "Gjør større";
-        plusBtn.onclick = (e) => {
-            e.stopPropagation();
-            changePhotoWeight(cell.photo.id, 0.1);
-        };
-        
-        resizeControls.appendChild(minusBtn);
-        resizeControls.appendChild(plusBtn);
-
         div.appendChild(img);
-        div.appendChild(removeBtn);
-        div.appendChild(resizeControls);
+        div.appendChild(btn);
         gridEl.appendChild(div);
       });
 
@@ -1172,8 +1027,11 @@
       const mmToPixels = dpi / 25.4;
       const exportWidth = Math.round(paper.width * mmToPixels);
       const exportHeight = Math.round(paper.height * mmToPixels);
-      const margin = parseInt(document.getElementById('margin').value);
-      const gap = parseInt(document.getElementById('gap').value);
+      
+      // Changed: Use parseFloat
+      const margin = parseFloat(document.getElementById('margin').value);
+      const gap = parseFloat(document.getElementById('gap').value);
+      
       const marginPx = Math.round(margin * mmToPixels);
       const gapPx = Math.round(gap * mmToPixels);
       const photosPerPage = parseInt(document.getElementById('photosPerPage').value);
@@ -1221,8 +1079,11 @@
       const mmToPixels = dpi / 25.4;
       const exportWidth = Math.round(paper.width * mmToPixels);
       const exportHeight = Math.round(paper.height * mmToPixels);
-      const margin = parseInt(document.getElementById('margin').value);
-      const gap = parseInt(document.getElementById('gap').value);
+      
+      // Changed: Use parseFloat
+      const margin = parseFloat(document.getElementById('margin').value);
+      const gap = parseFloat(document.getElementById('gap').value);
+      
       const marginPx = Math.round(margin * mmToPixels);
       const gapPx = Math.round(gap * mmToPixels);
       const photosPerPage = parseInt(document.getElementById('photosPerPage').value);
@@ -1272,6 +1133,7 @@
             const savedSettings = await loadSettings();
             
             if (savedSettings) {
+                // Restore settings
                 document.getElementById('projectName').value = savedSettings.projectName || '';
                 document.getElementById('photosPerPage').value = savedSettings.photosPerPage;
                 document.getElementById('paperSize').value = savedSettings.paperSize;
