@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro V066 - Multi-View</title>
+  <title>Fotogrid Pro V067 - Horizontal View</title>
   
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="manifest" href='data:application/manifest+json;base64,ewogICJuYW1lIjogIkZvdG9ncmlkIFBybyIsCiAgInNob3J0X25hbWUiOiAiRm90b2dyaWQiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAiYnJvd3NlciIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiMyNTYzZWIiLAogICJpY29ucyI6IFt7CiAgICAic3JjIjogImljb24ucG5nIiwKICAgICJzaXplcyI6ICI1MTJ4NTEyIiwKICAgICJ0eXBlIjogImltYWdlL3BuZyIKICB9XQp9' />
@@ -13,7 +13,7 @@
     /* --- CSS STYLES --- */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    .app-container { min-height: 100vh; background-color: #f3f4f6; display: flex; }
+    .app-container { min-height: 100vh; background-color: #e5e7eb; display: flex; } /* Mørkere bakgrunn for kontrast */
     
     /* Version Label */
     .version-label {
@@ -77,7 +77,7 @@
     .color-input-group input[type="color"] { width: 48px; height: 40px; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; }
     .color-input-group input[type="text"] { flex: 1; font-family: 'Courier New', monospace; }
     
-    /* --- MAIN CANVAS AREA (Updated for Scroll) --- */
+    /* --- MAIN CANVAS AREA (Horizontal Scroll) --- */
     .main-canvas { 
       flex: 1; 
       padding: 0; 
@@ -86,19 +86,21 @@
       align-items: center; 
       height: 100vh; 
       position: relative; 
-      overflow: hidden; /* Hide scrollbar of container, use wrapper */
+      overflow: hidden; 
     }
     
     .canvas-wrapper { 
       display: flex; 
-      flex-direction: column; 
-      align-items: center; 
+      flex-direction: row; /* ENDRET TIL ROW */
+      align-items: center; /* Sentrer vertikalt */
+      justify-content: flex-start;
       width: 100%; 
       height: 100%; 
-      overflow-y: auto; 
-      padding: 60px 0 120px 0; /* Space for scrolling */
+      overflow-x: auto; /* Horisontal scroll */
+      overflow-y: hidden;
+      padding: 0 40px; /* Luft på sidene */
+      gap: 60px; /* Avstand mellom arkene */
       scroll-behavior: smooth;
-      gap: 40px;
     }
     
     /* Canvas Container (Page) */
@@ -106,27 +108,35 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        opacity: 0.5; /* Dim inactive pages */
-        transition: opacity 0.3s, transform 0.3s;
-        transform: scale(0.95);
+        flex-shrink: 0; /* Ikke krymp arkene */
+        opacity: 0.4; 
+        transition: all 0.3s ease;
+        transform: scale(0.9);
     }
     .page-container.active {
         opacity: 1;
         transform: scale(1);
         z-index: 10;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); /* Løft aktivt ark */
     }
     .page-container:hover, .page-container.drag-active {
+        opacity: 0.9;
+        transform: scale(0.95);
+    }
+    .page-container.active:hover {
+        transform: scale(1);
         opacity: 1;
     }
     
     .page-label {
-        font-size: 14px; font-weight: 600; color: #6b7280; margin-bottom: 8px;
-        background: rgba(255,255,255,0.8); padding: 4px 12px; border-radius: 12px;
+        font-size: 14px; font-weight: 600; color: #4b5563; margin-bottom: 12px;
+        background: white; padding: 4px 12px; border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
 
     .canvas { 
       position: relative; 
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); 
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
       flex-shrink: 0; 
       border: 1px solid #d1d5db; 
       overflow: hidden; 
@@ -177,14 +187,14 @@
       .app-container { flex-direction: column; }
       .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #e5e7eb; height: auto; max-height: 40vh; }
       .main-canvas { height: 60vh; }
-      .canvas-wrapper { padding: 20px 16px; }
+      .canvas-wrapper { padding: 20px 16px; gap: 16px; }
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
   
-  <div class="version-label">V066 Multi-View</div>
+  <div class="version-label">V067 Horizontal</div>
 
   <div id="customSizeModal" class="modal-overlay">
     <div class="modal-box">
@@ -648,7 +658,6 @@
     function handleDragOver(e) { 
         e.preventDefault(); 
         e.dataTransfer.dropEffect = 'move';
-        // Make page visible if hovering over dimmed page
         const page = e.target.closest('.page-container');
         if (page) page.classList.add('drag-active');
         return false; 
@@ -657,8 +666,6 @@
     function handleDragLeave(e) { 
         const target = e.target.closest('.photo-cell'); 
         if (target) target.classList.remove('drag-over');
-        
-        // Handle page dimming
         const page = e.target.closest('.page-container');
         if (page && !page.contains(e.relatedTarget)) page.classList.remove('drag-active');
     }
@@ -837,7 +844,6 @@
       return pages;
     }
 
-    // --- UPDATED RENDER FUNCTION (Multi-Page View) ---
     function renderGrid(save = true) {
       if (save) saveSettings();
       
@@ -846,13 +852,11 @@
       const isMobile = window.innerWidth <= 900;
       const padding = 80; 
       const sidebarWidth = isMobile ? 0 : 340;
-      // Juster maks høyde/bredde for visning
       const maxWidth = window.innerWidth - sidebarWidth - (padding * 2);
-      const maxHeight = window.innerHeight - 150; // Lavere høyde for å få plass til flere
+      const maxHeight = window.innerHeight - 150; 
 
       let displayWidth = maxWidth;
       let displayHeight = displayWidth / aspectRatio;
-      // Hvis siden er for høy for skjermen, skaler ned litt mer for oversikt
       if (displayHeight > maxHeight) { displayHeight = maxHeight; displayWidth = displayHeight * aspectRatio; }
       displayWidth = Math.max(100, displayWidth); displayHeight = Math.max(100, displayHeight);
 
@@ -867,7 +871,7 @@
       const availableHeight = displayHeight - (2 * marginPx);
 
       const canvasWrapper = document.getElementById('canvasWrapper');
-      canvasWrapper.innerHTML = ''; // Tøm wrapper
+      canvasWrapper.innerHTML = ''; 
 
       if (photos.length === 0) {
         document.getElementById('pageNav').style.display = 'none';
@@ -904,19 +908,12 @@
       document.getElementById('prevBtn').disabled = currentPageIndex === 0;
       document.getElementById('nextBtn').disabled = currentPageIndex === totalPages - 1;
 
-      // --- RENDER CURRENT, PREV, NEXT ---
-      // Vi rendrer et "vindu" av sider: forrige, nåværende, neste.
-      // Egentlig kan vi rendre alle for best scroll-opplevelse, men vi fokuserer på de nærme.
-      // For enkelhets skyld og best drag-and-drop: Render et større sett, men scroll til current.
-      
+      // Render forrige, nåværende, neste for horisontal visning
       let startRender = Math.max(0, currentPageIndex - 1);
       let endRender = Math.min(totalPages - 1, currentPageIndex + 1);
 
-      // Render loopen
       for (let i = startRender; i <= endRender; i++) {
           const pagePhotos = computedPages[i];
-          
-          // Container for layout + label
           const pageContainer = document.createElement('div');
           pageContainer.className = 'page-container';
           if (i === currentPageIndex) pageContainer.classList.add('active');
@@ -986,16 +983,16 @@
           canvasWrapper.appendChild(pageContainer);
       }
       
-      // Auto-scroll slik at aktiv side er i midten
+      // Auto-scroll sentrert horisontalt
       setTimeout(() => {
           const activeEl = document.getElementById(`page-${currentPageIndex}`);
           if(activeEl) {
-              activeEl.scrollIntoView({ behavior: 'auto', block: 'center' });
+              activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
           }
       }, 0);
     }
 
-    // --- EKSPORT (Samme som før) ---
+    // --- EKSPORT ---
     function getProjectName() {
         let name = document.getElementById('projectName').value.trim();
         if(!name) name = `prosjekt-${currentLayoutId}`;
