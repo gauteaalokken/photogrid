@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro V069 - Fix Layout</title>
+  <title>Fotogrid Pro V071 - Page Sort & Slider Fix</title>
   
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="manifest" href='data:application/manifest+json;base64,ewogICJuYW1lIjogIkZvdG9ncmlkIFBybyIsCiAgInNob3J0X25hbWUiOiAiRm90b2dyaWQiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAiYnJvd3NlciIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiMyNTYzZWIiLAogICJpY29ucyI6IFt7CiAgICAic3JjIjogImljb24ucG5nIiwKICAgICJzaXplcyI6ICI1MTJ4NTEyIiwKICAgICJ0eXBlIjogImltYWdlL3BuZyIKICB9XQp9' />
@@ -91,16 +91,26 @@
     .page-container.active { opacity: 1; transform: scale(1); z-index: 10; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
     .page-container:hover, .page-container.drag-active { opacity: 0.9; transform: scale(0.95); }
     .page-container.active:hover { transform: scale(1); opacity: 1; }
+
+    /* Visual for page drag */
+    .page-container.page-dragging { opacity: 0.2; transform: scale(0.8); border: 2px dashed #2563eb; border-radius: 8px; }
+    .page-container.page-drop-target { border-left: 4px solid #2563eb; padding-left: 10px; transition: all 0.2s; }
     
     .page-header {
       display: flex; align-items: center; justify-content: space-between; width: 100%;
       margin-bottom: 12px; 
     }
-    .page-label {
-        font-size: 14px; font-weight: 600; color: #4b5563;
-        background: white; padding: 4px 12px; border-radius: 12px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    .page-label-group {
+      display: flex; align-items: center; gap: 8px;
+      background: white; padding: 4px 8px; border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
+    .page-drag-handle {
+      cursor: grab; color: #9ca3af; display: flex; align-items: center;
+    }
+    .page-drag-handle:hover { color: #374151; }
+    .page-label { font-size: 14px; font-weight: 600; color: #4b5563; user-select: none; }
+    
     .delete-page-btn {
       background: #fee2e2; color: #ef4444; border: 1px solid #fecaca;
       border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
@@ -157,7 +167,7 @@
 </head>
 <body>
   
-  <div class="version-label">V069 UI Fix</div>
+  <div class="version-label">V071 Page Sort</div>
 
   <div id="customSizeModal" class="modal-overlay">
     <div class="modal-box">
@@ -640,68 +650,159 @@
       return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), wait); };
     }
     const debouncedRender = debounce(() => { renderGrid(true); }, 50);
+    const debouncedAutoFlow = debounce(() => { autoFlow(); }, 200);
 
     function handleSliderChange(type, value) {
       const val = parseFloat(value) || 0;
-      if (type === 'photosPerPage') { document.getElementById('photosPerPageInput').value = parseInt(value); }
-      else if (type === 'tolerance') { document.getElementById('pageToleranceInput').value = parseInt(value); document.getElementById('toleranceValue').textContent = parseInt(value); }
-      else if (type === 'margin') { document.getElementById('marginInput').value = val; document.getElementById('marginValue').textContent = val; }
-      else if (type === 'gap') { document.getElementById('gapInput').value = val; document.getElementById('gapValue').textContent = val; }
-      debouncedRender(); 
+      if (type === 'photosPerPage') { 
+          document.getElementById('photosPerPageInput').value = parseInt(value); 
+          // FIX: Nå trigger vi autoflow automatisk når slideren endres
+          debouncedAutoFlow();
+      }
+      else if (type === 'tolerance') { document.getElementById('pageToleranceInput').value = parseInt(value); document.getElementById('toleranceValue').textContent = parseInt(value); debouncedRender(); }
+      else if (type === 'margin') { document.getElementById('marginInput').value = val; document.getElementById('marginValue').textContent = val; debouncedRender(); }
+      else if (type === 'gap') { document.getElementById('gapInput').value = val; document.getElementById('gapValue').textContent = val; debouncedRender(); }
     }
+    
     function handleInputChange(type, value) {
       const val = parseFloat(value) || 0;
-      if (type === 'photosPerPage') document.getElementById('photosPerPage').value = parseInt(value);
-      else if (type === 'tolerance') { document.getElementById('pageTolerance').value = parseInt(value); document.getElementById('toleranceValue').textContent = parseInt(value); }
-      else if (type === 'margin') { document.getElementById('margin').value = val; document.getElementById('marginValue').textContent = val; }
-      else if (type === 'gap') { document.getElementById('gap').value = val; document.getElementById('gapValue').textContent = val; }
-      debouncedRender();
+      if (type === 'photosPerPage') {
+          document.getElementById('photosPerPage').value = parseInt(value);
+          debouncedAutoFlow();
+      }
+      else if (type === 'tolerance') { document.getElementById('pageTolerance').value = parseInt(value); document.getElementById('toleranceValue').textContent = parseInt(value); debouncedRender(); }
+      else if (type === 'margin') { document.getElementById('margin').value = val; document.getElementById('marginValue').textContent = val; debouncedRender(); }
+      else if (type === 'gap') { document.getElementById('gap').value = val; document.getElementById('gapValue').textContent = val; debouncedRender(); }
     }
     function resetAndRender(save = true) { renderGrid(save); }
     function togglePreviewQuality(quality) { previewQuality = quality; renderGrid(false); }
 
+    // --- DRAG & DROP UTILS ---
     let draggedPhotoId = null;
+    let draggedPageIdx = null;
     let dragSourcePageIndex = null;
+    let dragType = null; // 'photo' or 'page'
+
+    // PHOTO DRAG
     function handleDragStart(e, id, pageIndex) { 
+        e.stopPropagation();
         draggedPhotoId = id; dragSourcePageIndex = pageIndex;
-        e.target.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; 
+        dragType = 'photo';
+        e.target.classList.add('dragging'); 
+        e.dataTransfer.effectAllowed = 'move'; 
     }
+
+    // PAGE DRAG
+    function handlePageDragStart(e, pageIndex) {
+        draggedPageIdx = pageIndex;
+        dragType = 'page';
+        const pageContainer = document.getElementById(`page-${pageIndex}`);
+        if(pageContainer) {
+            pageContainer.classList.add('page-dragging');
+        }
+        e.dataTransfer.effectAllowed = 'move';
+        // Hack for blank image if needed, but default ghost is usually ok for divs
+    }
+
     function handleDragOver(e) { 
-        e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-        const page = e.target.closest('.page-container');
-        if (page) page.classList.add('drag-active');
+        e.preventDefault(); 
+        e.dataTransfer.dropEffect = 'move';
+        
+        // Handle visual cues depending on what we are dragging
+        if (dragType === 'page') {
+             const pageContainer = e.target.closest('.page-container');
+             if (pageContainer && pageContainer.dataset.index != draggedPageIdx) {
+                 pageContainer.classList.add('page-drop-target');
+             }
+        } else if (dragType === 'photo') {
+             const page = e.target.closest('.page-container');
+             if (page) page.classList.add('drag-active');
+        }
         return false; 
     }
-    function handleDragEnter(e) { e.preventDefault(); const target = e.target.closest('.photo-cell'); if (target && target.dataset.id !== String(draggedPhotoId)) target.classList.add('drag-over'); }
-    function handleDragLeave(e) { 
-        const target = e.target.closest('.photo-cell'); if (target) target.classList.remove('drag-over');
-        const page = e.target.closest('.page-container'); if (page && !page.contains(e.relatedTarget)) page.classList.remove('drag-active');
+
+    function handleDragEnter(e) { 
+        e.preventDefault(); 
+        if (dragType === 'photo') {
+            const target = e.target.closest('.photo-cell'); 
+            if (target && target.dataset.id !== String(draggedPhotoId)) target.classList.add('drag-over'); 
+        }
     }
+
+    function handleDragLeave(e) { 
+        if (dragType === 'photo') {
+            const target = e.target.closest('.photo-cell'); if (target) target.classList.remove('drag-over');
+            const page = e.target.closest('.page-container'); if (page && !page.contains(e.relatedTarget)) page.classList.remove('drag-active');
+        }
+        if (dragType === 'page') {
+            const pageContainer = e.target.closest('.page-container');
+            if (pageContainer) pageContainer.classList.remove('page-drop-target');
+        }
+    }
+
     function handleDrop(e, targetId) {
       e.stopPropagation(); e.preventDefault();
+      
+      // Cleanup visuals
       document.querySelectorAll('.photo-cell').forEach(el => { el.classList.remove('dragging'); el.classList.remove('drag-over'); });
-      document.querySelectorAll('.page-container').forEach(el => el.classList.remove('drag-active'));
-      if (draggedPhotoId === null) return;
-      const pageEl = e.target.closest('.page-container');
-      if (!pageEl) return; 
-      const targetPageIndex = parseInt(pageEl.dataset.index);
-      pushHistory();
-      const photoItem = pages[dragSourcePageIndex].find(p => p.id === draggedPhotoId);
-      if (!photoItem) return;
-      pages[dragSourcePageIndex] = pages[dragSourcePageIndex].filter(p => p.id !== draggedPhotoId);
-      if (targetId) {
-          const targetIndex = pages[targetPageIndex].findIndex(p => p.id === targetId);
-          if (targetIndex > -1) { pages[targetPageIndex].splice(targetIndex, 0, photoItem); } 
-          else { pages[targetPageIndex].push(photoItem); }
-      } else { pages[targetPageIndex].push(photoItem); }
-      draggedPhotoId = null; dragSourcePageIndex = null;
-      renderGrid(true); return false;
+      document.querySelectorAll('.page-container').forEach(el => {
+          el.classList.remove('drag-active');
+          el.classList.remove('page-dragging');
+          el.classList.remove('page-drop-target');
+      });
+
+      // --- HANDLE PAGE REORDER ---
+      if (dragType === 'page') {
+          const targetPageEl = e.target.closest('.page-container');
+          if (!targetPageEl) return;
+          const targetIdx = parseInt(targetPageEl.dataset.index);
+          
+          if (draggedPageIdx !== null && draggedPageIdx !== targetIdx) {
+              pushHistory();
+              const pageToMove = pages[draggedPageIdx];
+              // Remove
+              pages.splice(draggedPageIdx, 1);
+              // Insert
+              pages.splice(targetIdx, 0, pageToMove);
+              // Update index to follow the page
+              currentPageIndex = targetIdx;
+              renderGrid(true);
+          }
+          draggedPageIdx = null;
+          dragType = null;
+          return;
+      }
+
+      // --- HANDLE PHOTO DROP ---
+      if (dragType === 'photo' && draggedPhotoId !== null) {
+          const pageEl = e.target.closest('.page-container');
+          if (!pageEl) return; 
+          const targetPageIndex = parseInt(pageEl.dataset.index);
+          
+          pushHistory();
+          const photoItem = pages[dragSourcePageIndex].find(p => p.id === draggedPhotoId);
+          if (!photoItem) return;
+          pages[dragSourcePageIndex] = pages[dragSourcePageIndex].filter(p => p.id !== draggedPhotoId);
+          if (targetId) {
+              const targetIndex = pages[targetPageIndex].findIndex(p => p.id === targetId);
+              if (targetIndex > -1) { pages[targetPageIndex].splice(targetIndex, 0, photoItem); } 
+              else { pages[targetPageIndex].push(photoItem); }
+          } else { pages[targetPageIndex].push(photoItem); }
+          
+          draggedPhotoId = null; dragSourcePageIndex = null; dragType = null;
+          renderGrid(true); 
+      }
+      return false;
     }
+    
     function handleDragEnd(e) { 
-        e.target.classList.remove('dragging'); 
+        // Global cleanup
+        document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
         document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        document.querySelectorAll('.page-drop-target').forEach(el => el.classList.remove('page-drop-target'));
+        document.querySelectorAll('.page-dragging').forEach(el => el.classList.remove('page-dragging'));
         document.querySelectorAll('.page-container').forEach(el => el.classList.remove('drag-active')); 
-        draggedPhotoId = null; 
+        draggedPhotoId = null; draggedPageIdx = null; dragType = null;
     }
 
     function changePage(delta) {
@@ -712,7 +813,9 @@
     document.getElementById('fileInput').addEventListener('change', handleFileUpload);
     const canvasWrapper = document.getElementById('canvasWrapper');
     canvasWrapper.addEventListener('dragover', (e) => e.preventDefault());
-    canvasWrapper.addEventListener('drop', (e) => { if(e.dataTransfer.files.length > 0) { e.preventDefault(); handleFiles(Array.from(e.dataTransfer.files)); } });
+    canvasWrapper.addEventListener('drop', (e) => { 
+        if(e.dataTransfer.files.length > 0) { e.preventDefault(); handleFiles(Array.from(e.dataTransfer.files)); } 
+    });
     function handleFileUpload(e) { handleFiles(Array.from(e.target.files)); }
 
     async function handleFiles(files) {
@@ -906,17 +1009,34 @@
           const header = document.createElement('div');
           header.className = 'page-header';
           
+          // Labels & Drag Handle
+          const labelGroup = document.createElement('div');
+          labelGroup.className = 'page-label-group';
+          
+          const dragHandle = document.createElement('div');
+          dragHandle.className = 'page-drag-handle';
+          dragHandle.title = 'Dra for å flytte side';
+          // Icon for drag handle (dots)
+          dragHandle.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px; cursor: grab;"><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>';
+          // PAGE DRAG EVENT LISTENERS (On Handle)
+          dragHandle.draggable = true;
+          dragHandle.ondragstart = (e) => handlePageDragStart(e, i);
+          dragHandle.ondragend = handleDragEnd;
+
           const label = document.createElement('div');
           label.className = 'page-label';
           label.textContent = `Side ${i + 1}`;
           
+          labelGroup.appendChild(dragHandle);
+          labelGroup.appendChild(label);
+
           const delBtn = document.createElement('button');
           delBtn.className = 'delete-page-btn';
           delBtn.innerHTML = '×';
           delBtn.title = 'Slett side';
           delBtn.onclick = (e) => { e.stopPropagation(); removePage(i); };
 
-          header.appendChild(label);
+          header.appendChild(labelGroup);
           header.appendChild(delBtn);
           pageContainer.appendChild(header);
 
