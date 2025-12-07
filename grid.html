@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro V068 - Manual Pages</title>
+  <title>Fotogrid Pro V069 - Fix Layout</title>
   
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="manifest" href='data:application/manifest+json;base64,ewogICJuYW1lIjogIkZvdG9ncmlkIFBybyIsCiAgInNob3J0X25hbWUiOiAiRm90b2dyaWQiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAiYnJvd3NlciIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiMyNTYzZWIiLAogICJpY29ucyI6IFt7CiAgICAic3JjIjogImljb24ucG5nIiwKICAgICJzaXplcyI6ICI1MTJ4NTEyIiwKICAgICJ0eXBlIjogImltYWdlL3BuZyIKICB9XQp9' />
@@ -59,7 +59,6 @@
     .btn-export { width: 100%; padding: 12px 16px; background-color: #111827; color: white; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .btn-export:hover { background-color: #1f2937; }
     .btn-export:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-small { padding: 4px 8px; font-size: 12px; }
     
     .button-group { display: flex; gap: 8px; }
     .button-group button { flex: 1; padding: 8px 16px; background-color: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
@@ -158,7 +157,7 @@
 </head>
 <body>
   
-  <div class="version-label">V068 Manual Pages</div>
+  <div class="version-label">V069 UI Fix</div>
 
   <div id="customSizeModal" class="modal-overlay">
     <div class="modal-box">
@@ -213,11 +212,17 @@
         </div>
         
         <div class="control-group">
-            <label>Legg til side</label>
-            <button class="btn-secondary" onclick="addEmptyPage()">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-                Ny blank side
-            </button>
+            <label>Sider</label>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn-secondary" onclick="addEmptyPage()" style="flex:1">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                    Ny side
+                </button>
+                <button class="btn-secondary" onclick="autoFlow()" title="Tilbakestill layout" style="flex:1">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                    Autoflyt
+                </button>
+            </div>
         </div>
 
         <div class="control-group">
@@ -232,7 +237,7 @@
           <label>Bilder per side</label>
           <div style="display: flex; gap: 8px; align-items: center;">
             <input type="range" id="photosPerPage" min="1" max="36" value="36" oninput="handleSliderChange('photosPerPage', this.value)" style="flex: 1;">
-            <button class="btn-secondary btn-small" onclick="autoFlow()" title="Rydd bilder på nytt">Autoflyt</button>
+            <input type="number" id="photosPerPageInput" min="1" max="36" value="36" oninput="handleInputChange('photosPerPage', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
           </div>
         </div>
 
@@ -240,7 +245,7 @@
             <label>Toleranse: +/- <span id="toleranceValue">0</span></label>
             <div style="display: flex; gap: 8px; align-items: center;">
               <input type="range" id="pageTolerance" min="0" max="5" value="0" oninput="handleSliderChange('tolerance', this.value)">
-              <input type="number" id="pageToleranceInput" min="0" max="5" value="0" oninput="handleInputChange('tolerance', this.value)" style="width: 60px;">
+              <input type="number" id="pageToleranceInput" min="0" max="5" value="0" oninput="handleInputChange('tolerance', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
             </div>
         </div>
 
@@ -270,7 +275,7 @@
           <label>Marg: <span id="marginValue">2</span>mm</label>
           <div style="display: flex; gap: 8px; align-items: center;">
             <input type="range" id="margin" min="0" max="50" step="0.5" value="2" oninput="handleSliderChange('margin', this.value)">
-            <input type="number" id="marginInput" min="0" max="50" step="0.5" value="2" oninput="handleInputChange('margin', this.value)" style="width: 60px;">
+            <input type="number" id="marginInput" min="0" max="50" step="0.5" value="2" oninput="handleInputChange('margin', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
           </div>
         </div>
 
@@ -278,7 +283,7 @@
           <label>Avstand: <span id="gapValue">2</span>mm</label>
           <div style="display: flex; gap: 8px; align-items: center;">
             <input type="range" id="gap" min="0" max="20" step="0.5" value="2" oninput="handleSliderChange('gap', this.value)">
-            <input type="number" id="gapInput" min="0" max="20" step="0.5" value="2" oninput="handleInputChange('gap', this.value)" style="width: 60px;">
+            <input type="number" id="gapInput" min="0" max="20" step="0.5" value="2" oninput="handleInputChange('gap', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
           </div>
         </div>
 
@@ -337,10 +342,8 @@
     let customDimensions = { width: 200, height: 200 };
     let previousPaperSize = 'A4';
 
-    // VIKTIG: 'photos' er nå bare biblioteket over opplastede filer.
-    // 'pages' (array av arrays) holder styr på layouten.
     let photos = []; 
-    let pages = []; // [[photoObj, photoObj], [], [photoObj]]
+    let pages = []; 
     
     let orientation = 'portrait';
     let currentPageIndex = 0;
@@ -350,7 +353,7 @@
     let currentLayoutId = 1;
 
     // --- DATABASE ---
-    const dbName = 'PhotoGridDB_Multi_V2'; // Ny versjon for ny datastruktur
+    const dbName = 'PhotoGridDB_Multi_V2'; 
     const storeName = 'photos';
     const settingsStore = 'settings';
     let db;
@@ -401,15 +404,12 @@
 
     async function saveSettings() {
       if(!db) return;
-      
-      // Lagre strukturen i pages (vi lagrer kun IDene)
       const pagesStructure = pages.map(page => page.map(p => p.id));
-      
       const tx = db.transaction([settingsStore], 'readwrite');
       const store = tx.objectStore(settingsStore);
       const settings = {
         key: 'settings_layout_' + currentLayoutId,
-        pagesStructure: pagesStructure, // NYTT: Lagrer hele sidestrukturen
+        pagesStructure: pagesStructure, 
         projectName: document.getElementById('projectName').value,
         photosPerPage: document.getElementById('photosPerPage').value,
         paperSize: document.getElementById('paperSize').value,
@@ -448,66 +448,47 @@
       db.transaction([settingsStore], 'readwrite').objectStore(settingsStore).delete('settings_layout_' + currentLayoutId);
     }
 
-    // --- PAGE LOGIC ---
     function addEmptyPage() {
         pushHistory();
-        pages.push([]); // Legg til tom array
+        pages.push([]); 
         currentPageIndex = pages.length - 1;
         renderGrid(true);
         updateUI();
     }
 
     function removePage(pageIndex) {
-        if (pages.length <= 1) return; // Behold minst én side
+        if (pages.length <= 1) return; 
         if (!confirm("Vil du slette denne siden og bildene på den?")) return;
-        
         pushHistory();
-        // Slett bilder fra DB som var på denne siden (valgfritt, men ryddig)
         const photosToRemove = pages[pageIndex];
         photosToRemove.forEach(p => deletePhotoFromDB(p.id));
-        
-        // Fjern fra photos master-liste
         const idsToRemove = new Set(photosToRemove.map(p => p.id));
         photos = photos.filter(p => !idsToRemove.has(p.id));
-
         pages.splice(pageIndex, 1);
         if (currentPageIndex >= pages.length) currentPageIndex = pages.length - 1;
         renderGrid(true);
         updateUI();
     }
 
-    // Den gamle "partition"-funksjonen brukes nå kun ved "Autoflyt" eller import
     function autoFlow() {
         pushHistory();
         const photosPerPage = parseInt(document.getElementById('photosPerPage').value) || 10;
         const tolerance = parseInt(document.getElementById('pageTolerance').value) || 0;
         const paper = getPaperDimensions();
-        // Enkel layout-beregning for bredde
         const margin = parseFloat(document.getElementById('margin').value) || 0;
         const gap = parseFloat(document.getElementById('gap').value) || 0;
-        // Vi trenger bare en ca. estimering her for partitioning
         const availableWidth = paper.width - (2*margin); 
         const availableHeight = paper.height - (2*margin);
-        
-        // Flatten pages to just a list of photos
         const allPhotos = [];
         pages.forEach(p => allPhotos.push(...p));
-        // Legg til evt. foreldreløse photos (bør ikke skje, men..)
         const usedIds = new Set(allPhotos.map(p=>p.id));
         photos.forEach(p => { if(!usedIds.has(p.id)) allPhotos.push(p); });
-
-        // Sortere? Hvis vi vil beholde rekkefølgen, gjør vi ikke det.
-        // Hvis brukeren vil sortere, må de trykke "Sorter Farger".
-
-        // Replasser pages med autogenerert
         pages = partitionPhotosIntoPages(allPhotos, photosPerPage, tolerance, availableWidth, availableHeight, gap);
-        if (pages.length === 0) pages = [[]]; // Minst en side
-        
+        if (pages.length === 0) pages = [[]]; 
         renderGrid(true);
         updateUI();
     }
 
-    // --- STANDARD UTILS ---
     function checkPaperSize(select) {
         if (select.value === 'CUSTOM') {
             document.getElementById('customSizeModal').classList.add('open');
@@ -540,8 +521,7 @@
     }
     
     function applyLoadedState(loadedPhotos, savedSettings) {
-        photos = loadedPhotos; // Master liste
-        
+        photos = loadedPhotos; 
         if (savedSettings) {
             document.getElementById('projectName').value = savedSettings.projectName || '';
             document.getElementById('photosPerPage').value = savedSettings.photosPerPage;
@@ -560,15 +540,12 @@
             const bg = savedSettings.bgColor || '#FFFFFF';
             document.getElementById('bgColorText').value = bg;
             document.getElementById('bgColorPicker').value = bg;
-            
-            // REKONSTRUER SIDER
             if (savedSettings.pagesStructure) {
                 const photoMap = new Map(loadedPhotos.map(p => [p.id, p]));
                 pages = savedSettings.pagesStructure.map(pageIds => {
-                    return pageIds.map(id => photoMap.get(id)).filter(p => p); // Filter vekk slettede bilder
+                    return pageIds.map(id => photoMap.get(id)).filter(p => p); 
                 });
             } else {
-                // Migrering fra gammel data (flat liste)
                 pages = [loadedPhotos];
                 setTimeout(autoFlow, 100);
             }
@@ -576,7 +553,7 @@
             document.getElementById('projectName').value = "Prosjekt " + currentLayoutId;
             document.getElementById('paperSize').value = 'A4';
             previousPaperSize = 'A4';
-            pages = [loadedPhotos]; // Dump alt på side 1 først
+            pages = [loadedPhotos]; 
             setTimeout(autoFlow, 100);
         }
         renderGrid(false);
@@ -632,19 +609,14 @@
     function sortByColor() {
         if (photos.length < 2) return;
         pushHistory();
-        // Flatten
         const allPhotos = [];
         pages.forEach(p => allPhotos.push(...p));
-        // Sort
         allPhotos.sort((a, b) => a.hue - b.hue);
-        // Redistribute (Autoflow with sorted list)
-        // Midlertidig hack: sett pages til én stor liste og kjør autoflow
         pages = [allPhotos];
         autoFlow();
     }
 
     function pushHistory() {
-        // Lagre dyp kopi av sidestrukturen (IDer)
         const state = pages.map(page => page.map(p => p.id));
         historyStack.push(state);
         if (historyStack.length > MAX_HISTORY) historyStack.shift();
@@ -654,13 +626,10 @@
     function undo() {
         if (historyStack.length === 0) return;
         const previousState = historyStack.pop();
-        
-        // Rekonstruer pages fra IDer
         const photoMap = new Map(photos.map(p => [p.id, p]));
         pages = previousState.map(pageIds => {
             return pageIds.map(id => photoMap.get(id)).filter(p => p);
         });
-        
         renderGrid(false);
         updateUndoBtn();
     }
@@ -674,11 +643,7 @@
 
     function handleSliderChange(type, value) {
       const val = parseFloat(value) || 0;
-      if (type === 'photosPerPage') {
-          document.getElementById('photosPerPageInput').value = parseInt(value);
-          // OBS: Vi kjører IKKE autoflow automatisk på slider-endring lengre 
-          // fordi det ødelegger manuelt oppsett. Brukeren må trykke "Autoflow".
-      }
+      if (type === 'photosPerPage') { document.getElementById('photosPerPageInput').value = parseInt(value); }
       else if (type === 'tolerance') { document.getElementById('pageToleranceInput').value = parseInt(value); document.getElementById('toleranceValue').textContent = parseInt(value); }
       else if (type === 'margin') { document.getElementById('marginInput').value = val; document.getElementById('marginValue').textContent = val; }
       else if (type === 'gap') { document.getElementById('gapInput').value = val; document.getElementById('gapValue').textContent = val; }
@@ -695,19 +660,14 @@
     function resetAndRender(save = true) { renderGrid(save); }
     function togglePreviewQuality(quality) { previewQuality = quality; renderGrid(false); }
 
-    // --- DRAG & DROP ---
     let draggedPhotoId = null;
     let dragSourcePageIndex = null;
-
     function handleDragStart(e, id, pageIndex) { 
-        draggedPhotoId = id; 
-        dragSourcePageIndex = pageIndex;
-        e.target.classList.add('dragging'); 
-        e.dataTransfer.effectAllowed = 'move'; 
+        draggedPhotoId = id; dragSourcePageIndex = pageIndex;
+        e.target.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; 
     }
     function handleDragOver(e) { 
-        e.preventDefault(); 
-        e.dataTransfer.dropEffect = 'move';
+        e.preventDefault(); e.dataTransfer.dropEffect = 'move';
         const page = e.target.closest('.page-container');
         if (page) page.classList.add('drag-active');
         return false; 
@@ -717,46 +677,25 @@
         const target = e.target.closest('.photo-cell'); if (target) target.classList.remove('drag-over');
         const page = e.target.closest('.page-container'); if (page && !page.contains(e.relatedTarget)) page.classList.remove('drag-active');
     }
-    
     function handleDrop(e, targetId) {
       e.stopPropagation(); e.preventDefault();
-      
-      // Rydd opp visual effects
       document.querySelectorAll('.photo-cell').forEach(el => { el.classList.remove('dragging'); el.classList.remove('drag-over'); });
       document.querySelectorAll('.page-container').forEach(el => el.classList.remove('drag-active'));
-      
       if (draggedPhotoId === null) return;
-      
-      // Finn target page
       const pageEl = e.target.closest('.page-container');
-      if (!pageEl) return; // Droppet utenfor en side
+      if (!pageEl) return; 
       const targetPageIndex = parseInt(pageEl.dataset.index);
-
       pushHistory();
-
-      // Fjern bildet fra kildesiden
       const photoItem = pages[dragSourcePageIndex].find(p => p.id === draggedPhotoId);
       if (!photoItem) return;
-      
       pages[dragSourcePageIndex] = pages[dragSourcePageIndex].filter(p => p.id !== draggedPhotoId);
-
-      // Hvis targetId er satt (droppet oppå et annet bilde), sett inn på riktig plass
       if (targetId) {
           const targetIndex = pages[targetPageIndex].findIndex(p => p.id === targetId);
-          if (targetIndex > -1) {
-              pages[targetPageIndex].splice(targetIndex, 0, photoItem);
-          } else {
-              pages[targetPageIndex].push(photoItem);
-          }
-      } else {
-          // Droppet på tomrom i siden -> legg til sist
-          pages[targetPageIndex].push(photoItem);
-      }
-
-      draggedPhotoId = null;
-      dragSourcePageIndex = null;
-      renderGrid(true);
-      return false;
+          if (targetIndex > -1) { pages[targetPageIndex].splice(targetIndex, 0, photoItem); } 
+          else { pages[targetPageIndex].push(photoItem); }
+      } else { pages[targetPageIndex].push(photoItem); }
+      draggedPhotoId = null; dragSourcePageIndex = null;
+      renderGrid(true); return false;
     }
     function handleDragEnd(e) { 
         e.target.classList.remove('dragging'); 
@@ -772,15 +711,8 @@
     }
     document.getElementById('fileInput').addEventListener('change', handleFileUpload);
     const canvasWrapper = document.getElementById('canvasWrapper');
-    // Drop fil fra desktop
     canvasWrapper.addEventListener('dragover', (e) => e.preventDefault());
-    canvasWrapper.addEventListener('drop', (e) => { 
-        if(e.dataTransfer.files.length > 0) {
-            e.preventDefault(); 
-            handleFiles(Array.from(e.dataTransfer.files)); 
-        }
-    });
-
+    canvasWrapper.addEventListener('drop', (e) => { if(e.dataTransfer.files.length > 0) { e.preventDefault(); handleFiles(Array.from(e.dataTransfer.files)); } });
     function handleFileUpload(e) { handleFiles(Array.from(e.target.files)); }
 
     async function handleFiles(files) {
@@ -800,13 +732,9 @@
         });
       const newPhotos = await Promise.all(processingPromises);
       newPhotos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-      
       photos.push(...newPhotos);
-      // Legg til nye bilder på NÅVÆRENDE side (eller siste hvis full?)
-      // Vi legger dem bare til på gjeldende side for enkelhets skyld
       if (pages.length === 0) pages.push([]);
       pages[currentPageIndex].push(...newPhotos);
-      
       renderGrid(true); updateUI();
     }
 
@@ -953,9 +881,7 @@
       const canvasWrapper = document.getElementById('canvasWrapper');
       canvasWrapper.innerHTML = ''; 
 
-      if (pages.length === 0 && photos.length === 0) {
-          pages = [[]]; // Start med en tom side
-      }
+      if (pages.length === 0 && photos.length === 0) { pages = [[]]; }
 
       const totalPages = pages.length;
       if (currentPageIndex >= totalPages) currentPageIndex = totalPages - 1;
@@ -966,7 +892,6 @@
       document.getElementById('prevBtn').disabled = currentPageIndex === 0;
       document.getElementById('nextBtn').disabled = currentPageIndex === totalPages - 1;
 
-      // Render forrige, nåværende, neste
       let startRender = Math.max(0, currentPageIndex - 1);
       let endRender = Math.min(totalPages - 1, currentPageIndex + 1);
 
@@ -976,9 +901,8 @@
           pageContainer.className = 'page-container';
           if (i === currentPageIndex) pageContainer.classList.add('active');
           pageContainer.id = `page-${i}`;
-          pageContainer.dataset.index = i; // For Drop logic
+          pageContainer.dataset.index = i; 
           
-          // Header med slette-knapp
           const header = document.createElement('div');
           header.className = 'page-header';
           
@@ -1001,8 +925,6 @@
           canvasEl.style.width = displayWidth + 'px';
           canvasEl.style.height = displayHeight + 'px';
           canvasEl.style.backgroundColor = document.getElementById('bgColorText').value;
-
-          // Tillat drop på hele canvaset (for å legge til på tomme områder)
           canvasEl.ondragover = handleDragOver;
           canvasEl.ondrop = (e) => handleDrop(e, null);
 
@@ -1022,7 +944,6 @@
             div.style.width = cell.width + 'px'; div.style.height = cell.height + 'px';
             div.draggable = true;
             div.dataset.id = cell.photo.id;
-            // Drag events
             div.ondragstart = (e) => handleDragStart(e, cell.photo.id, i);
             div.ondragover = handleDragOver;
             div.ondragenter = handleDragEnter;
@@ -1039,12 +960,9 @@
             btn.onclick = (e) => {
               e.stopPropagation();
               pushHistory();
-              // Remove specific photo from this page
               pages[i] = pages[i].filter(p => p.id !== cell.photo.id);
-              // Also remove from master list
               photos = photos.filter(p => p.id !== cell.photo.id);
               deletePhotoFromDB(cell.photo.id);
-              
               renderGrid(true);
               updateUI();
             };
@@ -1061,13 +979,10 @@
       
       setTimeout(() => {
           const activeEl = document.getElementById(`page-${currentPageIndex}`);
-          if(activeEl) {
-              activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-          }
+          if(activeEl) { activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }
       }, 0);
     }
 
-    // --- EKSPORT ---
     function getProjectName() {
         let name = document.getElementById('projectName').value.trim();
         if(!name) name = `prosjekt-${currentLayoutId}`;
@@ -1108,16 +1023,12 @@
       const mmToPixels = dpi / 25.4; const exportWidth = Math.round(paper.width * mmToPixels); const exportHeight = Math.round(paper.height * mmToPixels);
       const margin = parseFloat(document.getElementById('margin').value); const gap = parseFloat(document.getElementById('gap').value);
       const marginPx = Math.round(margin * mmToPixels); const gapPx = Math.round(gap * mmToPixels);
-      
-      // Her bruker vi den FAKTISKE layouten (pages), ikke autogenerert
       const pagesToExport = pages; 
-
       const baseName = getProjectName(); const btn = document.getElementById('exportBtn');
       btn.disabled = true; btn.textContent = "Genererer...";
       try {
         for (let pageIndex = 0; pageIndex < pagesToExport.length; pageIndex++) {
           const pagePhotos = pagesToExport[pageIndex];
-          // Hopp over tomme sider ved eksport? Nei, bruker vil kanskje ha blanke sider.
           const blob = await createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, document.getElementById('bgColorText').value);
           const url = URL.createObjectURL(blob); const a = document.createElement('a');
           const fileName = pagesToExport.length > 1 ? `${baseName}-side${pageIndex + 1}-${dpi}dpi.jpg` : `${baseName}-${dpi}dpi.jpg`;
@@ -1134,9 +1045,7 @@
       const mmToPixels = dpi / 25.4; const exportWidth = Math.round(paper.width * mmToPixels); const exportHeight = Math.round(paper.height * mmToPixels);
       const margin = parseFloat(document.getElementById('margin').value); const gap = parseFloat(document.getElementById('gap').value);
       const marginPx = Math.round(margin * mmToPixels); const gapPx = Math.round(gap * mmToPixels);
-      
       const pagesToExport = pages;
-      
       const zip = new JSZip(); const baseName = getProjectName(); const btn = document.getElementById('downloadAllBtn');
       btn.disabled = true; btn.textContent = "Pakker zip...";
       try {
@@ -1154,7 +1063,6 @@
       finally { btn.disabled = false; btn.textContent = "Last ned zip"; }
     }
 
-    // --- OPPSTART ---
     (async function startApp() {
         try {
             await initDB();
