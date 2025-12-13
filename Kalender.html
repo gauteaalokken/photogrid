@@ -3,37 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Kalender 2026</title>
+  <title>Fotogrid Kalender 2026 - v2.0</title>
   
-  <link rel="icon" type="image/png" href="icon.png">
   <style>
     /* --- CSS STYLES --- */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color: #e5e7eb; height: 100vh; display: flex; overflow: hidden; }
     
     /* SIDEBAR */
-    .sidebar { width: 300px; background: white; border-right: 1px solid #d1d5db; display: flex; flex-direction: column; z-index: 50; flex-shrink: 0; }
+    .sidebar { width: 320px; background: white; border-right: 1px solid #d1d5db; display: flex; flex-direction: column; z-index: 50; flex-shrink: 0; }
     .sidebar-header { padding: 20px; border-bottom: 1px solid #e5e7eb; }
     .sidebar-content { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
     .sidebar-footer { padding: 20px; border-top: 1px solid #e5e7eb; background: #f9fafb; }
     
     h1 { font-size: 20px; font-weight: 700; color: #111827; }
+    .version-tag { display: inline-block; background: #e0f2fe; color: #0369a1; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-top: 4px; }
     p { font-size: 13px; color: #6b7280; }
-    label { font-size: 13px; font-weight: 600; color: #374151; display: block; margin-bottom: 6px; }
+    label { font-size: 13px; font-weight: 600; color: #374151; display: flex; justify-content: space-between; margin-bottom: 6px; }
     
     input[type="text"] { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; }
+    
+    /* Range Sliders */
+    input[type="range"] { width: 100%; cursor: pointer; }
+    .slider-val { color: #2563eb; font-weight: 700; }
     
     .btn { width: 100%; padding: 10px; border-radius: 6px; font-weight: 500; cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; font-size: 14px;}
     .btn-primary { background: #2563eb; color: white; }
     .btn-primary:hover { background: #1d4ed8; }
     .btn-secondary { background: white; border: 1px solid #d1d5db; color: #374151; }
-    .btn-secondary:hover { background: #f3f4f6; }
     .btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
 
     /* MAIN AREA */
     .main-area { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; position: relative; }
 
-    /* INBOX (Holding area) */
+    /* INBOX */
     .inbox-container {
         height: 140px; background-color: #f3f4f6; border-bottom: 1px solid #d1d5db;
         display: flex; flex-direction: column; flex-shrink: 0; z-index: 40;
@@ -58,15 +61,15 @@
         scroll-behavior: smooth; background: #e5e7eb;
     }
 
-    /* A4 PAGE */
+    /* A4 PAGE (Preview scale) */
     .a4-page {
-        width: 794px; height: 1123px; /* A4 ved 96 DPI for visning, skaleres ved eksport */
+        width: 794px; height: 1123px; /* A4 @ 96 DPI */
         background: white; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
         display: flex; flex-direction: column; position: relative; flex-shrink: 0;
         transform-origin: top center;
     }
     
-    /* TOP 3/5: PHOTO GRID */
+    /* TOP: PHOTO AREA */
     .photo-area {
         height: 60%; width: 100%; background-color: #f9fafb; position: relative; overflow: hidden;
         border-bottom: 1px solid #e5e7eb;
@@ -75,10 +78,10 @@
     
     .grid-cell { position: absolute; overflow: hidden; background: #ddd; transition: 0.3s; cursor: grab; border: 1px solid white;}
     .grid-cell img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
-    .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; z-index: 10; width: 20px; height: 20px; display:flex; align-items:center; justify-content:center;}
+    .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; z-index: 10; width: 20px; height: 20px; display:flex; align-items:center; justify-content:center; font-size: 12px; line-height: 1;}
     .grid-cell:hover .remove-btn { opacity: 1; }
 
-    /* BOTTOM 2/5: CALENDAR GRID */
+    /* BOTTOM: CALENDAR GRID */
     .calendar-area {
         height: 40%; width: 100%; padding: 20px; display: flex; flex-direction: column;
     }
@@ -89,7 +92,11 @@
     .cal-row.header { flex: 0 0 30px; border-bottom: 1px solid #9ca3af; font-weight: 600; font-size: 12px; text-transform: uppercase; color: #4b5563; align-items: center; }
     .cal-cell { flex: 1; border-right: 1px solid #e5e7eb; padding: 4px; position: relative; display: flex; flex-direction: column; }
     .cal-cell:last-child { border-right: none; }
-    .cal-date { font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 2px; }
+    
+    .cal-date-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+    .cal-date { font-size: 14px; font-weight: 600; color: #111827; }
+    .holiday-name { font-size: 9px; color: #dc2626; font-weight: 600; text-transform: uppercase; text-align: right; line-height: 1.1; max-width: 70%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
     .cal-input { 
         flex: 1; border: none; font-family: inherit; font-size: 11px; color: #4b5563; resize: none; background: transparent; outline: none; width: 100%; 
         line-height: 1.2;
@@ -101,7 +108,6 @@
     /* Dragging Visuals */
     .dragging { opacity: 0.5; }
 
-    /* Skalering for mindre skjermer */
     @media (max-width: 1100px) {
         .a4-page { transform: scale(0.7); margin-bottom: -300px; }
     }
@@ -112,23 +118,33 @@
 
   <div class="sidebar">
     <div class="sidebar-header">
-      <h1>Kalender 2026</h1>
-      <p>Dra bilder til månedene</p>
+      <h1>Fotogrid Kalender</h1>
+      <span class="version-tag">Versjon 2.0</span>
+      <p style="margin-top:5px;">Dra bilder til månedene</p>
     </div>
     <div class="sidebar-content">
       <div>
         <label>Prosjektnavn</label>
-        <input type="text" id="projectName" placeholder="Min Kalender" onchange="saveData()">
+        <input type="text" id="projectName" placeholder="Min Kalender 2026" onchange="saveData()">
       </div>
-      <div>
-        <label>Legg til i bildebank</label>
+      
+      <div style="border-top:1px solid #eee; padding-top:10px;">
+        <label>Avstand bilder (mm): <span id="gapVal" class="slider-val">2</span></label>
+        <input type="range" id="gapInput" min="0" max="10" step="0.5" value="2" oninput="updateSettings()">
+        
+        <label style="margin-top:10px;">Marg/Kant (mm): <span id="padVal" class="slider-val">0</span></label>
+        <input type="range" id="padInput" min="0" max="30" step="1" value="0" oninput="updateSettings()">
+      </div>
+
+      <div style="border-top:1px solid #eee; padding-top:10px;">
+        <label>Bildebank</label>
         <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
           + Last opp bilder
         </button>
         <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
       </div>
+      
       <div>
-        <label>Handlinger</label>
         <button class="btn btn-danger" onclick="clearAll()">Tøm alt</button>
       </div>
     </div>
@@ -159,25 +175,41 @@
   <script>
     // --- DATA MODEL ---
     const MONTH_NAMES = ["Januar", "Februar", "Mars", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Desember"];
-    const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]; // 2026 is not leap year
-    // 2026 starts on a Thursday (4). 0=Sun, 1=Mon... 4=Thu.
+    const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     
-    // Norske helligdager 2026 (enkel oversikt)
+    // Norske helligdager 2026
+    // Format: "MonthIndex-Day": "Navn"
     const HOLIDAYS_2026 = {
-        "0-1": true, "2-29": true, "3-2": true, "3-5": true, "3-6": true, 
-        "4-1": true, "4-14": true, "4-17": true, "4-25": true, "11-25": true, "11-26": true
-        // Juster etter behov, dette er placeholder logikk for røde dager
+        "0-1": "1. nyttårsdag",
+        "2-29": "Palmesøndag",
+        "3-2": "Skjærtorsdag",
+        "3-3": "Langfredag",
+        "3-5": "1. påskedag",
+        "3-6": "2. påskedag",
+        "4-1": "Arbeidernes dag",
+        "4-14": "Kr. himmelfart",
+        "4-17": "Grunnlovsdag",
+        "4-24": "1. pinsedag",
+        "4-25": "2. pinsedag",
+        "11-25": "1. juledag",
+        "11-26": "2. juledag"
     };
 
-    let photoLibrary = []; // {id, src, originalFile, ratio, ...}
-    let inboxIds = []; // [id, id, ...]
+    let photoLibrary = []; 
+    let inboxIds = []; 
     let monthData = Array(12).fill(null).map(() => ({ 
         photoIds: [], 
-        texts: {} // { "day-5": "Bursdag" }
+        texts: {} 
     }));
 
+    // Layout Settings (mm)
+    let settings = {
+        gapMM: 2,
+        padMM: 0
+    };
+
     // --- DB SETUP ---
-    const dbName = "Cal2026DB";
+    const dbName = "Cal2026DB_v2";
     let db;
     
     async function initDB() {
@@ -197,12 +229,36 @@
     (async function start() {
         await initDB();
         await loadData();
+        
+        // Init UI controls
+        document.getElementById('gapInput').value = settings.gapMM;
+        document.getElementById('gapVal').textContent = settings.gapMM;
+        document.getElementById('padInput').value = settings.padMM;
+        document.getElementById('padVal').textContent = settings.padMM;
+
         renderInbox();
         renderCalendarPages();
     })();
 
     // --- RENDER LOGIC ---
     
+    function updateSettings() {
+        const gap = parseFloat(document.getElementById('gapInput').value);
+        const pad = parseFloat(document.getElementById('padInput').value);
+        
+        settings.gapMM = gap;
+        settings.padMM = pad;
+        
+        document.getElementById('gapVal').textContent = gap;
+        document.getElementById('padVal').textContent = pad;
+
+        // Re-render layouts
+        for (let m = 0; m < 12; m++) {
+            updateMonthGridLayout(m);
+        }
+        saveStateDebounced();
+    }
+
     function renderInbox() {
         const container = document.getElementById('inboxScroll');
         container.innerHTML = '';
@@ -285,12 +341,11 @@
         // Date Logic 2026
         const firstDayDate = new Date(2026, monthIndex, 1);
         let startDay = firstDayDate.getDay(); // 0=Sun, 1=Mon
-        if (startDay === 0) startDay = 7; // Make Sunday 7 for easier math
+        if (startDay === 0) startDay = 7; 
         
         const totalDays = DAYS_IN_MONTH[monthIndex];
         let currentDay = 1;
         
-        // 6 Rows max to cover all months
         for (let r = 0; r < 6; r++) {
             if (currentDay > totalDays) break;
             const row = document.createElement('div');
@@ -301,15 +356,31 @@
                 cell.className = 'cal-cell';
                 
                 if (r === 0 && d < startDay) {
-                    // Empty cell before month starts
-                    cell.style.background = '#f9fafb';
+                    cell.style.background = '#f9fafb'; // Empty start
                 } else if (currentDay <= totalDays) {
                     // Actual Day
-                    if (d === 6 || d === 7) cell.className += " weekend"; // Lør/Søn
+                    const holidayName = HOLIDAYS_2026[`${monthIndex}-${currentDay}`];
+                    const isSunday = (d === 7);
+                    
+                    if (d === 6 || d === 7) cell.className += " weekend";
+                    if (holidayName || isSunday) cell.className += " red-day";
+                    
+                    // Date Row (Num + Holiday Name)
+                    const dateRow = document.createElement('div');
+                    dateRow.className = 'cal-date-row';
                     
                     const dateNum = document.createElement('div');
                     dateNum.className = 'cal-date';
                     dateNum.textContent = currentDay;
+                    dateRow.appendChild(dateNum);
+
+                    if(holidayName) {
+                        const hTag = document.createElement('div');
+                        hTag.className = 'holiday-name';
+                        hTag.textContent = holidayName;
+                        dateRow.appendChild(hTag);
+                    }
+                    cell.appendChild(dateRow);
                     
                     // Input text
                     const input = document.createElement('textarea');
@@ -317,7 +388,6 @@
                     input.placeholder = "Notat...";
                     input.dataset.month = monthIndex;
                     input.dataset.day = currentDay;
-                    // Load saved text
                     if (monthData[monthIndex].texts[currentDay]) {
                         input.value = monthData[monthIndex].texts[currentDay];
                     }
@@ -326,12 +396,10 @@
                         saveStateDebounced();
                     };
 
-                    cell.appendChild(dateNum);
                     cell.appendChild(input);
                     currentDay++;
                 } else {
-                    // Empty cell after month ends
-                    cell.style.background = '#f9fafb';
+                    cell.style.background = '#f9fafb'; // Empty end
                 }
                 row.appendChild(cell);
             }
@@ -340,7 +408,7 @@
         return grid;
     }
 
-    // --- PHOTO GRID ALGORITHM (Reuse from Fotogrid) ---
+    // --- PHOTO GRID ALGORITHM ---
     function updateMonthGridLayout(mIndex) {
         const area = document.getElementById(`photo-area-${mIndex}`);
         area.innerHTML = '';
@@ -353,19 +421,31 @@
 
         const photos = photoIds.map(id => photoLibrary.find(p => p.id === id)).filter(p => p);
         
-        // Dimensions of the top 60% of A4 (794 x 1123)
-        // 1123 * 0.6 = 673.8 px
-        const W = 794;
-        const H = 673; 
-        const gap = 4; // px
+        // Dimensions of the top 60% of A4 (794px width reference)
+        // 1mm approx 3.7795 px on screen (96dpi)
+        const pxPerMm = 3.7795;
+        
+        const totalW = 794;
+        const totalH = 673; 
+        
+        const padPx = settings.padMM * pxPerMm;
+        const gapPx = settings.gapMM * pxPerMm;
 
-        const layout = calculateOptimalGrid(photos, W, H, gap);
+        // Effective area for photos
+        const effectiveW = totalW - (padPx * 2);
+        const effectiveH = totalH - (padPx * 2);
+
+        // Safety check if padding is too large
+        if (effectiveW < 50 || effectiveH < 50) return; // Too small to render
+
+        const layout = calculateOptimalGrid(photos, effectiveW, effectiveH, gapPx);
 
         layout.cells.forEach(cell => {
             const div = document.createElement('div');
             div.className = 'grid-cell';
-            div.style.left = cell.x + 'px';
-            div.style.top = cell.y + 'px';
+            // Adjust coordinates by padding
+            div.style.left = (cell.x + padPx) + 'px';
+            div.style.top = (cell.y + padPx) + 'px';
             div.style.width = cell.width + 'px';
             div.style.height = cell.height + 'px';
             
@@ -383,22 +463,14 @@
     function calculateOptimalGrid(photos, width, height, gap) {
         if (photos.length === 0) return { cells: [] };
         
-        // Try different row counts to find best fit
         let bestLayout = null;
         let bestScore = Infinity;
 
         for (let rows = 1; rows <= photos.length; rows++) {
             const result = generateRows(photos, rows, width, gap);
-            // Calculate scale needed to fit height
             const contentHeight = result.totalHeight;
             const scale = height / contentHeight;
-            
-            // Score based on how close scale is to 1 (filling area without cropping too much)
-            // We prefer filling the width, but ensuring height doesn't overflow drastically or leave huge gaps.
-            // Simplified scoring: deviation from ideal aspect ratio match
             let score = Math.abs(1 - scale);
-            
-            // Penalty for extreme crops
             if (scale > 1.5 || scale < 0.5) score += 10;
 
             if (score < bestScore) {
@@ -407,45 +479,26 @@
             }
         }
         
-        // Apply best layout
         const cells = [];
         let yOffset = 0;
-        // If content is shorter than height, center vertically? No, autofill logic usually fills width.
-        // We will scale rows to fill WIDTH exactly, and if total height > max height, we crop rows vertically. 
-        // Or if total height < max height, we expand rows.
-        
-        // Let's use the fitScale to adjust row heights so they fill the BOX vertically nicely if close enough
-        // Actually, standardized Fotogrid logic: Fill Width, assume Height is flexible, but here Height is Fixed.
-        // Strategy: Force rows to fill Width. Then check total Height. 
-        // If total height < box height, stretch rows. If > box height, shrink rows (crop).
-        
         const rows = bestLayout.rows;
         let totalH = bestLayout.totalHeight;
-        let scaleFactor = 1;
         
-        // Enforce filling the height
-        scaleFactor = height / totalH; 
+        // Stretch to fill height exactly
+        let scaleFactor = height / totalH; 
 
         rows.forEach(row => {
             let xOffset = 0;
             const rowHeight = row.height * scaleFactor;
             
-            // Recalculate widths based on new height to keep images filling cells (they will crop)
-            // But wait, div width is fixed by (W - gaps) / aspectSum.
-            // We maintain the cell WIDTHs to fill the page width. We only change HEIGHT.
-            // This distorts the cell aspect ratio, meaning the image inside (object-fit:cover) will crop. This is desired.
-            
             row.photos.forEach(photo => {
-                // Original calc: width = rowHeight * aspect. 
-                // We keep width fixed from the "Fill Width" calculation.
-                // We only change the y/height of the cell.
                 const cellW = (width - (row.photos.length - 1) * gap) * (photo.ratio / row.aspectSum);
                 
                 cells.push({
                     x: xOffset,
                     y: yOffset,
                     width: cellW,
-                    height: rowHeight - gap, // Account for vertical gap
+                    height: rowHeight - gap, 
                     photo: photo
                 });
                 xOffset += cellW + gap;
@@ -457,7 +510,6 @@
     }
 
     function generateRows(photos, numRows, width, gap) {
-        // Divide photos as evenly as possible
         const base = Math.floor(photos.length / numRows);
         const extra = photos.length % numRows;
         
@@ -474,9 +526,6 @@
                 aspectSum += photos[pIdx].ratio;
                 pIdx++;
             }
-            // Height needed to make this row fill 'width'
-            // W = H * aspectSum + (count-1)*gap
-            // H = (W - gaps) / aspectSum
             const wAvailable = width - (count - 1) * gap;
             const h = wAvailable / aspectSum;
             
@@ -487,17 +536,14 @@
     }
 
     // --- DRAG AND DROP ---
-    let dragData = null; // {id, source, monthIndex}
+    let dragData = null; 
 
     function dragStart(e, id, source, mIndex) {
         dragData = { id, source, monthIndex: mIndex };
         e.dataTransfer.effectAllowed = 'move';
     }
 
-    function handleDragOver(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-    }
+    function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
 
     function handleDropToMonth(e, targetMonthIndex) {
         e.preventDefault();
@@ -506,11 +552,9 @@
         const { id, source, monthIndex } = dragData;
         
         if (source === 'inbox') {
-            // Move from inbox to month
             inboxIds = inboxIds.filter(x => x !== id);
             monthData[targetMonthIndex].photoIds.push(id);
         } else if (source === 'month') {
-            // Move from month to month (or reorder in same month)
             monthData[monthIndex].photoIds = monthData[monthIndex].photoIds.filter(x => x !== id);
             monthData[targetMonthIndex].photoIds.push(id);
         }
@@ -553,8 +597,6 @@
         for (const file of files) {
             const id = Date.now() + Math.random().toString();
             const src = URL.createObjectURL(file);
-            
-            // Get Aspect Ratio
             const img = new Image();
             img.src = src;
             await new Promise(r => img.onload = r);
@@ -564,7 +606,6 @@
             photoLibrary.push(photo);
             inboxIds.push(id);
             
-            // Save to IndexedDB
             const tx = db.transaction('photos', 'readwrite');
             tx.objectStore('photos').put({id, file, ratio});
         }
@@ -580,11 +621,11 @@
             id: 'current',
             inboxIds: inboxIds,
             monthData: monthData,
-            projectName: document.getElementById('projectName').value
+            projectName: document.getElementById('projectName').value,
+            settings: settings
         });
     }
     
-    // Debounce save for text inputs
     let saveTimeout;
     function saveStateDebounced() {
         clearTimeout(saveTimeout);
@@ -593,7 +634,6 @@
 
     async function loadData() {
         if (!db) return;
-        // Load Photos
         const txP = db.transaction('photos', 'readonly');
         const allPhotos = await new Promise(resolve => {
             const req = txP.objectStore('photos').getAll();
@@ -607,7 +647,6 @@
             ratio: p.ratio
         }));
 
-        // Load State
         const txS = db.transaction('state', 'readonly');
         const state = await new Promise(resolve => {
             const req = txS.objectStore('state').get('current');
@@ -615,7 +654,6 @@
         });
 
         if (state) {
-            // Verify IDs exist in library
             const libIds = new Set(photoLibrary.map(p => p.id));
             inboxIds = state.inboxIds.filter(id => libIds.has(id));
             monthData = state.monthData.map(m => ({
@@ -623,6 +661,7 @@
                 texts: m.texts || {}
             }));
             document.getElementById('projectName').value = state.projectName || "";
+            if(state.settings) settings = state.settings;
         }
     }
 
@@ -647,6 +686,12 @@
         const exportW = 2480;
         const exportH = 3508;
         
+        // Convert MM settings to Export Pixels (300 DPI)
+        // 1 inch = 25.4 mm. 300 / 25.4 approx 11.811
+        const pxPerMmExport = 11.811;
+        const gapExport = settings.gapMM * pxPerMmExport;
+        const padExport = settings.padMM * pxPerMmExport;
+
         const canvas = document.createElement('canvas');
         canvas.width = exportW;
         canvas.height = exportH;
@@ -654,63 +699,61 @@
 
         try {
             for (let m = 0; m < 12; m++) {
-                // Clear white
+                // Background
                 ctx.fillStyle = "white";
                 ctx.fillRect(0, 0, exportW, exportH);
                 
                 // --- DRAW PHOTOS (Top 60%) ---
-                // Re-calculate grid for high-res
                 const photoIds = monthData[m].photoIds;
                 if (photoIds.length > 0) {
                     const photos = photoIds.map(id => photoLibrary.find(p => p.id === id));
-                    const gridH = exportH * 0.6;
-                    const gap = 12; // Larger gap for high res
                     
-                    const layout = calculateOptimalGrid(photos, exportW, gridH, gap);
+                    const totalAreaH = exportH * 0.6;
                     
-                    for (const cell of layout.cells) {
-                        const img = new Image();
-                        img.src = cell.photo.src;
-                        await new Promise(r => img.onload = r);
+                    // Effective area logic for export
+                    const effW = exportW - (padExport * 2);
+                    const effH = totalAreaH - (padExport * 2);
+
+                    if (effW > 100 && effH > 100) {
+                        const layout = calculateOptimalGrid(photos, effW, effH, gapExport);
                         
-                        // Draw image cropped (cover)
-                        const cx = cell.x;
-                        const cy = cell.y;
-                        const cw = cell.width;
-                        const ch = cell.height;
-                        
-                        // Math for object-fit: cover on canvas
-                        let sWidth = img.width;
-                        let sHeight = img.height;
-                        let sx = 0; let sy = 0;
-                        const aspectImg = sWidth / sHeight;
-                        const aspectRect = cw / ch;
-                        
-                        if (aspectImg > aspectRect) {
-                            // Img wider than rect -> crop sides
-                            const newSW = sHeight * aspectRect;
-                            sx = (sWidth - newSW) / 2;
-                            sWidth = newSW;
-                        } else {
-                            // Img taller -> crop top/bottom
-                            const newSH = sWidth / aspectRect;
-                            sy = (sHeight - newSH) / 2;
-                            sHeight = newSH;
+                        for (const cell of layout.cells) {
+                            const img = new Image();
+                            img.src = cell.photo.src;
+                            await new Promise(r => img.onload = r);
+                            
+                            // Adjust for padding
+                            const cx = cell.x + padExport;
+                            const cy = cell.y + padExport;
+                            const cw = cell.width;
+                            const ch = cell.height;
+                            
+                            // Object-fit: cover calc
+                            let sWidth = img.width;
+                            let sHeight = img.height;
+                            let sx = 0; let sy = 0;
+                            const aspectImg = sWidth / sHeight;
+                            const aspectRect = cw / ch;
+                            
+                            if (aspectImg > aspectRect) {
+                                const newSW = sHeight * aspectRect;
+                                sx = (sWidth - newSW) / 2;
+                                sWidth = newSW;
+                            } else {
+                                const newSH = sWidth / aspectRect;
+                                sy = (sHeight - newSH) / 2;
+                                sHeight = newSH;
+                            }
+                            
+                            ctx.drawImage(img, sx, sy, sWidth, sHeight, cx, cy, cw, ch);
                         }
-                        
-                        ctx.drawImage(img, sx, sy, sWidth, sHeight, cx, cy, cw, ch);
-                        
-                        // White border around photos? Optional, looks nice
-                        ctx.strokeStyle = "white";
-                        ctx.lineWidth = gap;
-                        ctx.strokeRect(cx, cy, cw, ch);
                     }
                 }
 
                 // --- DRAW CALENDAR (Bottom 40%) ---
                 const startY = exportH * 0.6;
                 const calH = exportH * 0.4;
-                const margin = 100; // Left/Right margin
+                const margin = 120; 
                 const contentW = exportW - (margin*2);
                 
                 // Title
@@ -724,12 +767,12 @@
                 const gridY = startY + 180;
                 const gridH = calH - 250;
                 const cellW = contentW / 7;
-                const cellH = gridH / 7; // Header + 6 rows
+                const cellH = gridH / 7; 
                 
                 ctx.lineWidth = 4;
                 ctx.strokeStyle = "#111827";
                 
-                // Draw Header Text
+                // Headers
                 ctx.font = "600 40px sans-serif";
                 const days = ['MAN', 'TIR', 'ONS', 'TOR', 'FRE', 'LØR', 'SØN'];
                 for(let i=0; i<7; i++) {
@@ -737,13 +780,13 @@
                     ctx.fillText(days[i], x, gridY + 20);
                 }
                 
-                // Main horizontal line under header
+                // Line under header
                 ctx.beginPath();
                 ctx.moveTo(margin, gridY + 80);
                 ctx.lineTo(exportW - margin, gridY + 80);
                 ctx.stroke();
 
-                // Draw Dates & User Text
+                // Dates
                 ctx.font = "600 50px sans-serif";
                 ctx.lineWidth = 2;
                 ctx.strokeStyle = "#e5e7eb";
@@ -753,42 +796,46 @@
                 let dayCounter = 1;
                 const daysTotal = DAYS_IN_MONTH[m];
 
-                // Lines logic
                 for (let r = 0; r < 6; r++) {
                     const y = gridY + 80 + (r * cellH);
                     
-                    // Horizontal separator
                     if (r > 0) {
                         ctx.beginPath(); ctx.moveTo(margin, y); ctx.lineTo(exportW-margin, y); ctx.stroke();
                     }
 
                     for (let d = 0; d < 7; d++) {
-                        // Vertical separator
                         if (d > 0) {
                             const x = margin + (d * cellW);
                             ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + cellH); ctx.stroke();
                         }
                         
-                        // Valid day?
                         if ((r===0 && d+1 < startDay) || dayCounter > daysTotal) {
-                            // Empty
+                            // empty
                         } else {
                             const cx = margin + (d * cellW);
                             const cy = y;
+                            const holidayName = HOLIDAYS_2026[`${m}-${dayCounter}`];
                             
                             // Day Number
                             ctx.fillStyle = "#111827";
-                            if (d >= 5) ctx.fillStyle = "#dc2626"; // Weekend red
-                            ctx.font = "600 50px sans-serif";
+                            if (d >= 5 || holidayName) ctx.fillStyle = "#dc2626"; // Red
                             ctx.textAlign = "left";
+                            ctx.font = "600 50px sans-serif";
                             ctx.fillText(dayCounter, cx + 15, cy + 15);
                             
+                            // Holiday Name (Small)
+                            if (holidayName) {
+                                ctx.font = "600 24px sans-serif";
+                                ctx.textAlign = "right";
+                                ctx.fillText(holidayName, cx + cellW - 10, cy + 15);
+                            }
+
                             // User Text
                             const userText = monthData[m].texts[dayCounter];
                             if (userText) {
                                 ctx.fillStyle = "#4b5563";
-                                ctx.font = "400 30px sans-serif"; // Smaller font for notes
-                                // Simple word wrap logic or just cut off
+                                ctx.font = "400 30px sans-serif"; 
+                                ctx.textAlign = "left";
                                 wrapText(ctx, userText, cx + 15, cy + 80, cellW - 30, 40);
                             }
 
@@ -797,12 +844,10 @@
                     }
                 }
                 
-                // Border around grid
                 ctx.strokeStyle = "#111827";
                 ctx.lineWidth = 4;
                 ctx.strokeRect(margin, gridY, contentW, gridH);
 
-                // Add to Zip
                 const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
                 zip.file(`${m+1}_${MONTH_NAMES[m]}.jpg`, blob);
             }
