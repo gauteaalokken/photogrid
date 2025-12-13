@@ -3,844 +3,845 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kalender Mal 2026</title>
+  <title>Fotogrid Kalender 2026</title>
+  
+  <link rel="icon" type="image/png" href="icon.png">
   <style>
+    /* --- CSS STYLES --- */
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    .app-container { min-height: 100vh; background-color: #f9fafb; display: flex; }
-    .sidebar { width: 320px; background-color: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; }
-    .sidebar-header { padding: 24px; border-bottom: 1px solid #e5e7eb; }
-    .sidebar-header h1 { font-size: 24px; font-weight: 600; color: #111827; margin-bottom: 4px; }
-    .sidebar-header p { font-size: 14px; color: #6b7280; }
-    .sidebar-content { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
-    .sidebar-footer { padding: 24px; border-top: 1px solid #e5e7eb; }
-    .control-group { display: flex; flex-direction: column; gap: 8px; }
-    .control-group label { font-size: 14px; font-weight: 500; color: #374151; }
-    .photo-count { font-size: 12px; color: #6b7280; margin-top: 8px; }
-    .btn-primary { width: 100%; padding: 12px 16px; background-color: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; justify-content: center; }
-    .btn-primary:hover { background-color: #1d4ed8; }
-    .btn-danger { width: 100%; padding: 8px 16px; color: #dc2626; background-color: white; border: 1px solid #fca5a5; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; }
-    .btn-danger:hover { background-color: #fef2f2; }
-    .btn-export { width: 100%; padding: 12px 16px; background-color: #111827; color: white; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; justify-content: center; }
-    .btn-export:hover { background-color: #1f2937; }
-    .btn-export:disabled { opacity: 0.5; cursor: not-allowed; }
-    .button-group { display: flex; gap: 8px; }
-    .button-group button { flex: 1; padding: 8px 16px; background-color: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-    .button-group button:hover { border-color: #9ca3af; }
-    .button-group button.active { background-color: #eff6ff; border-color: #2563eb; color: #1d4ed8; }
-    select, input[type="text"], input[type="number"] { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
-    select:focus, input[type="text"]:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
-    input[type="range"] { width: 100%; }
-    .color-input-group { display: flex; gap: 8px; }
-    .color-input-group input[type="color"] { width: 48px; height: 40px; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; }
-    .color-input-group input[type="text"] { flex: 1; font-family: 'Courier New', monospace; }
-    .main-canvas { flex: 1; padding: 48px; display: flex; align-items: center; justify-content: center; overflow: auto; }
-    .canvas-wrapper { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
-    .canvas { position: relative; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); flex-shrink: 0; margin-bottom: 24px; }
-    .dropzone { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; border: 2px dashed #d1d5db; border-radius: 8px; }
-    .dropzone svg { stroke-width: 1; }
-    .dropzone-title { margin-top: 16px; font-size: 18px; font-weight: 500; }
-    .dropzone-subtitle { font-size: 14px; }
-    .photo-section { position: absolute; top: 0; left: 0; right: 0; }
-    .grid-container { position: absolute; }
-    .photo-cell { position: absolute; overflow: hidden; background-color: #f3f4f6; }
-    .photo-cell img { width: 100%; height: 100%; object-fit: cover; }
-    .photo-cell:hover .remove-btn { opacity: 1; }
-    .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background-color: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; transition: all 0.15s; z-index: 10; }
-    .remove-btn:hover { background-color: #dc2626; }
-    .calendar-section { position: absolute; bottom: 0; left: 0; right: 0; background: white; display: flex; flex-direction: column; }
-    .calendar-header { text-align: center; padding: 12px; border-bottom: 1px solid #e5e7eb; }
-    .calendar-header h2 { font-size: 20px; font-weight: 600; color: #111827; }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); flex: 1; }
-    .calendar-day-header { text-align: center; padding: 8px; font-size: 12px; font-weight: 600; color: #6b7280; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
-    .calendar-day { text-align: left; padding: 4px; font-size: 13px; border-right: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; display: flex; align-items: flex-start; justify-content: flex-start; position: relative; }
-    .calendar-day.other-month { color: #d1d5db; }
-    .calendar-day.today { background: #eff6ff; color: #2563eb; font-weight: 600; }
-    .page-label { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; z-index: 20; }
-    @media (max-width: 900px) {
-      .app-container { flex-direction: column; }
-      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #e5e7eb; }
-      .main-canvas { padding: 16px; }
-      .canvas-wrapper { flex-direction: column; gap: 16px; }
-      .sidebar-content { padding: 16px; }
-      .sidebar-footer { padding: 16px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color: #e5e7eb; height: 100vh; display: flex; overflow: hidden; }
+    
+    /* SIDEBAR */
+    .sidebar { width: 300px; background: white; border-right: 1px solid #d1d5db; display: flex; flex-direction: column; z-index: 50; flex-shrink: 0; }
+    .sidebar-header { padding: 20px; border-bottom: 1px solid #e5e7eb; }
+    .sidebar-content { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+    .sidebar-footer { padding: 20px; border-top: 1px solid #e5e7eb; background: #f9fafb; }
+    
+    h1 { font-size: 20px; font-weight: 700; color: #111827; }
+    p { font-size: 13px; color: #6b7280; }
+    label { font-size: 13px; font-weight: 600; color: #374151; display: block; margin-bottom: 6px; }
+    
+    input[type="text"] { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; }
+    
+    .btn { width: 100%; padding: 10px; border-radius: 6px; font-weight: 500; cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; font-size: 14px;}
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-secondary { background: white; border: 1px solid #d1d5db; color: #374151; }
+    .btn-secondary:hover { background: #f3f4f6; }
+    .btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+
+    /* MAIN AREA */
+    .main-area { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; position: relative; }
+
+    /* INBOX (Holding area) */
+    .inbox-container {
+        height: 140px; background-color: #f3f4f6; border-bottom: 1px solid #d1d5db;
+        display: flex; flex-direction: column; flex-shrink: 0; z-index: 40;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    .inbox-header { padding: 8px 16px; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; display:flex; justify-content: space-between; }
+    .inbox-scroll {
+        flex: 1; display: flex; align-items: center; gap: 12px; padding: 0 16px 12px 16px;
+        overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth;
+    }
+    .inbox-photo {
+        height: 100px; min-width: 100px; border-radius: 6px; overflow: hidden; 
+        border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: grab; position: relative;
+        background: #e5e7eb; flex-shrink: 0;
+    }
+    .inbox-photo img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+    .inbox-photo:hover .remove-btn { opacity: 1; }
+
+    /* CALENDAR SCROLL AREA */
+    .calendar-scroll-area {
+        flex: 1; overflow-y: auto; padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 60px;
+        scroll-behavior: smooth; background: #e5e7eb;
+    }
+
+    /* A4 PAGE */
+    .a4-page {
+        width: 794px; height: 1123px; /* A4 ved 96 DPI for visning, skaleres ved eksport */
+        background: white; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
+        display: flex; flex-direction: column; position: relative; flex-shrink: 0;
+        transform-origin: top center;
+    }
+    
+    /* TOP 3/5: PHOTO GRID */
+    .photo-area {
+        height: 60%; width: 100%; background-color: #f9fafb; position: relative; overflow: hidden;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .photo-area.drag-over { background-color: #eff6ff; outline: 3px dashed #2563eb; }
+    
+    .grid-cell { position: absolute; overflow: hidden; background: #ddd; transition: 0.3s; cursor: grab; border: 1px solid white;}
+    .grid-cell img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+    .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; z-index: 10; width: 20px; height: 20px; display:flex; align-items:center; justify-content:center;}
+    .grid-cell:hover .remove-btn { opacity: 1; }
+
+    /* BOTTOM 2/5: CALENDAR GRID */
+    .calendar-area {
+        height: 40%; width: 100%; padding: 20px; display: flex; flex-direction: column;
+    }
+    .month-title { font-size: 32px; font-weight: 300; text-transform: uppercase; color: #111827; margin-bottom: 10px; text-align: center; letter-spacing: 2px;}
+    
+    .cal-grid { display: flex; flex-direction: column; flex: 1; border-top: 2px solid #111827; }
+    .cal-row { display: flex; flex: 1; border-bottom: 1px solid #e5e7eb; }
+    .cal-row.header { flex: 0 0 30px; border-bottom: 1px solid #9ca3af; font-weight: 600; font-size: 12px; text-transform: uppercase; color: #4b5563; align-items: center; }
+    .cal-cell { flex: 1; border-right: 1px solid #e5e7eb; padding: 4px; position: relative; display: flex; flex-direction: column; }
+    .cal-cell:last-child { border-right: none; }
+    .cal-date { font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 2px; }
+    .cal-input { 
+        flex: 1; border: none; font-family: inherit; font-size: 11px; color: #4b5563; resize: none; background: transparent; outline: none; width: 100%; 
+        line-height: 1.2;
+    }
+    .cal-input::placeholder { color: #d1d5db; font-style: italic; }
+    .weekend { background-color: #f9fafb; }
+    .red-day .cal-date { color: #dc2626; }
+
+    /* Dragging Visuals */
+    .dragging { opacity: 0.5; }
+
+    /* Skalering for mindre skjermer */
+    @media (max-width: 1100px) {
+        .a4-page { transform: scale(0.7); margin-bottom: -300px; }
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
-  <div class="app-container">
-    <div class="sidebar">
-      <div class="sidebar-header">
-        <h1>Kalender 2026</h1>
-        <p>Lag personlig kalender</p>
+
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>Kalender 2026</h1>
+      <p>Dra bilder til månedene</p>
+    </div>
+    <div class="sidebar-content">
+      <div>
+        <label>Prosjektnavn</label>
+        <input type="text" id="projectName" placeholder="Min Kalender" onchange="saveData()">
       </div>
-
-      <div class="sidebar-content">
-        <div class="control-group">
-          <label>Bilder (12 bilder for 12 måneder)</label>
-          <input type="file" id="fileInput" accept="image/*" multiple style="display: none">
-          <button class="btn-primary" onclick="document.getElementById('fileInput').click()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            Last opp bilder
-          </button>
-          <p class="photo-count"><span id="photoCount">0</span> bilder lagt til</p>
-        </div>
-
-        <div class="control-group">
-          <label>Bilder per måned</label>
-          <input type="number" id="photosPerMonth" min="1" max="10" value="1" onchange="renderCalendar()" style="width: 100%;">
-          <p class="photo-count">Viser <span id="photosPerMonthValue">1</span> bilde(r) per måned</p>
-        </div>
-
-        <div class="control-group">
-          <label>Papirstørrelse</label>
-          <select id="paperSize" onchange="renderCalendar()">
-            <option value="A4">A4 (210×297mm)</option>
-            <option value="A3">A3 (297×420mm)</option>
-            <option value="A2" selected>A2 (420×594mm)</option>
-            <option value="LETTER">Letter (8.5×11")</option>
-          </select>
-        </div>
-
-        <div class="control-group">
-          <label>Retning</label>
-          <div class="button-group">
-            <button id="portraitBtn" class="active" onclick="setOrientation('portrait')">Portrett</button>
-            <button id="landscapeBtn" onclick="setOrientation('landscape')">Landskap</button>
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label>Marg: <span id="marginValue">5</span>mm</label>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="range" id="margin" min="0" max="50" value="5" oninput="document.getElementById('marginValue').textContent = this.value; renderCalendar();">
-            <input type="number" id="marginInput" min="0" max="50" value="5" oninput="document.getElementById('marginValue').textContent = this.value; document.getElementById('margin').value = this.value; renderCalendar();" style="width: 60px;">
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label>Avstand mellom bilder: <span id="gapValue">2</span>mm</label>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="range" id="gap" min="0" max="20" value="2" oninput="document.getElementById('gapValue').textContent = this.value; renderCalendar();">
-            <input type="number" id="gapInput" min="0" max="20" value="2" oninput="document.getElementById('gapValue').textContent = this.value; document.getElementById('gap').value = this.value; renderCalendar();" style="width: 60px;">
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label>Bakgrunn</label>
-          <div class="color-input-group">
-            <input type="color" id="bgColorPicker" value="#FFFFFF" oninput="document.getElementById('bgColorText').value = this.value; renderCalendar();">
-            <input type="text" id="bgColorText" value="#FFFFFF" oninput="document.getElementById('bgColorPicker').value = this.value; renderCalendar();">
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label>Eksport DPI: <span id="dpiValue">300</span></label>
-          <select id="dpi" onchange="document.getElementById('dpiValue').textContent = this.value">
-            <option value="150">150 DPI (Utkast)</option>
-            <option value="300" selected>300 DPI (Standard)</option>
-            <option value="600">600 DPI (Høy kvalitet)</option>
-          </select>
-        </div>
-
-        <button id="clearBtn" class="btn-danger" onclick="clearAll()" style="display:none">Fjern alle bilder</button>
-      </div>
-
-      <div class="sidebar-footer">
-        <button id="exportBtn" class="btn-export" onclick="exportCalendar()" disabled>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
-          Eksporter kalender (12 sider)
+      <div>
+        <label>Legg til i bildebank</label>
+        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+          + Last opp bilder
         </button>
-        <button id="downloadAllBtn" class="btn-primary" onclick="downloadAllZip()" style="margin-top:8px; display:none">Last ned som zip</button>
+        <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+      </div>
+      <div>
+        <label>Handlinger</label>
+        <button class="btn btn-danger" onclick="clearAll()">Tøm alt</button>
       </div>
     </div>
-
-    <div class="main-canvas">
-      <div id="canvasWrapper" class="canvas-wrapper">
-        <!-- Calendar pages will be added here -->
-      </div>
+    <div class="sidebar-footer">
+      <button id="exportBtn" class="btn btn-primary" onclick="exportCalendar()">
+        Last ned Kalender (ZIP)
+      </button>
+      <p style="margin-top:10px; font-size:11px; text-align:center;">Format: A4, 300 DPI</p>
     </div>
   </div>
 
+  <div class="main-area">
+    
+    <div class="inbox-container">
+        <div class="inbox-header">
+            <span>Bildebank</span>
+            <span id="inboxCount">0 bilder</span>
+        </div>
+        <div id="inboxScroll" class="inbox-scroll" ondragover="handleDragOver(event)" ondrop="handleDropToInbox(event)">
+            </div>
+    </div>
+
+    <div id="calendarScroll" class="calendar-scroll-area">
+        </div>
+
+  </div>
+
   <script>
-    const PAPER_SIZES = {
-      A4: { width: 210, height: 297 },
-      A3: { width: 297, height: 420 },
-      A2: { width: 420, height: 594 },
-      LETTER: { width: 216, height: 279 }
+    // --- DATA MODEL ---
+    const MONTH_NAMES = ["Januar", "Februar", "Mars", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Desember"];
+    const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]; // 2026 is not leap year
+    // 2026 starts on a Thursday (4). 0=Sun, 1=Mon... 4=Thu.
+    
+    // Norske helligdager 2026 (enkel oversikt)
+    const HOLIDAYS_2026 = {
+        "0-1": true, "2-29": true, "3-2": true, "3-5": true, "3-6": true, 
+        "4-1": true, "4-14": true, "4-17": true, "4-25": true, "11-25": true, "11-26": true
+        // Juster etter behov, dette er placeholder logikk for røde dager
     };
 
-    const MONTHS_2026 = [
-      { name: 'Januar', days: 31, startDay: 4 }, // Thursday
-      { name: 'Februar', days: 28, startDay: 0 }, // Sunday
-      { name: 'Mars', days: 31, startDay: 0 }, // Sunday
-      { name: 'April', days: 30, startDay: 3 }, // Wednesday
-      { name: 'Mai', days: 31, startDay: 5 }, // Friday
-      { name: 'Juni', days: 30, startDay: 1 }, // Monday
-      { name: 'Juli', days: 31, startDay: 3 }, // Wednesday
-      { name: 'August', days: 31, startDay: 6 }, // Saturday
-      { name: 'September', days: 30, startDay: 2 }, // Tuesday
-      { name: 'Oktober', days: 31, startDay: 4 }, // Thursday
-      { name: 'November', days: 30, startDay: 0 }, // Sunday
-      { name: 'Desember', days: 31, startDay: 2 }  // Tuesday
-    ];
+    let photoLibrary = []; // {id, src, originalFile, ratio, ...}
+    let inboxIds = []; // [id, id, ...]
+    let monthData = Array(12).fill(null).map(() => ({ 
+        photoIds: [], 
+        texts: {} // { "day-5": "Bursdag" }
+    }));
 
-    const DAY_NAMES = ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'];
-
-    let photos = [];
-    let orientation = 'portrait';
-
-    document.getElementById('fileInput').addEventListener('change', handleFileUpload);
-    document.getElementById('photosPerMonth').addEventListener('input', function() {
-      document.getElementById('photosPerMonthValue').textContent = this.value;
-      renderCalendar();
-    });
-
-    function handleFileUpload(e) {
-      handleFiles(Array.from(e.target.files));
-    }
-
-    function handleFiles(files) {
-      const loadPromises = [];
-
-      files.forEach(file => {
-        if (file.type.startsWith('image/')) {
-          const promise = new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              const img = new Image();
-              img.onload = () => {
-                resolve({
-                  id: Date.now() + Math.random(),
-                  src: e.target.result,
-                  name: file.name,
-                  width: img.width,
-                  height: img.height,
-                  aspectRatio: img.width / img.height
-                });
-              };
-              img.src = e.target.result;
+    // --- DB SETUP ---
+    const dbName = "Cal2026DB";
+    let db;
+    
+    async function initDB() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open(dbName, 1);
+            req.onupgradeneeded = e => {
+                const db = e.target.result;
+                if(!db.objectStoreNames.contains('photos')) db.createObjectStore('photos', {keyPath: 'id'});
+                if(!db.objectStoreNames.contains('state')) db.createObjectStore('state', {keyPath: 'id'});
             };
-            reader.readAsDataURL(file);
-          });
-          loadPromises.push(promise);
-        }
-      });
-
-      Promise.all(loadPromises).then(newPhotos => {
-        newPhotos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-        photos.push(...newPhotos);
-        updateUI();
-      });
-    }
-
-    function setOrientation(ori) {
-      orientation = ori;
-      document.getElementById('portraitBtn').className = ori === 'portrait' ? 'active' : '';
-      document.getElementById('landscapeBtn').className = ori === 'landscape' ? 'active' : '';
-      renderCalendar();
-    }
-
-    function clearAll() {
-      photos = [];
-      updateUI();
-    }
-
-    function updateUI() {
-      document.getElementById('photoCount').textContent = photos.length;
-      document.getElementById('exportBtn').disabled = photos.length === 0;
-      document.getElementById('downloadAllBtn').style.display = photos.length > 0 ? 'block' : 'none';
-      document.getElementById('clearBtn').style.display = photos.length > 0 ? 'block' : 'none';
-      renderCalendar();
-    }
-
-    function getPaperDimensions() {
-      const paperSize = document.getElementById('paperSize').value;
-      const size = PAPER_SIZES[paperSize];
-      return orientation === 'landscape' 
-        ? { width: size.height, height: size.width } 
-        : { width: size.width, height: size.height };
-    }
-
-    function calculateAdaptiveGrid(photos, width, height, gap) {
-      if (photos.length === 0) return { cells: [] };
-      
-      // Try different row configurations to find the best fit
-      let bestLayout = null;
-      let bestWaste = Infinity;
-      
-      // Calculate min and max rows to try
-      const minRows = Math.max(1, Math.floor(Math.sqrt(photos.length * height / width)));
-      const maxRows = Math.min(photos.length, Math.ceil(Math.sqrt(photos.length * height / width)) + 3);
-      
-      for (let targetRows = minRows; targetRows <= maxRows; targetRows++) {
-        const rows = [];
-        let photoIndex = 0;
-        const estimatedRowHeight = (height - (targetRows - 1) * gap) / targetRows;
-        
-        // Distribute photos across rows
-        while (photoIndex < photos.length && rows.length < targetRows) {
-          const rowPhotos = [];
-          let rowAspectSum = 0;
-          const photosRemaining = photos.length - photoIndex;
-          const rowsRemaining = targetRows - rows.length;
-          const minPhotosForRow = Math.floor(photosRemaining / rowsRemaining);
-          const maxPhotosForRow = Math.ceil(photosRemaining / rowsRemaining) + 3;
-          
-          // Add photos to this row
-          while (photoIndex < photos.length && rowPhotos.length < maxPhotosForRow) {
-            const photo = photos[photoIndex];
-            const projectedWidth = (rowAspectSum + photo.aspectRatio) * estimatedRowHeight;
-            
-            if (projectedWidth <= width + gap || rowPhotos.length < minPhotosForRow) {
-              rowPhotos.push({ photo, index: photoIndex });
-              rowAspectSum += photo.aspectRatio;
-              photoIndex++;
-            } else {
-              break;
-            }
-          }
-          
-          if (rowPhotos.length > 0) {
-            const gapWidth = (rowPhotos.length - 1) * gap;
-            const availableWidth = width - gapWidth;
-            const rowHeight = availableWidth / rowAspectSum;
-            rows.push({ photos: rowPhotos, height: rowHeight, aspectSum: rowAspectSum });
-          }
-        }
-        
-        // Calculate how well this fits
-        const totalGapHeight = (rows.length - 1) * gap;
-        const totalContentHeight = rows.reduce((sum, row) => sum + row.height, 0);
-        const totalHeight = totalContentHeight + totalGapHeight;
-        const waste = Math.abs(height - totalHeight);
-        
-        if (waste < bestWaste && photoIndex === photos.length) {
-          bestWaste = waste;
-          bestLayout = { rows, totalHeight };
-        }
-      }
-      
-      if (!bestLayout) {
-        // Fallback: distribute evenly
-        const rows = [];
-        const rowCount = Math.ceil(Math.sqrt(photos.length));
-        let photoIndex = 0;
-        
-        while (photoIndex < photos.length) {
-          const rowPhotos = [];
-          let rowAspectSum = 0;
-          const photosPerRow = Math.ceil((photos.length - photoIndex) / (rowCount - rows.length));
-          
-          for (let i = 0; i < photosPerRow && photoIndex < photos.length; i++) {
-            const photo = photos[photoIndex];
-            rowPhotos.push({ photo, index: photoIndex });
-            rowAspectSum += photo.aspectRatio;
-            photoIndex++;
-          }
-          
-          const gapWidth = (rowPhotos.length - 1) * gap;
-          const availableWidth = width - gapWidth;
-          const rowHeight = availableWidth / rowAspectSum;
-          rows.push({ photos: rowPhotos, height: rowHeight, aspectSum: rowAspectSum });
-        }
-        
-        const totalGapHeight = (rows.length - 1) * gap;
-        const totalContentHeight = rows.reduce((sum, row) => sum + row.height, 0);
-        bestLayout = { rows, totalHeight: totalContentHeight + totalGapHeight };
-      }
-      
-      // Build final cells - scale to fill height perfectly
-      const cells = [];
-      let yPos = 0;
-      const totalGapHeight = (bestLayout.rows.length - 1) * gap;
-      const scale = height / (bestLayout.totalHeight + totalGapHeight);
-      
-      bestLayout.rows.forEach((row) => {
-        const scaledRowHeight = row.height * scale;
-        const gapWidth = (row.photos.length - 1) * gap;
-        const availableWidth = width - gapWidth;
-        
-        let xPos = 0;
-        row.photos.forEach(({ photo }) => {
-          const properWidth = (photo.aspectRatio / row.aspectSum) * availableWidth;
-          
-          cells.push({
-            x: xPos,
-            y: yPos,
-            width: properWidth,
-            height: scaledRowHeight
-          });
-          
-          xPos += properWidth + gap;
+            req.onsuccess = e => { db = e.target.result; resolve(); };
+            req.onerror = e => reject(e);
         });
-        
-        yPos += scaledRowHeight + gap;
-      });
-      
-      return { cells };
     }
 
-    function renderCalendar() {
-      const paper = getPaperDimensions();
-      const aspectRatio = paper.width / paper.height;
-      const isMobile = window.innerWidth <= 900;
-      const displayWidth = isMobile ? Math.min(window.innerWidth - 32, 600) : Math.min(600, window.innerWidth - 400);
-      const displayHeight = displayWidth / aspectRatio;
+    // --- INITIALIZATION ---
+    (async function start() {
+        await initDB();
+        await loadData();
+        renderInbox();
+        renderCalendarPages();
+    })();
 
-      const margin = parseInt(document.getElementById('margin').value) || 5;
-      const gap = parseInt(document.getElementById('gap').value) || 2;
-      const photosPerMonth = parseInt(document.getElementById('photosPerMonth').value) || 1;
-      
-      const marginPx = (margin / paper.width) * displayWidth;
-      const gapPx = (gap / paper.width) * displayWidth;
-      
-      // Split page 55/45 - 55% for photos, 45% for calendar (more space for writing)
-      const photoHeight = displayHeight * 0.55;
-      const calendarHeight = displayHeight * 0.45;
-      
-      const availablePhotoWidth = displayWidth - (2 * marginPx);
-      const availablePhotoHeight = photoHeight - (2 * marginPx);
+    // --- RENDER LOGIC ---
+    
+    function renderInbox() {
+        const container = document.getElementById('inboxScroll');
+        container.innerHTML = '';
+        document.getElementById('inboxCount').textContent = inboxIds.length + " bilder";
 
-      const canvasWrapper = document.getElementById('canvasWrapper');
-      canvasWrapper.innerHTML = '';
-
-      if (photos.length === 0) {
-        const emptyCanvas = document.createElement('div');
-        emptyCanvas.className = 'canvas';
-        emptyCanvas.style.width = displayWidth + 'px';
-        emptyCanvas.style.height = displayHeight + 'px';
-        emptyCanvas.style.backgroundColor = document.getElementById('bgColorText').value;
-        emptyCanvas.innerHTML = `
-          <div class="dropzone">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <circle cx="8.5" cy="8.5" r="1.5"></circle>
-              <polyline points="21 15 16 10 5 21"></polyline>
-            </svg>
-            <p class="dropzone-title">Slipp bilder her</p>
-            <p class="dropzone-subtitle">Last opp 12 bilder for en komplett kalender</p>
-          </div>
-        `;
-        canvasWrapper.appendChild(emptyCanvas);
-        return;
-      }
-
-      // Create 12 calendar pages
-      for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
-        const month = MONTHS_2026[monthIndex];
-        const startPhotoIndex = monthIndex * photosPerMonth;
-        const monthPhotos = photos.slice(startPhotoIndex, startPhotoIndex + photosPerMonth);
-
-        const canvasEl = document.createElement('div');
-        canvasEl.className = 'canvas';
-        canvasEl.style.width = displayWidth + 'px';
-        canvasEl.style.height = displayHeight + 'px';
-        canvasEl.style.backgroundColor = document.getElementById('bgColorText').value;
-
-        // Photo section
-        if (monthPhotos.length > 0) {
-          const photoSection = document.createElement('div');
-          photoSection.className = 'photo-section';
-          photoSection.style.height = photoHeight + 'px';
-
-          const gridEl = document.createElement('div');
-          gridEl.className = 'grid-container';
-          gridEl.style.left = marginPx + 'px';
-          gridEl.style.top = marginPx + 'px';
-
-          const grid = calculateAdaptiveGrid(monthPhotos, availablePhotoWidth, availablePhotoHeight, gapPx);
-
-          monthPhotos.forEach((photo, i) => {
-            if (i >= grid.cells.length) return;
-            const cell = grid.cells[i];
+        inboxIds.forEach(id => {
+            const photo = photoLibrary.find(p => p.id === id);
+            if (!photo) return;
             
             const div = document.createElement('div');
-            div.className = 'photo-cell';
+            div.className = 'inbox-photo';
+            div.draggable = true;
+            div.ondragstart = (e) => dragStart(e, id, 'inbox');
+            
+            div.innerHTML = `<img src="${photo.src}">`;
+            container.appendChild(div);
+        });
+    }
+
+    function renderCalendarPages() {
+        const container = document.getElementById('calendarScroll');
+        container.innerHTML = '';
+
+        for (let m = 0; m < 12; m++) {
+            container.appendChild(createPageElement(m));
+        }
+        // Update photo layouts after DOM is ready
+        for (let m = 0; m < 12; m++) {
+            updateMonthGridLayout(m);
+        }
+    }
+
+    function createPageElement(monthIndex) {
+        const page = document.createElement('div');
+        page.className = 'a4-page';
+        page.id = `page-${monthIndex}`;
+
+        // TOP: PHOTO AREA
+        const photoArea = document.createElement('div');
+        photoArea.className = 'photo-area';
+        photoArea.id = `photo-area-${monthIndex}`;
+        photoArea.ondragover = handleDragOver;
+        photoArea.ondrop = (e) => handleDropToMonth(e, monthIndex);
+        
+        // BOTTOM: CALENDAR AREA
+        const calArea = document.createElement('div');
+        calArea.className = 'calendar-area';
+        
+        const title = document.createElement('div');
+        title.className = 'month-title';
+        title.textContent = `${MONTH_NAMES[monthIndex]} 2026`;
+        
+        const grid = createCalendarGrid(monthIndex);
+        
+        calArea.appendChild(title);
+        calArea.appendChild(grid);
+        
+        page.appendChild(photoArea);
+        page.appendChild(calArea);
+        
+        return page;
+    }
+
+    function createCalendarGrid(monthIndex) {
+        const grid = document.createElement('div');
+        grid.className = 'cal-grid';
+
+        // Header Row
+        const header = document.createElement('div');
+        header.className = 'cal-row header';
+        ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'].forEach(day => {
+            const cell = document.createElement('div');
+            cell.className = 'cal-cell';
+            cell.textContent = day;
+            cell.style.textAlign = 'center';
+            header.appendChild(cell);
+        });
+        grid.appendChild(header);
+
+        // Date Logic 2026
+        const firstDayDate = new Date(2026, monthIndex, 1);
+        let startDay = firstDayDate.getDay(); // 0=Sun, 1=Mon
+        if (startDay === 0) startDay = 7; // Make Sunday 7 for easier math
+        
+        const totalDays = DAYS_IN_MONTH[monthIndex];
+        let currentDay = 1;
+        
+        // 6 Rows max to cover all months
+        for (let r = 0; r < 6; r++) {
+            if (currentDay > totalDays) break;
+            const row = document.createElement('div');
+            row.className = 'cal-row';
+            
+            for (let d = 1; d <= 7; d++) {
+                const cell = document.createElement('div');
+                cell.className = 'cal-cell';
+                
+                if (r === 0 && d < startDay) {
+                    // Empty cell before month starts
+                    cell.style.background = '#f9fafb';
+                } else if (currentDay <= totalDays) {
+                    // Actual Day
+                    if (d === 6 || d === 7) cell.className += " weekend"; // Lør/Søn
+                    
+                    const dateNum = document.createElement('div');
+                    dateNum.className = 'cal-date';
+                    dateNum.textContent = currentDay;
+                    
+                    // Input text
+                    const input = document.createElement('textarea');
+                    input.className = 'cal-input';
+                    input.placeholder = "Notat...";
+                    input.dataset.month = monthIndex;
+                    input.dataset.day = currentDay;
+                    // Load saved text
+                    if (monthData[monthIndex].texts[currentDay]) {
+                        input.value = monthData[monthIndex].texts[currentDay];
+                    }
+                    input.oninput = (e) => {
+                        monthData[monthIndex].texts[e.target.dataset.day] = e.target.value;
+                        saveStateDebounced();
+                    };
+
+                    cell.appendChild(dateNum);
+                    cell.appendChild(input);
+                    currentDay++;
+                } else {
+                    // Empty cell after month ends
+                    cell.style.background = '#f9fafb';
+                }
+                row.appendChild(cell);
+            }
+            grid.appendChild(row);
+        }
+        return grid;
+    }
+
+    // --- PHOTO GRID ALGORITHM (Reuse from Fotogrid) ---
+    function updateMonthGridLayout(mIndex) {
+        const area = document.getElementById(`photo-area-${mIndex}`);
+        area.innerHTML = '';
+        
+        const photoIds = monthData[mIndex].photoIds;
+        if (photoIds.length === 0) {
+            area.innerHTML = `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:14px;">Dra bilder hit</div>`;
+            return;
+        }
+
+        const photos = photoIds.map(id => photoLibrary.find(p => p.id === id)).filter(p => p);
+        
+        // Dimensions of the top 60% of A4 (794 x 1123)
+        // 1123 * 0.6 = 673.8 px
+        const W = 794;
+        const H = 673; 
+        const gap = 4; // px
+
+        const layout = calculateOptimalGrid(photos, W, H, gap);
+
+        layout.cells.forEach(cell => {
+            const div = document.createElement('div');
+            div.className = 'grid-cell';
             div.style.left = cell.x + 'px';
             div.style.top = cell.y + 'px';
             div.style.width = cell.width + 'px';
             div.style.height = cell.height + 'px';
+            
+            div.draggable = true;
+            div.ondragstart = (e) => dragStart(e, cell.photo.id, 'month', mIndex);
 
-            const img = document.createElement('img');
-            img.src = photo.src;
-            img.alt = photo.name;
+            div.innerHTML = `
+                <img src="${cell.photo.src}">
+                <button class="remove-btn" onclick="sendToInbox('${cell.photo.id}', ${mIndex})">×</button>
+            `;
+            area.appendChild(div);
+        });
+    }
 
-            const btn = document.createElement('button');
-            btn.className = 'remove-btn';
-            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-            btn.onclick = () => {
-              photos = photos.filter(p => p.id !== photo.id);
-              updateUI();
-            };
-
-            div.appendChild(img);
-            div.appendChild(btn);
-            gridEl.appendChild(div);
-          });
-
-          photoSection.appendChild(gridEl);
-          canvasEl.appendChild(photoSection);
-        }
-
-        // Calendar section
-        const calendarSection = document.createElement('div');
-        calendarSection.className = 'calendar-section';
-        calendarSection.style.height = calendarHeight + 'px';
-        calendarSection.style.top = photoHeight + 'px';
-
-        const calendarHeader = document.createElement('div');
-        calendarHeader.className = 'calendar-header';
-        calendarHeader.innerHTML = `<h2>${month.name} 2026</h2>`;
-        calendarSection.appendChild(calendarHeader);
-
-        const calendarGrid = document.createElement('div');
-        calendarGrid.className = 'calendar-grid';
+    function calculateOptimalGrid(photos, width, height, gap) {
+        if (photos.length === 0) return { cells: [] };
         
-        // Add day headers
-        DAY_NAMES.forEach(day => {
-          const dayHeader = document.createElement('div');
-          dayHeader.className = 'calendar-day-header';
-          dayHeader.textContent = day;
-          calendarGrid.appendChild(dayHeader);
+        // Try different row counts to find best fit
+        let bestLayout = null;
+        let bestScore = Infinity;
+
+        for (let rows = 1; rows <= photos.length; rows++) {
+            const result = generateRows(photos, rows, width, gap);
+            // Calculate scale needed to fit height
+            const contentHeight = result.totalHeight;
+            const scale = height / contentHeight;
+            
+            // Score based on how close scale is to 1 (filling area without cropping too much)
+            // We prefer filling the width, but ensuring height doesn't overflow drastically or leave huge gaps.
+            // Simplified scoring: deviation from ideal aspect ratio match
+            let score = Math.abs(1 - scale);
+            
+            // Penalty for extreme crops
+            if (scale > 1.5 || scale < 0.5) score += 10;
+
+            if (score < bestScore) {
+                bestScore = score;
+                bestLayout = { ...result, fitScale: scale };
+            }
+        }
+        
+        // Apply best layout
+        const cells = [];
+        let yOffset = 0;
+        // If content is shorter than height, center vertically? No, autofill logic usually fills width.
+        // We will scale rows to fill WIDTH exactly, and if total height > max height, we crop rows vertically. 
+        // Or if total height < max height, we expand rows.
+        
+        // Let's use the fitScale to adjust row heights so they fill the BOX vertically nicely if close enough
+        // Actually, standardized Fotogrid logic: Fill Width, assume Height is flexible, but here Height is Fixed.
+        // Strategy: Force rows to fill Width. Then check total Height. 
+        // If total height < box height, stretch rows. If > box height, shrink rows (crop).
+        
+        const rows = bestLayout.rows;
+        let totalH = bestLayout.totalHeight;
+        let scaleFactor = 1;
+        
+        // Enforce filling the height
+        scaleFactor = height / totalH; 
+
+        rows.forEach(row => {
+            let xOffset = 0;
+            const rowHeight = row.height * scaleFactor;
+            
+            // Recalculate widths based on new height to keep images filling cells (they will crop)
+            // But wait, div width is fixed by (W - gaps) / aspectSum.
+            // We maintain the cell WIDTHs to fill the page width. We only change HEIGHT.
+            // This distorts the cell aspect ratio, meaning the image inside (object-fit:cover) will crop. This is desired.
+            
+            row.photos.forEach(photo => {
+                // Original calc: width = rowHeight * aspect. 
+                // We keep width fixed from the "Fill Width" calculation.
+                // We only change the y/height of the cell.
+                const cellW = (width - (row.photos.length - 1) * gap) * (photo.ratio / row.aspectSum);
+                
+                cells.push({
+                    x: xOffset,
+                    y: yOffset,
+                    width: cellW,
+                    height: rowHeight - gap, // Account for vertical gap
+                    photo: photo
+                });
+                xOffset += cellW + gap;
+            });
+            yOffset += rowHeight; 
         });
 
-        // Get previous month's last days
-        const prevMonthIndex = monthIndex === 0 ? 11 : monthIndex - 1;
-        const prevMonthDays = MONTHS_2026[prevMonthIndex].days;
-        const emptyCellsBefore = (month.startDay + 6) % 7;
+        return { cells };
+    }
+
+    function generateRows(photos, numRows, width, gap) {
+        // Divide photos as evenly as possible
+        const base = Math.floor(photos.length / numRows);
+        const extra = photos.length % numRows;
         
-        // Add days from previous month
-        for (let i = 0; i < emptyCellsBefore; i++) {
-          const prevDay = prevMonthDays - emptyCellsBefore + i + 1;
-          const emptyDay = document.createElement('div');
-          emptyDay.className = 'calendar-day other-month';
-          emptyDay.textContent = prevDay;
-          calendarGrid.appendChild(emptyDay);
-        }
+        let pIdx = 0;
+        const rows = [];
+        let totalHeight = 0;
 
-        // Add days of the current month
-        for (let day = 1; day <= month.days; day++) {
-          const dayCell = document.createElement('div');
-          dayCell.className = 'calendar-day';
-          dayCell.textContent = day;
-          calendarGrid.appendChild(dayCell);
-        }
-
-        // Fill remaining cells with next month's days
-        const totalCells = calendarGrid.children.length - 7; // Subtract headers
-        const remainingCells = 35 - totalCells; // 5 weeks * 7 days
-        for (let i = 1; i <= remainingCells; i++) {
-          const nextDay = document.createElement('div');
-          nextDay.className = 'calendar-day other-month';
-          nextDay.textContent = i;
-          calendarGrid.appendChild(nextDay);
-        }
-
-        calendarSection.appendChild(calendarGrid);
-        canvasEl.appendChild(calendarSection);
-
-        const pageLabel = document.createElement('div');
-        pageLabel.className = 'page-label';
-        pageLabel.textContent = `${monthIndex + 1}/12`;
-        canvasEl.appendChild(pageLabel);
-
-        canvasWrapper.appendChild(canvasEl);
-      }
-    }
-
-    function loadImage(src) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = (e) => reject(e);
-        img.src = src;
-      });
-    }
-
-    async function createCalendarPageBlob(monthIndex, monthPhotos, exportWidth, exportHeight, marginPx, gapPx, bgColor) {
-      return new Promise(async (resolve, reject) => {
-        try {
-          const canvas = document.createElement('canvas');
-          canvas.width = exportWidth;
-          canvas.height = exportHeight;
-          const ctx = canvas.getContext('2d');
-
-          ctx.fillStyle = bgColor;
-          ctx.fillRect(0, 0, exportWidth, exportHeight);
-
-          const photoHeight = exportHeight * 0.55;
-          const calendarHeight = exportHeight * 0.45;
-          const availablePhotoWidth = exportWidth - 2 * marginPx;
-          const availablePhotoHeight = photoHeight - 2 * marginPx;
-
-          // Draw photos
-          if (monthPhotos.length > 0) {
-            const grid = calculateAdaptiveGrid(monthPhotos, availablePhotoWidth, availablePhotoHeight, gapPx);
-
-            for (let i = 0; i < monthPhotos.length && i < grid.cells.length; i++) {
-              const photo = monthPhotos[i];
-              const cell = grid.cells[i];
-              const img = await loadImage(photo.src);
-
-              const x = Math.round(marginPx + cell.x);
-              const y = Math.round(marginPx + cell.y);
-
-              ctx.save();
-              ctx.beginPath();
-              ctx.rect(x, y, Math.round(cell.width), Math.round(cell.height));
-              ctx.clip();
-              
-              const cellAspect = cell.width / cell.height;
-              const photoAspect = photo.aspectRatio;
-              let drawWidth, drawHeight, offsetX, offsetY;
-
-              if (photoAspect > cellAspect) {
-                drawHeight = cell.height;
-                drawWidth = drawHeight * photoAspect;
-                offsetX = (cell.width - drawWidth) / 2;
-                offsetY = 0;
-              } else {
-                drawWidth = cell.width;
-                drawHeight = drawWidth / photoAspect;
-                offsetX = 0;
-                offsetY = (cell.height - drawHeight) / 2;
-              }
-
-              ctx.drawImage(img, x + offsetX, y + offsetY, Math.round(drawWidth), Math.round(drawHeight));
-              ctx.restore();
+        for (let r = 0; r < numRows; r++) {
+            const count = base + (r < extra ? 1 : 0);
+            const rowPhotos = [];
+            let aspectSum = 0;
+            for (let i = 0; i < count; i++) {
+                rowPhotos.push(photos[pIdx]);
+                aspectSum += photos[pIdx].ratio;
+                pIdx++;
             }
-          }
-
-          // Draw calendar
-          const month = MONTHS_2026[monthIndex];
-          const calendarTop = photoHeight;
-          
-          // Calendar header
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, calendarTop, exportWidth, calendarHeight);
-          
-          // Add top border to separate from photos
-          ctx.strokeStyle = '#e5e7eb';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(0, calendarTop);
-          ctx.lineTo(exportWidth, calendarTop);
-          ctx.stroke();
-          
-          ctx.fillStyle = '#111827';
-          ctx.font = `bold ${exportWidth * 0.035}px Arial`;
-          ctx.textAlign = 'center';
-          ctx.fillText(`${month.name} 2026`, exportWidth / 2, calendarTop + exportWidth * 0.04);
-
-          // Calendar grid
-          const gridTop = calendarTop + exportWidth * 0.065;
-          const gridHeight = calendarHeight - exportWidth * 0.065 - marginPx;
-          const cellWidth = exportWidth / 7;
-          const cellHeight = gridHeight / 6;
-
-          // Draw grid lines
-          ctx.strokeStyle = '#e5e7eb';
-          ctx.lineWidth = 1;
-          
-          for (let i = 0; i <= 7; i++) {
-            ctx.beginPath();
-            ctx.moveTo(i * cellWidth, gridTop);
-            ctx.lineTo(i * cellWidth, gridTop + gridHeight);
-            ctx.stroke();
-          }
-          
-          for (let i = 0; i <= 6; i++) {
-            ctx.beginPath();
-            ctx.moveTo(0, gridTop + i * cellHeight);
-            ctx.lineTo(exportWidth, gridTop + i * cellHeight);
-            ctx.stroke();
-          }
-
-          // Day headers
-          ctx.fillStyle = '#6b7280';
-          ctx.font = `600 ${exportWidth * 0.015}px Arial`;
-          ctx.textAlign = 'center';
-          DAY_NAMES.forEach((day, i) => {
-            ctx.fillText(day, (i + 0.5) * cellWidth, gridTop + cellHeight * 0.4);
-          });
-
-          // Calculate previous month info
-          const prevMonthIndex = monthIndex === 0 ? 11 : monthIndex - 1;
-          const prevMonthDays = MONTHS_2026[prevMonthIndex].days;
-          const emptyCellsBefore = (month.startDay + 6) % 7;
-          
-          // Draw previous month's days (light gray)
-          ctx.fillStyle = '#d1d5db';
-          ctx.font = `500 ${exportWidth * 0.016}px Arial`;
-          ctx.textAlign = 'left';
-          
-          for (let i = 0; i < emptyCellsBefore; i++) {
-            const prevDay = prevMonthDays - emptyCellsBefore + i + 1;
-            const row = 1;
-            const col = i;
-            const x = col * cellWidth + cellWidth * 0.08;
-            const y = gridTop + row * cellHeight + cellHeight * 0.15;
-            ctx.fillText(prevDay.toString(), x, y);
-          }
-          
-          // Draw current month's days (dark)
-          ctx.fillStyle = '#374151';
-          let currentCell = emptyCellsBefore;
-          
-          for (let day = 1; day <= month.days; day++) {
-            const row = Math.floor(currentCell / 7) + 1;
-            const col = currentCell % 7;
-            const x = col * cellWidth + cellWidth * 0.08;
-            const y = gridTop + row * cellHeight + cellHeight * 0.15;
+            // Height needed to make this row fill 'width'
+            // W = H * aspectSum + (count-1)*gap
+            // H = (W - gaps) / aspectSum
+            const wAvailable = width - (count - 1) * gap;
+            const h = wAvailable / aspectSum;
             
-            ctx.fillText(day.toString(), x, y);
-            currentCell++;
-          }
-          
-          // Draw next month's days (light gray)
-          ctx.fillStyle = '#d1d5db';
-          const totalUsedCells = emptyCellsBefore + month.days;
-          const remainingCells = 35 - totalUsedCells;
-          
-          for (let i = 1; i <= remainingCells; i++) {
-            const row = Math.floor((totalUsedCells + i - 1) / 7) + 1;
-            const col = (totalUsedCells + i - 1) % 7;
-            const x = col * cellWidth + cellWidth * 0.08;
-            const y = gridTop + row * cellHeight + cellHeight * 0.15;
-            ctx.fillText(i.toString(), x, y);
-          }
-
-          canvas.toBlob((blob) => {
-            if (blob) resolve(blob); 
-            else reject(new Error('Failed to create blob'));
-          }, 'image/jpeg', 0.95);
-        } catch (err) {
-          reject(err);
+            rows.push({ photos: rowPhotos, height: h, aspectSum });
+            totalHeight += h;
         }
-      });
+        return { rows, totalHeight };
     }
 
+    // --- DRAG AND DROP ---
+    let dragData = null; // {id, source, monthIndex}
+
+    function dragStart(e, id, source, mIndex) {
+        dragData = { id, source, monthIndex: mIndex };
+        e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    }
+
+    function handleDropToMonth(e, targetMonthIndex) {
+        e.preventDefault();
+        if (!dragData) return;
+        
+        const { id, source, monthIndex } = dragData;
+        
+        if (source === 'inbox') {
+            // Move from inbox to month
+            inboxIds = inboxIds.filter(x => x !== id);
+            monthData[targetMonthIndex].photoIds.push(id);
+        } else if (source === 'month') {
+            // Move from month to month (or reorder in same month)
+            monthData[monthIndex].photoIds = monthData[monthIndex].photoIds.filter(x => x !== id);
+            monthData[targetMonthIndex].photoIds.push(id);
+        }
+        
+        renderInbox();
+        updateMonthGridLayout(targetMonthIndex);
+        if (source === 'month' && monthIndex !== targetMonthIndex) updateMonthGridLayout(monthIndex);
+        saveState();
+        dragData = null;
+    }
+
+    function handleDropToInbox(e) {
+        e.preventDefault();
+        if (!dragData) return;
+        const { id, source, monthIndex } = dragData;
+        
+        if (source === 'month') {
+            monthData[monthIndex].photoIds = monthData[monthIndex].photoIds.filter(x => x !== id);
+            inboxIds.push(id);
+            renderInbox();
+            updateMonthGridLayout(monthIndex);
+            saveState();
+        }
+        dragData = null;
+    }
+
+    function sendToInbox(id, mIndex) {
+        monthData[mIndex].photoIds = monthData[mIndex].photoIds.filter(x => x !== id);
+        inboxIds.push(id);
+        renderInbox();
+        updateMonthGridLayout(mIndex);
+        saveState();
+    }
+
+    // --- FILE HANDLING ---
+    document.getElementById('fileInput').addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
+        for (const file of files) {
+            const id = Date.now() + Math.random().toString();
+            const src = URL.createObjectURL(file);
+            
+            // Get Aspect Ratio
+            const img = new Image();
+            img.src = src;
+            await new Promise(r => img.onload = r);
+            const ratio = img.width / img.height;
+
+            const photo = { id, src, file, ratio };
+            photoLibrary.push(photo);
+            inboxIds.push(id);
+            
+            // Save to IndexedDB
+            const tx = db.transaction('photos', 'readwrite');
+            tx.objectStore('photos').put({id, file, ratio});
+        }
+        renderInbox();
+        saveState();
+    });
+
+    // --- PERSISTENCE ---
+    function saveState() {
+        if (!db) return;
+        const tx = db.transaction('state', 'readwrite');
+        tx.objectStore('state').put({
+            id: 'current',
+            inboxIds: inboxIds,
+            monthData: monthData,
+            projectName: document.getElementById('projectName').value
+        });
+    }
+    
+    // Debounce save for text inputs
+    let saveTimeout;
+    function saveStateDebounced() {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(saveState, 1000);
+    }
+
+    async function loadData() {
+        if (!db) return;
+        // Load Photos
+        const txP = db.transaction('photos', 'readonly');
+        const allPhotos = await new Promise(resolve => {
+            const req = txP.objectStore('photos').getAll();
+            req.onsuccess = () => resolve(req.result);
+        });
+        
+        photoLibrary = allPhotos.map(p => ({
+            id: p.id,
+            src: URL.createObjectURL(p.file),
+            file: p.file,
+            ratio: p.ratio
+        }));
+
+        // Load State
+        const txS = db.transaction('state', 'readonly');
+        const state = await new Promise(resolve => {
+            const req = txS.objectStore('state').get('current');
+            req.onsuccess = () => resolve(req.result);
+        });
+
+        if (state) {
+            // Verify IDs exist in library
+            const libIds = new Set(photoLibrary.map(p => p.id));
+            inboxIds = state.inboxIds.filter(id => libIds.has(id));
+            monthData = state.monthData.map(m => ({
+                photoIds: m.photoIds.filter(id => libIds.has(id)),
+                texts: m.texts || {}
+            }));
+            document.getElementById('projectName').value = state.projectName || "";
+        }
+    }
+
+    async function clearAll() {
+        if(!confirm("Slett alt innhold?")) return;
+        const tx = db.transaction(['photos', 'state'], 'readwrite');
+        tx.objectStore('photos').clear();
+        tx.objectStore('state').clear();
+        location.reload();
+    }
+
+    // --- EXPORT LOGIC ---
     async function exportCalendar() {
-      if (photos.length === 0) return;
+        const btn = document.getElementById('exportBtn');
+        btn.textContent = "Genererer...";
+        btn.disabled = true;
 
-      const paper = getPaperDimensions();
-      const dpi = parseInt(document.getElementById('dpi').value);
-      const mmToPixels = dpi / 25.4;
-      const exportWidth = Math.round(paper.width * mmToPixels);
-      const exportHeight = Math.round(paper.height * mmToPixels);
+        const zip = new JSZip();
+        const projectName = document.getElementById('projectName').value || "Kalender2026";
+        
+        // A4 300 DPI = 2480 x 3508 pixels
+        const exportW = 2480;
+        const exportH = 3508;
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = exportW;
+        canvas.height = exportH;
+        const ctx = canvas.getContext('2d');
 
-      const margin = parseInt(document.getElementById('margin').value);
-      const gap = parseInt(document.getElementById('gap').value);
-      const marginPx = Math.round(margin * mmToPixels);
-      const gapPx = Math.round(gap * mmToPixels);
-      const photosPerMonth = parseInt(document.getElementById('photosPerMonth').value);
+        try {
+            for (let m = 0; m < 12; m++) {
+                // Clear white
+                ctx.fillStyle = "white";
+                ctx.fillRect(0, 0, exportW, exportH);
+                
+                // --- DRAW PHOTOS (Top 60%) ---
+                // Re-calculate grid for high-res
+                const photoIds = monthData[m].photoIds;
+                if (photoIds.length > 0) {
+                    const photos = photoIds.map(id => photoLibrary.find(p => p.id === id));
+                    const gridH = exportH * 0.6;
+                    const gap = 12; // Larger gap for high res
+                    
+                    const layout = calculateOptimalGrid(photos, exportW, gridH, gap);
+                    
+                    for (const cell of layout.cells) {
+                        const img = new Image();
+                        img.src = cell.photo.src;
+                        await new Promise(r => img.onload = r);
+                        
+                        // Draw image cropped (cover)
+                        const cx = cell.x;
+                        const cy = cell.y;
+                        const cw = cell.width;
+                        const ch = cell.height;
+                        
+                        // Math for object-fit: cover on canvas
+                        let sWidth = img.width;
+                        let sHeight = img.height;
+                        let sx = 0; let sy = 0;
+                        const aspectImg = sWidth / sHeight;
+                        const aspectRect = cw / ch;
+                        
+                        if (aspectImg > aspectRect) {
+                            // Img wider than rect -> crop sides
+                            const newSW = sHeight * aspectRect;
+                            sx = (sWidth - newSW) / 2;
+                            sWidth = newSW;
+                        } else {
+                            // Img taller -> crop top/bottom
+                            const newSH = sWidth / aspectRect;
+                            sy = (sHeight - newSH) / 2;
+                            sHeight = newSH;
+                        }
+                        
+                        ctx.drawImage(img, sx, sy, sWidth, sHeight, cx, cy, cw, ch);
+                        
+                        // White border around photos? Optional, looks nice
+                        ctx.strokeStyle = "white";
+                        ctx.lineWidth = gap;
+                        ctx.strokeRect(cx, cy, cw, ch);
+                    }
+                }
 
-      const paperSize = document.getElementById('paperSize').value;
-      const btn = document.getElementById('exportBtn');
-      btn.disabled = true;
+                // --- DRAW CALENDAR (Bottom 40%) ---
+                const startY = exportH * 0.6;
+                const calH = exportH * 0.4;
+                const margin = 100; // Left/Right margin
+                const contentW = exportW - (margin*2);
+                
+                // Title
+                ctx.fillStyle = "#111827";
+                ctx.font = "300 100px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "top";
+                ctx.fillText(MONTH_NAMES[m].toUpperCase() + " 2026", exportW/2, startY + 40);
 
-      try {
-        for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
-          const startPhotoIndex = monthIndex * photosPerMonth;
-          const monthPhotos = photos.slice(startPhotoIndex, startPhotoIndex + photosPerMonth);
-          
-          const blob = await createCalendarPageBlob(
-            monthIndex, 
-            monthPhotos, 
-            exportWidth, 
-            exportHeight, 
-            marginPx, 
-            gapPx, 
-            document.getElementById('bgColorText').value
-          );
-          
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          const monthName = MONTHS_2026[monthIndex].name.toLowerCase();
-          a.href = url;
-          a.download = `kalender-2026-${monthName}-${paperSize}-${orientation}-${dpi}dpi.jpg`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
+                // Grid stats
+                const gridY = startY + 180;
+                const gridH = calH - 250;
+                const cellW = contentW / 7;
+                const cellH = gridH / 7; // Header + 6 rows
+                
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = "#111827";
+                
+                // Draw Header Text
+                ctx.font = "600 40px sans-serif";
+                const days = ['MAN', 'TIR', 'ONS', 'TOR', 'FRE', 'LØR', 'SØN'];
+                for(let i=0; i<7; i++) {
+                    const x = margin + (i * cellW) + (cellW/2);
+                    ctx.fillText(days[i], x, gridY + 20);
+                }
+                
+                // Main horizontal line under header
+                ctx.beginPath();
+                ctx.moveTo(margin, gridY + 80);
+                ctx.lineTo(exportW - margin, gridY + 80);
+                ctx.stroke();
 
-          await new Promise(r => setTimeout(r, 200));
+                // Draw Dates & User Text
+                ctx.font = "600 50px sans-serif";
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = "#e5e7eb";
+
+                const firstDate = new Date(2026, m, 1);
+                let startDay = firstDate.getDay(); if(startDay===0) startDay=7;
+                let dayCounter = 1;
+                const daysTotal = DAYS_IN_MONTH[m];
+
+                // Lines logic
+                for (let r = 0; r < 6; r++) {
+                    const y = gridY + 80 + (r * cellH);
+                    
+                    // Horizontal separator
+                    if (r > 0) {
+                        ctx.beginPath(); ctx.moveTo(margin, y); ctx.lineTo(exportW-margin, y); ctx.stroke();
+                    }
+
+                    for (let d = 0; d < 7; d++) {
+                        // Vertical separator
+                        if (d > 0) {
+                            const x = margin + (d * cellW);
+                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + cellH); ctx.stroke();
+                        }
+                        
+                        // Valid day?
+                        if ((r===0 && d+1 < startDay) || dayCounter > daysTotal) {
+                            // Empty
+                        } else {
+                            const cx = margin + (d * cellW);
+                            const cy = y;
+                            
+                            // Day Number
+                            ctx.fillStyle = "#111827";
+                            if (d >= 5) ctx.fillStyle = "#dc2626"; // Weekend red
+                            ctx.font = "600 50px sans-serif";
+                            ctx.textAlign = "left";
+                            ctx.fillText(dayCounter, cx + 15, cy + 15);
+                            
+                            // User Text
+                            const userText = monthData[m].texts[dayCounter];
+                            if (userText) {
+                                ctx.fillStyle = "#4b5563";
+                                ctx.font = "400 30px sans-serif"; // Smaller font for notes
+                                // Simple word wrap logic or just cut off
+                                wrapText(ctx, userText, cx + 15, cy + 80, cellW - 30, 40);
+                            }
+
+                            dayCounter++;
+                        }
+                    }
+                }
+                
+                // Border around grid
+                ctx.strokeStyle = "#111827";
+                ctx.lineWidth = 4;
+                ctx.strokeRect(margin, gridY, contentW, gridH);
+
+                // Add to Zip
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
+                zip.file(`${m+1}_${MONTH_NAMES[m]}.jpg`, blob);
+            }
+            
+            const content = await zip.generateAsync({type:"blob"});
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(content);
+            a.download = `${projectName}.zip`;
+            a.click();
+
+        } catch (e) {
+            console.error(e);
+            alert("Feil under eksport: " + e.message);
+        } finally {
+            btn.textContent = "Last ned Kalender (ZIP)";
+            btn.disabled = false;
         }
-      } catch (err) {
-        console.error(err);
-        alert('Feil ved eksport: ' + err.message);
-      } finally {
-        btn.disabled = false;
-      }
     }
 
-    async function downloadAllZip() {
-      if (photos.length === 0) return;
+    function wrapText(context, text, x, y, maxWidth, lineHeight) {
+        const words = text.split(' ');
+        let line = '';
 
-      const paper = getPaperDimensions();
-      const dpi = parseInt(document.getElementById('dpi').value);
-      const mmToPixels = dpi / 25.4;
-      const exportWidth = Math.round(paper.width * mmToPixels);
-      const exportHeight = Math.round(paper.height * mmToPixels);
-
-      const margin = parseInt(document.getElementById('margin').value);
-      const gap = parseInt(document.getElementById('gap').value);
-      const marginPx = Math.round(margin * mmToPixels);
-      const gapPx = Math.round(gap * mmToPixels);
-      const photosPerMonth = parseInt(document.getElementById('photosPerMonth').value);
-
-      const zip = new JSZip();
-      const paperSize = document.getElementById('paperSize').value;
-      const btn = document.getElementById('downloadAllBtn');
-      btn.disabled = true;
-
-      try {
-        for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
-          const startPhotoIndex = monthIndex * photosPerMonth;
-          const monthPhotos = photos.slice(startPhotoIndex, startPhotoIndex + photosPerMonth);
-          
-          const blob = await createCalendarPageBlob(
-            monthIndex, 
-            monthPhotos, 
-            exportWidth, 
-            exportHeight, 
-            marginPx, 
-            gapPx, 
-            document.getElementById('bgColorText').value
-          );
-          
-          const monthName = MONTHS_2026[monthIndex].name.toLowerCase();
-          zip.file(`${String(monthIndex + 1).padStart(2, '0')}-${monthName}.jpg`, blob);
+        for(let n = 0; n < words.length; n++) {
+          const testLine = line + words[n] + ' ';
+          const metrics = context.measureText(testLine);
+          const testWidth = metrics.width;
+          if (testWidth > maxWidth && n > 0) {
+            context.fillText(line, x, y);
+            line = words[n] + ' ';
+            y += lineHeight;
+          }
+          else {
+            line = testLine;
+          }
         }
-
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        const url = URL.createObjectURL(zipBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `kalender-2026-${paperSize}-${orientation}-${dpi}dpi.zip`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      } catch (err) {
-        console.error(err);
-        alert('Feil ved oppretting av zip: ' + err.message);
-      } finally {
-        btn.disabled = false;
-      }
+        context.fillText(line, x, y);
     }
 
-    renderCalendar();
   </script>
 </body>
 </html>
