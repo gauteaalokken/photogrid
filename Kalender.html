@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Kalender 2026 - v2.0</title>
+  <title>Fotogrid Kalender 2026 - v2.1 (HEIC Support)</title>
   
   <style>
     /* --- CSS STYLES --- */
@@ -32,6 +32,7 @@
     .btn-primary:hover { background: #1d4ed8; }
     .btn-secondary { background: white; border: 1px solid #d1d5db; color: #374151; }
     .btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+    .btn:disabled { opacity: 0.6; cursor: wait; }
 
     /* MAIN AREA */
     .main-area { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; position: relative; }
@@ -112,14 +113,16 @@
         .a4-page { transform: scale(0.7); margin-bottom: -300px; }
     }
   </style>
+  
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 </head>
 <body>
 
   <div class="sidebar">
     <div class="sidebar-header">
       <h1>Fotogrid Kalender</h1>
-      <span class="version-tag">Versjon 2.0</span>
+      <span class="version-tag">Versjon 2.1 (HEIC)</span>
       <p style="margin-top:5px;">Dra bilder til månedene</p>
     </div>
     <div class="sidebar-content">
@@ -138,10 +141,10 @@
 
       <div style="border-top:1px solid #eee; padding-top:10px;">
         <label>Bildebank</label>
-        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+        <button id="uploadBtn" class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
           + Last opp bilder
         </button>
-        <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+        <input type="file" id="fileInput" accept="image/*,.heic,.HEIC" multiple style="display:none">
       </div>
       
       <div>
@@ -177,8 +180,6 @@
     const MONTH_NAMES = ["Januar", "Februar", "Mars", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Desember"];
     const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     
-    // Norske helligdager 2026
-    // Format: "MonthIndex-Day": "Navn"
     const HOLIDAYS_2026 = {
         "0-1": "1. nyttårsdag",
         "2-29": "Palmesøndag",
@@ -202,7 +203,6 @@
         texts: {} 
     }));
 
-    // Layout Settings (mm)
     let settings = {
         gapMM: 2,
         padMM: 0
@@ -230,7 +230,6 @@
         await initDB();
         await loadData();
         
-        // Init UI controls
         document.getElementById('gapInput').value = settings.gapMM;
         document.getElementById('gapVal').textContent = settings.gapMM;
         document.getElementById('padInput').value = settings.padMM;
@@ -241,7 +240,6 @@
     })();
 
     // --- RENDER LOGIC ---
-    
     function updateSettings() {
         const gap = parseFloat(document.getElementById('gapInput').value);
         const pad = parseFloat(document.getElementById('padInput').value);
@@ -252,7 +250,6 @@
         document.getElementById('gapVal').textContent = gap;
         document.getElementById('padVal').textContent = pad;
 
-        // Re-render layouts
         for (let m = 0; m < 12; m++) {
             updateMonthGridLayout(m);
         }
@@ -285,7 +282,6 @@
         for (let m = 0; m < 12; m++) {
             container.appendChild(createPageElement(m));
         }
-        // Update photo layouts after DOM is ready
         for (let m = 0; m < 12; m++) {
             updateMonthGridLayout(m);
         }
@@ -296,14 +292,12 @@
         page.className = 'a4-page';
         page.id = `page-${monthIndex}`;
 
-        // TOP: PHOTO AREA
         const photoArea = document.createElement('div');
         photoArea.className = 'photo-area';
         photoArea.id = `photo-area-${monthIndex}`;
         photoArea.ondragover = handleDragOver;
         photoArea.ondrop = (e) => handleDropToMonth(e, monthIndex);
         
-        // BOTTOM: CALENDAR AREA
         const calArea = document.createElement('div');
         calArea.className = 'calendar-area';
         
@@ -326,7 +320,6 @@
         const grid = document.createElement('div');
         grid.className = 'cal-grid';
 
-        // Header Row
         const header = document.createElement('div');
         header.className = 'cal-row header';
         ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'].forEach(day => {
@@ -338,9 +331,8 @@
         });
         grid.appendChild(header);
 
-        // Date Logic 2026
         const firstDayDate = new Date(2026, monthIndex, 1);
-        let startDay = firstDayDate.getDay(); // 0=Sun, 1=Mon
+        let startDay = firstDayDate.getDay(); 
         if (startDay === 0) startDay = 7; 
         
         const totalDays = DAYS_IN_MONTH[monthIndex];
@@ -356,16 +348,14 @@
                 cell.className = 'cal-cell';
                 
                 if (r === 0 && d < startDay) {
-                    cell.style.background = '#f9fafb'; // Empty start
+                    cell.style.background = '#f9fafb';
                 } else if (currentDay <= totalDays) {
-                    // Actual Day
                     const holidayName = HOLIDAYS_2026[`${monthIndex}-${currentDay}`];
                     const isSunday = (d === 7);
                     
                     if (d === 6 || d === 7) cell.className += " weekend";
                     if (holidayName || isSunday) cell.className += " red-day";
                     
-                    // Date Row (Num + Holiday Name)
                     const dateRow = document.createElement('div');
                     dateRow.className = 'cal-date-row';
                     
@@ -382,7 +372,6 @@
                     }
                     cell.appendChild(dateRow);
                     
-                    // Input text
                     const input = document.createElement('textarea');
                     input.className = 'cal-input';
                     input.placeholder = "Notat...";
@@ -399,7 +388,7 @@
                     cell.appendChild(input);
                     currentDay++;
                 } else {
-                    cell.style.background = '#f9fafb'; // Empty end
+                    cell.style.background = '#f9fafb';
                 }
                 row.appendChild(cell);
             }
@@ -408,7 +397,6 @@
         return grid;
     }
 
-    // --- PHOTO GRID ALGORITHM ---
     function updateMonthGridLayout(mIndex) {
         const area = document.getElementById(`photo-area-${mIndex}`);
         area.innerHTML = '';
@@ -421,29 +409,22 @@
 
         const photos = photoIds.map(id => photoLibrary.find(p => p.id === id)).filter(p => p);
         
-        // Dimensions of the top 60% of A4 (794px width reference)
-        // 1mm approx 3.7795 px on screen (96dpi)
         const pxPerMm = 3.7795;
-        
         const totalW = 794;
         const totalH = 673; 
-        
         const padPx = settings.padMM * pxPerMm;
         const gapPx = settings.gapMM * pxPerMm;
 
-        // Effective area for photos
         const effectiveW = totalW - (padPx * 2);
         const effectiveH = totalH - (padPx * 2);
 
-        // Safety check if padding is too large
-        if (effectiveW < 50 || effectiveH < 50) return; // Too small to render
+        if (effectiveW < 50 || effectiveH < 50) return;
 
         const layout = calculateOptimalGrid(photos, effectiveW, effectiveH, gapPx);
 
         layout.cells.forEach(cell => {
             const div = document.createElement('div');
             div.className = 'grid-cell';
-            // Adjust coordinates by padding
             div.style.left = (cell.x + padPx) + 'px';
             div.style.top = (cell.y + padPx) + 'px';
             div.style.width = cell.width + 'px';
@@ -484,7 +465,6 @@
         const rows = bestLayout.rows;
         let totalH = bestLayout.totalHeight;
         
-        // Stretch to fill height exactly
         let scaleFactor = height / totalH; 
 
         rows.forEach(row => {
@@ -589,28 +569,54 @@
         saveState();
     }
 
-    // --- FILE HANDLING ---
+    // --- FILE HANDLING (UPDATED FOR HEIC) ---
     document.getElementById('fileInput').addEventListener('change', async (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
 
+        const uploadBtn = document.getElementById('uploadBtn');
+        const originalBtnText = uploadBtn.innerText;
+        uploadBtn.innerText = "Behandler...";
+        uploadBtn.disabled = true;
+
         for (const file of files) {
+            let processedBlob = file;
+            let fileName = file.name.toLowerCase();
+
+            // HEIC CONVERSION LOGIC
+            if (fileName.endsWith('.heic') || file.type === "image/heic" || file.type === "image/heif") {
+                try {
+                    uploadBtn.innerText = "Konverterer HEIC...";
+                    // heic2any returns a blob or array of blobs. We assume single.
+                    const result = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.8 });
+                    processedBlob = Array.isArray(result) ? result[0] : result;
+                } catch (err) {
+                    console.error("HEIC konvertering feilet for", file.name, err);
+                    alert("Kunne ikke konvertere " + file.name + ". Prøv et annet bilde.");
+                    continue;
+                }
+            }
+
             const id = Date.now() + Math.random().toString();
-            const src = URL.createObjectURL(file);
+            const src = URL.createObjectURL(processedBlob);
+            
             const img = new Image();
             img.src = src;
             await new Promise(r => img.onload = r);
             const ratio = img.width / img.height;
 
-            const photo = { id, src, file, ratio };
+            const photo = { id, src, file: processedBlob, ratio };
             photoLibrary.push(photo);
             inboxIds.push(id);
             
             const tx = db.transaction('photos', 'readwrite');
-            tx.objectStore('photos').put({id, file, ratio});
+            tx.objectStore('photos').put({id, file: processedBlob, ratio});
         }
+        
         renderInbox();
         saveState();
+        uploadBtn.innerText = originalBtnText;
+        uploadBtn.disabled = false;
     });
 
     // --- PERSISTENCE ---
@@ -682,12 +688,9 @@
         const zip = new JSZip();
         const projectName = document.getElementById('projectName').value || "Kalender2026";
         
-        // A4 300 DPI = 2480 x 3508 pixels
         const exportW = 2480;
         const exportH = 3508;
         
-        // Convert MM settings to Export Pixels (300 DPI)
-        // 1 inch = 25.4 mm. 300 / 25.4 approx 11.811
         const pxPerMmExport = 11.811;
         const gapExport = settings.gapMM * pxPerMmExport;
         const padExport = settings.padMM * pxPerMmExport;
@@ -699,18 +702,14 @@
 
         try {
             for (let m = 0; m < 12; m++) {
-                // Background
                 ctx.fillStyle = "white";
                 ctx.fillRect(0, 0, exportW, exportH);
                 
-                // --- DRAW PHOTOS (Top 60%) ---
                 const photoIds = monthData[m].photoIds;
                 if (photoIds.length > 0) {
                     const photos = photoIds.map(id => photoLibrary.find(p => p.id === id));
-                    
                     const totalAreaH = exportH * 0.6;
                     
-                    // Effective area logic for export
                     const effW = exportW - (padExport * 2);
                     const effH = totalAreaH - (padExport * 2);
 
@@ -722,13 +721,11 @@
                             img.src = cell.photo.src;
                             await new Promise(r => img.onload = r);
                             
-                            // Adjust for padding
                             const cx = cell.x + padExport;
                             const cy = cell.y + padExport;
                             const cw = cell.width;
                             const ch = cell.height;
                             
-                            // Object-fit: cover calc
                             let sWidth = img.width;
                             let sHeight = img.height;
                             let sx = 0; let sy = 0;
@@ -750,20 +747,17 @@
                     }
                 }
 
-                // --- DRAW CALENDAR (Bottom 40%) ---
                 const startY = exportH * 0.6;
                 const calH = exportH * 0.4;
                 const margin = 120; 
                 const contentW = exportW - (margin*2);
                 
-                // Title
                 ctx.fillStyle = "#111827";
                 ctx.font = "300 100px sans-serif";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "top";
                 ctx.fillText(MONTH_NAMES[m].toUpperCase() + " 2026", exportW/2, startY + 40);
 
-                // Grid stats
                 const gridY = startY + 180;
                 const gridH = calH - 250;
                 const cellW = contentW / 7;
@@ -772,7 +766,6 @@
                 ctx.lineWidth = 4;
                 ctx.strokeStyle = "#111827";
                 
-                // Headers
                 ctx.font = "600 40px sans-serif";
                 const days = ['MAN', 'TIR', 'ONS', 'TOR', 'FRE', 'LØR', 'SØN'];
                 for(let i=0; i<7; i++) {
@@ -780,13 +773,11 @@
                     ctx.fillText(days[i], x, gridY + 20);
                 }
                 
-                // Line under header
                 ctx.beginPath();
                 ctx.moveTo(margin, gridY + 80);
                 ctx.lineTo(exportW - margin, gridY + 80);
                 ctx.stroke();
 
-                // Dates
                 ctx.font = "600 50px sans-serif";
                 ctx.lineWidth = 2;
                 ctx.strokeStyle = "#e5e7eb";
@@ -816,21 +807,18 @@
                             const cy = y;
                             const holidayName = HOLIDAYS_2026[`${m}-${dayCounter}`];
                             
-                            // Day Number
                             ctx.fillStyle = "#111827";
-                            if (d >= 5 || holidayName) ctx.fillStyle = "#dc2626"; // Red
+                            if (d >= 5 || holidayName) ctx.fillStyle = "#dc2626"; 
                             ctx.textAlign = "left";
                             ctx.font = "600 50px sans-serif";
                             ctx.fillText(dayCounter, cx + 15, cy + 15);
                             
-                            // Holiday Name (Small)
                             if (holidayName) {
                                 ctx.font = "600 24px sans-serif";
                                 ctx.textAlign = "right";
                                 ctx.fillText(holidayName, cx + cellW - 10, cy + 15);
                             }
 
-                            // User Text
                             const userText = monthData[m].texts[dayCounter];
                             if (userText) {
                                 ctx.fillStyle = "#4b5563";
