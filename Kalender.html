@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Kalender 2026 - v2.4 (Backup & Clean Export)</title>
+  <title>Fotogrid Kalender 2026 - v2.5 (450 DPI)</title>
   
   <style>
     /* --- CSS STYLES --- */
@@ -123,8 +123,8 @@
   <div class="sidebar">
     <div class="sidebar-header">
       <h1>Fotogrid Kalender</h1>
-      <span class="version-tag">Versjon 2.4</span>
-      <p class="sub-text" style="margin-top:5px;">Inkl. Backup & Restore</p>
+      <span class="version-tag">Versjon 2.5 (450 DPI)</span>
+      <p class="sub-text" style="margin-top:5px;">Høyoppløselig Eksport</p>
     </div>
     <div class="sidebar-content">
       <div>
@@ -167,7 +167,7 @@
       <button id="exportBtn" class="btn btn-primary" onclick="exportCalendar()">
         Last ned Kalender (ZIP)
       </button>
-      <p style="font-size:11px; text-align:center; color:#6b7280;">Format: A4, 300 DPI</p>
+      <p style="font-size:11px; text-align:center; color:#6b7280;">Format: A4, 450 DPI</p>
     </div>
   </div>
 
@@ -221,7 +221,7 @@
     };
 
     // --- DB SETUP ---
-    // KEEPING SAME DB NAME TO PRESERVE DATA FROM V2.1/2.2
+    // KEEPING SAME DB NAME TO PRESERVE DATA
     const dbName = "Cal2026DB_v2";
     let db;
     
@@ -778,7 +778,7 @@
         location.reload();
     }
 
-    // --- EXPORT LOGIC (FIXED) ---
+    // --- EXPORT LOGIC (UPDATED TO 450 DPI) ---
     async function exportCalendar() {
         const btn = document.getElementById('exportBtn');
         btn.textContent = "Genererer...";
@@ -787,10 +787,13 @@
         const zip = new JSZip();
         const projectName = document.getElementById('projectName').value || "Kalender2026";
         
-        const exportW = 2480;
-        const exportH = 3508;
+        // A4 450 DPI
+        // 210mm / 25.4 * 450 = 3720
+        // 297mm / 25.4 * 450 = 5262
+        const exportW = 3720;
+        const exportH = 5262;
         
-        const pxPerMmExport = 11.811;
+        const pxPerMmExport = 17.7165; // 450 / 25.4
         const gapExport = settings.gapMM * pxPerMmExport;
         const padExport = settings.padMM * pxPerMmExport;
 
@@ -799,12 +802,12 @@
         canvas.height = exportH;
         const ctx = canvas.getContext('2d');
         
-        // Define fonts
-        const fontMain = "300 100px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-        const fontHeader = "600 35px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-        const fontDate = "600 45px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-        const fontHoliday = "600 24px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-        const fontUserText = "400 32px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+        // Define fonts (Scaled 1.5x from 300dpi version)
+        const fontMain = "300 150px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+        const fontHeader = "600 52px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+        const fontDate = "600 68px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+        const fontHoliday = "600 36px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+        const fontUserText = "400 48px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
         try {
             for (let m = 0; m < 12; m++) {
@@ -857,7 +860,7 @@
                 // --- CALENDAR GRID ---
                 const startY = exportH * 0.6;
                 const calH = exportH * 0.4;
-                const margin = 120; 
+                const margin = 180; // Scaled 120 * 1.5
                 const contentW = exportW - (margin*2);
                 
                 // Month Title
@@ -865,11 +868,11 @@
                 ctx.font = fontMain;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "top";
-                ctx.fillText(MONTH_NAMES[m].toUpperCase() + " 2026", exportW/2, startY + 50);
+                ctx.fillText(MONTH_NAMES[m].toUpperCase() + " 2026", exportW/2, startY + 75);
 
                 // Grid config
-                const gridY = startY + 200;
-                const gridH = calH - 250;
+                const gridY = startY + 300;
+                const gridH = calH - 375;
                 const cellW = contentW / 7;
                 const cellH = gridH / 7; 
                 
@@ -880,7 +883,7 @@
                 
                 // Header Top Line (Thick black)
                 ctx.strokeStyle = "#111827";
-                ctx.lineWidth = 4;
+                ctx.lineWidth = 6;
                 ctx.beginPath();
                 ctx.moveTo(margin, gridY);
                 ctx.lineTo(exportW - margin, gridY);
@@ -890,15 +893,15 @@
                     const x = margin + (i * cellW);
                     const textWidth = ctx.measureText(days[i]).width;
                     ctx.fillStyle = "#4b5563"; // Grayish
-                    ctx.fillText(days[i], x + (cellW/2) - (textWidth/2), gridY + 20);
+                    ctx.fillText(days[i], x + (cellW/2) - (textWidth/2), gridY + 30);
                 }
                 
                 // Header Bottom Line (Thin gray)
                 ctx.strokeStyle = "#9ca3af"; 
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 3;
                 ctx.beginPath();
-                ctx.moveTo(margin, gridY + 80);
-                ctx.lineTo(exportW - margin, gridY + 80);
+                ctx.moveTo(margin, gridY + 120);
+                ctx.lineTo(exportW - margin, gridY + 120);
                 ctx.stroke();
 
                 // Draw Grid & Dates
@@ -909,10 +912,10 @@
 
                 // Grid Lines Settings
                 ctx.strokeStyle = "#e5e7eb";
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 3;
 
                 for (let r = 0; r < 6; r++) {
-                    const y = gridY + 80 + (r * cellH);
+                    const y = gridY + 120 + (r * cellH);
                     
                     if (r > 0) {
                         ctx.beginPath(); ctx.moveTo(margin, y); ctx.lineTo(exportW-margin, y); ctx.stroke();
@@ -946,22 +949,22 @@
                             if (d >= 5 || holidayName) ctx.fillStyle = "#dc2626"; // Red
                             ctx.textAlign = "left";
                             ctx.font = fontDate;
-                            ctx.fillText(dayCounter, cx + 15, cy + 15);
+                            ctx.fillText(dayCounter, cx + 22, cy + 22);
                             
                             // Holiday Name
                             if (holidayName) {
                                 ctx.font = fontHoliday;
                                 ctx.textAlign = "right";
-                                ctx.fillText(holidayName, cx + cellW - 10, cy + 15);
+                                ctx.fillText(holidayName, cx + cellW - 15, cy + 22);
                             }
 
-                            // User Notes (NO PLACEHOLDER)
+                            // User Notes
                             const userText = monthData[m].texts[dayCounter];
                             if (userText) {
                                 ctx.fillStyle = "#4b5563"; 
                                 ctx.textAlign = "left";
                                 ctx.font = fontUserText; 
-                                wrapText(ctx, userText, cx + 15, cy + 80, cellW - 30, 42);
+                                wrapText(ctx, userText, cx + 22, cy + 120, cellW - 45, 63);
                             }
                             dayCounter++;
                         }
@@ -970,10 +973,10 @@
                 
                 // Grid Bottom Border
                 ctx.strokeStyle = "#e5e7eb";
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 3;
                 ctx.beginPath();
-                ctx.moveTo(margin, gridY + 80 + (6*cellH));
-                ctx.lineTo(exportW - margin, gridY + 80 + (6*cellH));
+                ctx.moveTo(margin, gridY + 120 + (6*cellH));
+                ctx.lineTo(exportW - margin, gridY + 120 + (6*cellH));
                 ctx.stroke();
 
                 const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
