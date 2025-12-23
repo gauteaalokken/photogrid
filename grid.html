@@ -3,1199 +3,538 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro V071 - Page Sort & Slider Fix</title>
+  <title>Fotogrid Pro - Oppdatert</title>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   
-  <link rel="icon" type="image/png" href="icon.png">
-  <link rel="manifest" href='data:application/manifest+json;base64,ewogICJuYW1lIjogIkZvdG9ncmlkIFBybyIsCiAgInNob3J0X25hbWUiOiAiRm90b2dyaWQiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAiYnJvd3NlciIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiMyNTYzZWIiLAogICJpY29ucyI6IFt7CiAgICAic3JjIjogImljb24ucG5nIiwKICAgICJzaXplcyI6ICI1MTJ4NTEyIiwKICAgICJ0eXBlIjogImltYWdlL3BuZyIKICB9XQp9' />
-  <meta name="theme-color" content="#2563eb">
-
   <style>
     /* --- CSS STYLES --- */
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    .app-container { min-height: 100vh; background-color: #e5e7eb; display: flex; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
+    .app-container { height: 100vh; background-color: #e5e7eb; display: flex; }
     
-    .version-label {
-      position: fixed; top: 10px; right: 10px;
-      background-color: rgba(255, 255, 255, 0.8);
-      border: 1px solid #e5e7eb; color: #6b7280;
-      padding: 4px 8px; border-radius: 6px;
-      font-size: 11px; font-weight: 600;
-      z-index: 100; pointer-events: none; font-family: monospace;
-    }
-
     /* Sidebar */
-    .sidebar { width: 340px; background-color: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; z-index: 30; flex-shrink: 0; height: 100vh; }
-    .sidebar-header { padding: 24px 24px 16px 24px; border-bottom: 1px solid #e5e7eb; }
-    .sidebar-header h1 { font-size: 24px; font-weight: 600; color: #111827; margin-bottom: 4px; }
-    .sidebar-header p { font-size: 14px; color: #6b7280; }
-    
-    .sidebar-content { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
-    .sidebar-footer { padding: 24px; border-top: 1px solid #e5e7eb; }
-    
-    /* Layout Tabs */
-    .layout-tabs { display: flex; gap: 8px; margin-top: 16px; }
-    .layout-tab {
-      flex: 1; padding: 8px; font-size: 14px; font-weight: 600;
-      background-color: #f3f4f6; border: 1px solid #e5e7eb;
-      color: #6b7280; border-radius: 8px; cursor: pointer; transition: all 0.2s;
-    }
-    .layout-tab:hover { background-color: #e5e7eb; color: #374151; }
-    .layout-tab.active { background-color: #eff6ff; border-color: #2563eb; color: #2563eb; }
+    .sidebar { width: 340px; background-color: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; z-index: 30; flex-shrink: 0; }
+    .sidebar-header { padding: 20px; border-bottom: 1px solid #e5e7eb; }
+    .sidebar-header h1 { font-size: 24px; font-weight: 600; color: #111827; }
+    .sidebar-content { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+    .sidebar-footer { padding: 20px; border-top: 1px solid #e5e7eb; background: #f9fafb; }
 
     /* Controls */
     .control-group { display: flex; flex-direction: column; gap: 8px; }
-    .control-group label { font-size: 14px; font-weight: 500; color: #374151; }
-    .photo-count { font-size: 12px; color: #6b7280; margin-top: 8px; }
+    .control-group label { font-size: 13px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; }
     
     /* Buttons */
-    .btn-primary { width: 100%; padding: 12px 16px; background-color: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    button { cursor: pointer; transition: all 0.2s; font-family: inherit; }
+    .btn-primary { width: 100%; padding: 10px; background-color: #2563eb; color: white; border: none; border-radius: 6px; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .btn-primary:hover { background-color: #1d4ed8; }
-    .btn-secondary { width: 100%; padding: 8px 16px; background-color: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;}
-    .btn-secondary:hover:not(:disabled) { border-color: #9ca3af; background-color: #f3f4f6; }
-    .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-danger { width: 100%; padding: 8px 16px; color: #dc2626; background-color: white; border: 1px solid #fca5a5; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; }
-    .btn-danger:hover { background-color: #fef2f2; }
-    .btn-export { width: 100%; padding: 12px 16px; background-color: #111827; color: white; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
-    .btn-export:hover { background-color: #1f2937; }
-    .btn-export:disabled { opacity: 0.5; cursor: not-allowed; }
     
-    .button-group { display: flex; gap: 8px; }
-    .button-group button { flex: 1; padding: 8px 16px; background-color: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-    .button-group button:hover { border-color: #9ca3af; }
-    .button-group button.active { background-color: #eff6ff; border-color: #2563eb; color: #1d4ed8; }
+    .btn-secondary { width: 100%; padding: 8px; background-color: white; color: #374151; border: 1px solid #d1d5db; border-radius: 6px; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-secondary:hover { background-color: #f3f4f6; border-color: #9ca3af; }
     
-    /* Inputs */
-    select, input[type="text"] { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
-    select:focus, input[type="text"]:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
-    input[type="range"] { width: 100%; }
-    input[type="number"] { -moz-appearance: textfield; }
-    input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    .color-input-group { display: flex; gap: 8px; }
-    .color-input-group input[type="color"] { width: 48px; height: 40px; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; }
-    .color-input-group input[type="text"] { flex: 1; font-family: 'Courier New', monospace; }
+    .btn-danger { background-color: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+    .btn-danger:hover { background-color: #fef2f2; border-color: #dc2626; }
     
-    /* Main Canvas */
-    .main-canvas { flex: 1; padding: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; position: relative; overflow: hidden; }
+    .btn-group { display: flex; gap: 8px; }
+    .btn-group button { flex: 1; }
+    
+    /* Canvas Area */
+    .main-canvas { flex: 1; display: flex; flex-direction: column; height: 100vh; position: relative; overflow: hidden; background: #e5e7eb; }
     .canvas-wrapper { 
-      display: flex; flex-direction: row; align-items: center; justify-content: flex-start;
-      width: 100%; height: 100%; overflow-x: auto; overflow-y: hidden;
-      padding: 0 40px; gap: 60px; scroll-behavior: smooth;
+      flex: 1; display: flex; align-items: center; padding: 40px; gap: 40px; 
+      overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth;
     }
+
+    /* Page styling */
+    .page-wrapper { display: flex; flex-direction: column; gap: 10px; transition: transform 0.3s; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; color: #6b7280; font-size: 12px; font-weight: 600; padding: 0 4px; }
     
-    /* Page Container */
     .page-container {
-        display: flex; flex-direction: column; align-items: center; flex-shrink: 0;
-        opacity: 0.4; transition: all 0.3s ease; transform: scale(0.9);
+      background: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      position: relative; overflow: hidden; transition: all 0.3s ease;
     }
-    .page-container.active { opacity: 1; transform: scale(1); z-index: 10; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
-    .page-container:hover, .page-container.drag-active { opacity: 0.9; transform: scale(0.95); }
-    .page-container.active:hover { transform: scale(1); opacity: 1; }
+    .page-container:hover { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    
+    /* Photo Grid inside Page */
+    .photo-grid {
+      display: grid; width: 100%; height: 100%;
+    }
+    .photo-cell {
+      background: #f3f4f6; position: relative; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .photo-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-cell:hover .remove-photo { opacity: 1; }
+    
+    .remove-photo {
+      position: absolute; top: 5px; right: 5px; background: rgba(220, 38, 38, 0.9); color: white;
+      width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; opacity: 0; transition: opacity 0.2s; font-size: 12px; border: none;
+    }
 
-    /* Visual for page drag */
-    .page-container.page-dragging { opacity: 0.2; transform: scale(0.8); border: 2px dashed #2563eb; border-radius: 8px; }
-    .page-container.page-drop-target { border-left: 4px solid #2563eb; padding-left: 10px; transition: all 0.2s; }
-    
-    .page-header {
-      display: flex; align-items: center; justify-content: space-between; width: 100%;
-      margin-bottom: 12px; 
-    }
-    .page-label-group {
-      display: flex; align-items: center; gap: 8px;
-      background: white; padding: 4px 8px; border-radius: 12px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    }
-    .page-drag-handle {
-      cursor: grab; color: #9ca3af; display: flex; align-items: center;
-    }
-    .page-drag-handle:hover { color: #374151; }
-    .page-label { font-size: 14px; font-weight: 600; color: #4b5563; user-select: none; }
-    
+    /* Inputs */
+    input[type="range"] { width: 100%; accent-color: #2563eb; }
+    select, input[type="text"], input[type="number"] { width: 100%; padding: 6px; border: 1px solid #d1d5db; border-radius: 4px; }
+
+    /* Delete Page Button */
     .delete-page-btn {
-      background: #fee2e2; color: #ef4444; border: 1px solid #fecaca;
-      border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
-      cursor: pointer; opacity: 0; transition: opacity 0.2s;
+        cursor: pointer; color: #ef4444; background: none; border: none; font-size: 16px;
+        opacity: 0.5; transition: opacity 0.2s;
     }
-    .page-container:hover .delete-page-btn { opacity: 1; }
-    .delete-page-btn:hover { background: #ef4444; color: white; border-color: #ef4444; }
+    .delete-page-btn:hover { opacity: 1; transform: scale(1.1); }
 
-    .canvas { 
-      position: relative; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); flex-shrink: 0; 
-      border: 1px solid #d1d5db; overflow: hidden; background-color: white;
+    /* Modal / Overlay */
+    .loading-overlay {
+        position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 100;
+        display: none; align-items: center; justify-content: center; flex-direction: column;
     }
-    
-    /* Nav & Drag */
-    .page-nav-controls { 
-        position: absolute; bottom: 24px; display: flex; align-items: center; gap: 16px; 
-        background: white; padding: 8px 16px; border-radius: 50px; 
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border: 1px solid #e5e7eb; z-index: 40; 
+    .spinner {
+        width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top: 4px solid #2563eb; border-radius: 50%;
+        animation: spin 1s linear infinite; margin-bottom: 10px;
     }
-    .nav-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #e5e7eb; background: white; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #374151; transition: all 0.15s; }
-    .nav-btn:hover:not(:disabled) { background-color: #eff6ff; border-color: #2563eb; color: #2563eb; }
-    .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; background-color: #f3f4f6; }
-    .nav-info { font-size: 14px; font-weight: 600; color: #374151; min-width: 90px; text-align: center; user-select: none; }
-    
-    .dropzone { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; border: 2px dashed #d1d5db; border-radius: 8px; pointer-events: none; }
-    .grid-container { position: absolute; transition: top 0.3s ease; pointer-events: none; }
-    .photo-cell { position: absolute; overflow: hidden; background-color: #f3f4f6; transition: all 0.2s ease; cursor: grab; pointer-events: auto; }
-    .photo-cell.dragging { opacity: 0.4; cursor: grabbing; border: 2px dashed #2563eb; }
-    .photo-cell.drag-over { outline: 3px solid #2563eb; z-index: 10; transform: scale(1.02); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-    .photo-cell img { width: 100%; height: 100%; object-fit: cover; object-position: center; pointer-events: none; }
-    .photo-cell:hover .remove-btn { opacity: 1; }
-    .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background-color: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; transition: all 0.15s; z-index: 5; }
-    .remove-btn:hover { background-color: #dc2626; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-    /* Modal */
-    .modal-overlay { position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; }
-    .modal-overlay.open { display: flex; }
-    .modal-box { background: white; width: 300px; padding: 24px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 16px; }
-    .modal-title { font-size: 18px; font-weight: 600; }
-    .modal-inputs { display: flex; gap: 12px; }
-    .modal-input-grp { flex: 1; }
-    .modal-input-grp label { display: block; font-size: 12px; font-weight: 500; margin-bottom: 4px; color: #4b5563; }
-    .modal-input-grp input { width: 100%; }
-    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
-
-    @media (max-width: 900px) {
-      .app-container { flex-direction: column; }
-      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #e5e7eb; height: auto; max-height: 40vh; }
-      .main-canvas { height: 60vh; }
-      .canvas-wrapper { padding: 20px 16px; gap: 16px; }
-    }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
-  
-  <div class="version-label">V071 Page Sort</div>
 
-  <div id="customSizeModal" class="modal-overlay">
-    <div class="modal-box">
-      <h3 class="modal-title">Egendefinert størrelse</h3>
-      <div class="modal-inputs">
-        <div class="modal-input-grp"><label>Bredde (mm)</label><input type="number" id="customWidth" value="210"></div>
-        <div class="modal-input-grp"><label>Høyde (mm)</label><input type="number" id="customHeight" value="297"></div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn-secondary" onclick="closeCustomModal()">Avbryt</button>
-        <button class="btn-primary" onclick="applyCustomSize()">Bruk</button>
-      </div>
-    </div>
-  </div>
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loadingText" style="font-weight:600; color:#374151">Jobber...</div>
+</div>
 
-  <div class="app-container">
+<div class="app-container">
     <div class="sidebar">
-      <div class="sidebar-header">
-        <h1>Fotogrid</h1>
-        <p>Print-klare layouter</p>
-        <label style="font-size:12px; font-weight:600; color:#6b7280; margin-top:12px; display:block;">AKTIVT PROSJEKT</label>
-        <div class="layout-tabs">
-            <button class="layout-tab active" onclick="switchLayout(1)" id="tab-1">1</button>
-            <button class="layout-tab" onclick="switchLayout(2)" id="tab-2">2</button>
-            <button class="layout-tab" onclick="switchLayout(3)" id="tab-3">3</button>
-            <button class="layout-tab" onclick="switchLayout(4)" id="tab-4">4</button>
-            <button class="layout-tab" onclick="switchLayout(5)" id="tab-5">5</button>
-        </div>
-      </div>
-
-      <div class="sidebar-content">
-        <div class="control-group">
-            <label>Prosjektnavn</label>
-            <input type="text" id="projectName" placeholder="Navn på dette prosjektet" onchange="saveSettings()">
+        <div class="sidebar-header">
+            <h1>Fotogrid Pro</h1>
+            <p style="color:#6b7280; font-size:14px;">Smart sideoppsett</p>
         </div>
 
-        <div class="control-group">
-          <label>Bilder</label>
-          <div style="display:flex; flex-wrap: wrap; gap:8px;">
-            <button class="btn-primary" onclick="document.getElementById('fileInput').click()" style="flex:2; min-width: 90px;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> Legg til
-            </button>
-            <button class="btn-secondary" onclick="sortByColor()" title="Sortér" style="flex:1">
-               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>
-            </button>
-            <button class="btn-secondary" id="undoBtn" onclick="undo()" disabled title="Angre" style="flex:1">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
-            </button>
-          </div>
-          <input type="file" id="fileInput" accept="image/*" multiple style="display: none">
-          <p class="photo-count"><span id="photoCount">0</span> bilder <span id="saveStatus" style="float:right; color:#2563eb; display:none;">Lagret</span></p>
-        </div>
-        
-        <div class="control-group">
-            <label>Sider</label>
-            <div style="display: flex; gap: 8px;">
-                <button class="btn-secondary" onclick="addEmptyPage()" style="flex:1">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-                    Ny side
-                </button>
-                <button class="btn-secondary" onclick="autoFlow()" title="Tilbakestill layout" style="flex:1">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                    Autoflyt
-                </button>
+        <div class="sidebar-content">
+            <div class="control-group">
+                <label>Bilder & Angre</label>
+                <div class="btn-group">
+                    <button class="btn-primary" onclick="document.getElementById('fileInput').click()">
+                        + Legg til bilder
+                    </button>
+                    <button class="btn-secondary" onclick="app.undo()" title="Angre siste handling">
+                        Angre
+                    </button>
+                </div>
+                <input type="file" id="fileInput" multiple accept="image/*" style="display:none" onchange="app.handleFiles(this.files)">
+                <div style="font-size:12px; color:#6b7280; margin-top:4px;">
+                    <span id="photoCount">0</span> bilder totalt
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Sider</label>
+                <div class="btn-group">
+                    <button class="btn-secondary" onclick="app.addEmptyPage()" title="Setter inn ny side etter gjeldende side">
+                        + Ny side her
+                    </button>
+                    <button class="btn-secondary" onclick="app.autoFlow()" title="Fyller opp tomrom">
+                        Autoflyt
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Bilder per side: <span id="gridSizeVal">4</span></label>
+                <input type="range" min="1" max="16" value="4" oninput="app.updateSettings('photosPerPage', this.value)">
+            </div>
+
+            <div class="control-group">
+                <label>Marg: <span id="marginVal">2</span>mm</label>
+                <input type="range" min="0" max="20" step="0.5" value="2" oninput="app.updateSettings('margin', this.value)">
+            </div>
+
+            <div class="control-group">
+                <label>Mellomrom (Gap): <span id="gapVal">2</span>mm</label>
+                <input type="range" min="0" max="20" step="0.5" value="2" oninput="app.updateSettings('gap', this.value)">
+            </div>
+
+            <div class="control-group">
+                <label>Papir & Retning</label>
+                <select onchange="app.updateSettings('paperSize', this.value)">
+                    <option value="A4">A4</option>
+                    <option value="A3">A3</option>
+                    <option value="10x15">10x15 cm</option>
+                </select>
+                <div class="btn-group" style="margin-top:8px;">
+                    <button class="btn-secondary" onclick="app.updateSettings('orientation', 'portrait')">Portrett</button>
+                    <button class="btn-secondary" onclick="app.updateSettings('orientation', 'landscape')">Landskap</button>
+                </div>
+            </div>
+            
+             <div class="control-group">
+                <label>Bakgrunnsfarge</label>
+                <input type="color" value="#ffffff" style="width:100%; height:30px; cursor:pointer;" oninput="app.updateSettings('bgColor', this.value)">
             </div>
         </div>
 
-        <div class="control-group">
-            <label>Visningskvalitet</label>
-            <select id="previewQuality" onchange="togglePreviewQuality(this.value)">
-              <option value="low" selected>Rask (Lav oppløsning)</option>
-              <option value="high">Original (Høy oppløsning)</option>
-            </select>
+        <div class="sidebar-footer">
+            <button class="btn-primary" onclick="app.exportAll()" style="background-color:#111827;">
+                Last ned ZIP (Høy kvalitet)
+            </button>
         </div>
-
-        <div class="control-group">
-          <label>Bilder per side</label>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="range" id="photosPerPage" min="1" max="36" value="36" oninput="handleSliderChange('photosPerPage', this.value)" style="flex: 1;">
-            <input type="number" id="photosPerPageInput" min="1" max="36" value="36" oninput="handleInputChange('photosPerPage', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
-          </div>
-        </div>
-
-        <div class="control-group">
-            <label>Toleranse: +/- <span id="toleranceValue">0</span></label>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="range" id="pageTolerance" min="0" max="5" value="0" oninput="handleSliderChange('tolerance', this.value)">
-              <input type="number" id="pageToleranceInput" min="0" max="5" value="0" oninput="handleInputChange('tolerance', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
-            </div>
-        </div>
-
-        <div class="control-group">
-          <label>Papirstørrelse</label>
-          <select id="paperSize" onchange="checkPaperSize(this)">
-            <option value="A4">A4 (210×297mm)</option>
-            <option value="A3">A3 (297×420mm)</option>
-            <option value="A2">A2 (420×594mm)</option>
-            <option value="LETTER">Letter (8.5×11")</option>
-            <option value="PHOTO_10X15">10×15 cm</option>
-            <option value="INSTASTORY">Instagram Story</option>
-            <option value="INSTAINLEGG">Instagram Post</option>
-            <option value="CUSTOM">Spesial...</option>
-          </select>
-        </div>
-
-        <div class="control-group">
-          <label>Retning</label>
-          <div class="button-group">
-            <button id="portraitBtn" class="active" onclick="setOrientation('portrait')">Portrett</button>
-            <button id="landscapeBtn" onclick="setOrientation('landscape')">Landskap</button>
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label>Marg: <span id="marginValue">2</span>mm</label>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="range" id="margin" min="0" max="50" step="0.5" value="2" oninput="handleSliderChange('margin', this.value)">
-            <input type="number" id="marginInput" min="0" max="50" step="0.5" value="2" oninput="handleInputChange('margin', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label>Avstand: <span id="gapValue">2</span>mm</label>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="range" id="gap" min="0" max="20" step="0.5" value="2" oninput="handleSliderChange('gap', this.value)">
-            <input type="number" id="gapInput" min="0" max="20" step="0.5" value="2" oninput="handleInputChange('gap', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label>Bakgrunn</label>
-          <div class="color-input-group">
-            <input type="color" id="bgColorPicker" value="#FFFFFF" oninput="document.getElementById('bgColorText').value = this.value; document.getElementById('canvas').style.backgroundColor = this.value; saveSettings();">
-            <input type="text" id="bgColorText" value="#FFFFFF" oninput="document.getElementById('bgColorPicker').value = this.value; document.getElementById('canvas').style.backgroundColor = this.value; saveSettings();">
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label>Eksport DPI: <span id="dpiValue">300</span></label>
-          <select id="dpi" onchange="document.getElementById('dpiValue').textContent = this.value">
-            <option value="150">150 DPI (Utkast)</option>
-            <option value="300" selected>300 DPI (Standard)</option>
-            <option value="600">600 DPI (Høy kvalitet)</option>
-          </select>
-        </div>
-
-        <button id="clearBtn" class="btn-danger" onclick="clearAll()" style="display:none">Tøm dette prosjektet</button>
-      </div>
-
-      <div class="sidebar-footer">
-        <button id="exportBtn" class="btn-export" onclick="exportGrid()" disabled>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Eksporter grid
-        </button>
-        <button id="downloadAllBtn" class="btn-primary" onclick="downloadAllZip()" style="margin-top:8px; display:none">Last ned zip</button>
-      </div>
     </div>
 
     <div class="main-canvas">
-      <div id="canvasWrapper" class="canvas-wrapper"></div>
-      
-      <div id="pageNav" class="page-nav-controls" style="display: none;">
-        <button class="nav-btn" id="prevBtn" onclick="changePage(-1)" title="Forrige side"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
-        <span id="pageIndicator" class="nav-info">Side 1 av 1</span>
-        <button class="nav-btn" id="nextBtn" onclick="changePage(1)" title="Neste side"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
-      </div>
+        <div id="canvasWrapper" class="canvas-wrapper">
+            </div>
     </div>
-  </div>
+</div>
 
-  <script>
-    // --- KONFIGURASJON ---
-    const PAPER_SIZES = {
-      A4: { width: 210, height: 297 },
-      A3: { width: 297, height: 420 },
-      A2: { width: 420, height: 594 },
-      LETTER: { width: 216, height: 279 },
-      PHOTO_10X15: { width: 100, height: 150 },
-      INSTASTORY: { width: 108, height: 192 },
-      INSTAINLEGG: { width: 108, height: 135 },
-      CUSTOM: { width: 0, height: 0 } 
-    };
-    
-    let customDimensions = { width: 200, height: 200 };
-    let previousPaperSize = 'A4';
+<script>
+/**
+ * FOTOGRID ENGINE V2
+ * Fullstendig omskrevet logikk for bedre sidehåndtering
+ */
 
-    let photos = []; 
-    let pages = []; 
-    
-    let orientation = 'portrait';
-    let currentPageIndex = 0;
-    let previewQuality = 'low'; 
-    let historyStack = [];
-    const MAX_HISTORY = 20;
-    let currentLayoutId = 1;
+const app = {
+    // State
+    pages: [[]], // Array av arrays (sider med bilder)
+    history: [], // For undo-funksjon
+    settings: {
+        photosPerPage: 4,
+        margin: 2,
+        gap: 2,
+        paperSize: 'A4',
+        orientation: 'portrait',
+        bgColor: '#ffffff',
+        dpi: 300
+    },
+    // Konstanter for papirstørrelser (i mm)
+    paperSizes: {
+        'A4': { w: 210, h: 297 },
+        'A3': { w: 297, h: 420 },
+        '10x15': { w: 102, h: 152 }
+    },
 
-    // --- DATABASE ---
-    const dbName = 'PhotoGridDB_Multi_V2'; 
-    const storeName = 'photos';
-    const settingsStore = 'settings';
-    let db;
+    init() {
+        this.render();
+    },
 
-    async function initDB() {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open(dbName, 1);
-        request.onupgradeneeded = (event) => {
-          const db = event.target.result;
-          if (!db.objectStoreNames.contains(storeName)) { db.createObjectStore(storeName, { keyPath: 'id' }); }
-          if (!db.objectStoreNames.contains(settingsStore)) { db.createObjectStore(settingsStore, { keyPath: 'key' }); }
-        };
-        request.onsuccess = (event) => { db = event.target.result; resolve(db); };
-        request.onerror = (event) => reject(event.target.error);
-      });
-    }
+    // --- State Management ---
+    saveState() {
+        // Lagre kopi av nåværende tilstand i historikken
+        this.history.push(JSON.stringify(this.pages));
+        if (this.history.length > 20) this.history.shift(); // Begrens historikk
+    },
 
-    async function savePhotoToDB(photo) {
-      if (!db) return;
-      const tx = db.transaction([storeName], 'readwrite');
-      tx.objectStore(storeName).put({
-        id: photo.id, layoutId: currentLayoutId, name: photo.name,
-        width: photo.width, height: photo.height, aspectRatio: photo.aspectRatio,
-        file: photo.originalFile 
-      });
-    }
+    undo() {
+        if (this.history.length === 0) return alert("Ingenting å angre!");
+        const previousState = this.history.pop();
+        this.pages = JSON.parse(previousState);
+        this.render();
+    },
 
-    async function loadPhotosFromDB() {
-      if (!db) return [];
-      return new Promise((resolve) => {
-        const tx = db.transaction([storeName], 'readonly');
-        const req = tx.objectStore(storeName).getAll();
-        req.onsuccess = async () => {
-          const layoutRecords = req.result.filter(r => r.layoutId === currentLayoutId);
-          const loadedPhotos = [];
-          for (const rec of layoutRecords) {
-            const thumbData = await createThumbnail(rec.file);
-            loadedPhotos.push({
-              id: rec.id, name: rec.name, width: rec.width, height: rec.height, aspectRatio: rec.aspectRatio,
-              originalFile: rec.file, originalSrc: URL.createObjectURL(rec.file),
-              previewSrc: thumbData.src, hue: thumbData.hue || 0
-            });
-          }
-          resolve(loadedPhotos);
-        };
-      });
-    }
+    // --- Kjernefunksjoner ---
 
-    async function saveSettings() {
-      if(!db) return;
-      const pagesStructure = pages.map(page => page.map(p => p.id));
-      const tx = db.transaction([settingsStore], 'readwrite');
-      const store = tx.objectStore(settingsStore);
-      const settings = {
-        key: 'settings_layout_' + currentLayoutId,
-        pagesStructure: pagesStructure, 
-        projectName: document.getElementById('projectName').value,
-        photosPerPage: document.getElementById('photosPerPage').value,
-        paperSize: document.getElementById('paperSize').value,
-        customDimensions: customDimensions,
-        orientation: orientation,
-        margin: document.getElementById('margin').value,
-        gap: document.getElementById('gap').value,
-        bgColor: document.getElementById('bgColorText').value
-      };
-      store.put(settings);
-      const status = document.getElementById('saveStatus');
-      status.style.display = 'inline'; setTimeout(() => status.style.display = 'none', 1000);
-    }
-
-    async function loadSettings() {
-      if(!db) return null;
-      return new Promise(resolve => {
-        const tx = db.transaction([settingsStore], 'readonly');
-        const req = tx.objectStore(settingsStore).get('settings_layout_' + currentLayoutId);
-        req.onsuccess = () => resolve(req.result);
-      });
-    }
-    
-    async function deletePhotoFromDB(id) {
-        if(!db) return;
-        db.transaction([storeName], 'readwrite').objectStore(storeName).delete(id);
-    }
-    
-    async function clearDBForLayout() {
-      if(!db) return;
-      const tx = db.transaction([storeName], 'readwrite');
-      const store = tx.objectStore(storeName);
-      store.getAll().onsuccess = (e) => {
-          e.target.result.forEach(r => { if (r.layoutId === currentLayoutId) store.delete(r.id); });
-      };
-      db.transaction([settingsStore], 'readwrite').objectStore(settingsStore).delete('settings_layout_' + currentLayoutId);
-    }
-
-    function addEmptyPage() {
-        pushHistory();
-        pages.push([]); 
-        currentPageIndex = pages.length - 1;
-        renderGrid(true);
-        updateUI();
-    }
-
-    function removePage(pageIndex) {
-        if (pages.length <= 1) return; 
-        if (!confirm("Vil du slette denne siden og bildene på den?")) return;
-        pushHistory();
-        const photosToRemove = pages[pageIndex];
-        photosToRemove.forEach(p => deletePhotoFromDB(p.id));
-        const idsToRemove = new Set(photosToRemove.map(p => p.id));
-        photos = photos.filter(p => !idsToRemove.has(p.id));
-        pages.splice(pageIndex, 1);
-        if (currentPageIndex >= pages.length) currentPageIndex = pages.length - 1;
-        renderGrid(true);
-        updateUI();
-    }
-
-    function autoFlow() {
-        pushHistory();
-        const photosPerPage = parseInt(document.getElementById('photosPerPage').value) || 10;
-        const tolerance = parseInt(document.getElementById('pageTolerance').value) || 0;
-        const paper = getPaperDimensions();
-        const margin = parseFloat(document.getElementById('margin').value) || 0;
-        const gap = parseFloat(document.getElementById('gap').value) || 0;
-        const availableWidth = paper.width - (2*margin); 
-        const availableHeight = paper.height - (2*margin);
-        const allPhotos = [];
-        pages.forEach(p => allPhotos.push(...p));
-        const usedIds = new Set(allPhotos.map(p=>p.id));
-        photos.forEach(p => { if(!usedIds.has(p.id)) allPhotos.push(p); });
-        pages = partitionPhotosIntoPages(allPhotos, photosPerPage, tolerance, availableWidth, availableHeight, gap);
-        if (pages.length === 0) pages = [[]]; 
-        renderGrid(true);
-        updateUI();
-    }
-
-    function checkPaperSize(select) {
-        if (select.value === 'CUSTOM') {
-            document.getElementById('customSizeModal').classList.add('open');
-            document.getElementById('customWidth').focus();
-        } else { previousPaperSize = select.value; resetAndRender(); }
-    }
-    function closeCustomModal() { document.getElementById('customSizeModal').classList.remove('open'); document.getElementById('paperSize').value = previousPaperSize; }
-    function applyCustomSize() {
-        const w = parseFloat(document.getElementById('customWidth').value);
-        const h = parseFloat(document.getElementById('customHeight').value);
-        if (w > 0 && h > 0) { customDimensions = { width: w, height: h }; updateCustomOptionText(); document.getElementById('customSizeModal').classList.remove('open'); previousPaperSize = 'CUSTOM'; resetAndRender(); } 
-        else { alert("Ugyldige dimensjoner"); }
-    }
-    function updateCustomOptionText() { const opt = document.querySelector('option[value="CUSTOM"]'); if(opt) opt.textContent = `Spesial (${customDimensions.width}×${customDimensions.height}mm)`; }
-
-    async function switchLayout(newId) {
-        if (newId === currentLayoutId) return;
-        await saveSettings();
-        photos.forEach(p => { URL.revokeObjectURL(p.originalSrc); URL.revokeObjectURL(p.previewSrc); });
-        photos = []; pages = []; historyStack = [];
-        currentLayoutId = newId;
-        document.querySelectorAll('.layout-tab').forEach(b => b.classList.remove('active'));
-        document.getElementById('tab-' + newId).classList.add('active');
-        document.getElementById('projectName').value = '';
-        orientation = 'portrait';
-        const loadedPhotos = await loadPhotosFromDB();
-        const savedSettings = await loadSettings();
-        applyLoadedState(loadedPhotos, savedSettings);
-        updateUI();
-    }
-    
-    function applyLoadedState(loadedPhotos, savedSettings) {
-        photos = loadedPhotos; 
-        if (savedSettings) {
-            document.getElementById('projectName').value = savedSettings.projectName || '';
-            document.getElementById('photosPerPage').value = savedSettings.photosPerPage;
-            document.getElementById('paperSize').value = savedSettings.paperSize;
-            if (savedSettings.customDimensions) {
-                customDimensions = savedSettings.customDimensions;
-                document.getElementById('customWidth').value = customDimensions.width;
-                document.getElementById('customHeight').value = customDimensions.height;
-                updateCustomOptionText();
-            }
-            previousPaperSize = savedSettings.paperSize;
-            orientation = savedSettings.orientation || 'portrait';
-            setOrientation(orientation); 
-            document.getElementById('margin').value = savedSettings.margin;
-            document.getElementById('gap').value = savedSettings.gap;
-            const bg = savedSettings.bgColor || '#FFFFFF';
-            document.getElementById('bgColorText').value = bg;
-            document.getElementById('bgColorPicker').value = bg;
-            if (savedSettings.pagesStructure) {
-                const photoMap = new Map(loadedPhotos.map(p => [p.id, p]));
-                pages = savedSettings.pagesStructure.map(pageIds => {
-                    return pageIds.map(id => photoMap.get(id)).filter(p => p); 
-                });
-            } else {
-                pages = [loadedPhotos];
-                setTimeout(autoFlow, 100);
-            }
-        } else {
-            document.getElementById('projectName').value = "Prosjekt " + currentLayoutId;
-            document.getElementById('paperSize').value = 'A4';
-            previousPaperSize = 'A4';
-            pages = [loadedPhotos]; 
-            setTimeout(autoFlow, 100);
-        }
-        renderGrid(false);
-    }
-
-    function rgbToHsl(r, g, b) {
-        r /= 255; g /= 255; b /= 255;
-        const max = Math.max(r, g, b), min = Math.min(r, g, b);
-        let h, s, l = (max + min) / 2;
-        if (max === min) { h = s = 0; } 
-        else {
-            const d = max - min;
-            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-            switch (max) {
-            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-            case g: h = (b - r) / d + 2; break;
-            case b: h = (r - g) / d + 4; break;
-            }
-            h /= 6;
-        }
-        return { h: h * 360, s: s, l: l };
-    }
-
-    function createThumbnail(file, maxWidth = 600) {
-      return new Promise((resolve) => {
-        const url = URL.createObjectURL(file);
-        const img = new Image();
-        img.onload = () => {
-          const scale = Math.min(1, maxWidth / img.width);
-          const w = img.width * scale;
-          const h = img.height * scale;
-          const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, w, h);
-          const imageData = ctx.getImageData(0, 0, w, h);
-          const data = imageData.data;
-          let r = 0, g = 0, b = 0, count = 0;
-          for (let i = 0; i < data.length; i += 40) { r += data[i]; g += data[i + 1]; b += data[i + 2]; count++; }
-          r = Math.floor(r/count); g = Math.floor(g/count); b = Math.floor(b/count);
-          const hsl = rgbToHsl(r, g, b);
-          canvas.toBlob((blob) => {
-            URL.revokeObjectURL(url);
-            resolve({ src: URL.createObjectURL(blob), width: img.width, height: img.height, hue: hsl.h });
-          }, 'image/jpeg', 0.7);
-        };
-        img.onerror = () => resolve({ src: url, width: 1000, height: 1000, hue: 0 });
-        img.src = url;
-      });
-    }
-
-    function sortByColor() {
-        if (photos.length < 2) return;
-        pushHistory();
-        const allPhotos = [];
-        pages.forEach(p => allPhotos.push(...p));
-        allPhotos.sort((a, b) => a.hue - b.hue);
-        pages = [allPhotos];
-        autoFlow();
-    }
-
-    function pushHistory() {
-        const state = pages.map(page => page.map(p => p.id));
-        historyStack.push(state);
-        if (historyStack.length > MAX_HISTORY) historyStack.shift();
-        updateUndoBtn();
-    }
-    
-    function undo() {
-        if (historyStack.length === 0) return;
-        const previousState = historyStack.pop();
-        const photoMap = new Map(photos.map(p => [p.id, p]));
-        pages = previousState.map(pageIds => {
-            return pageIds.map(id => photoMap.get(id)).filter(p => p);
+    handleFiles(fileList) {
+        this.saveState();
+        Array.from(fileList).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                this.addPhotoToFirstAvailableSlot(e.target.result);
+            };
+            reader.readAsDataURL(file);
         });
-        renderGrid(false);
-        updateUndoBtn();
-    }
-    function updateUndoBtn() { document.getElementById('undoBtn').disabled = historyStack.length === 0; }
+    },
 
-    function debounce(func, wait) {
-      let timeout;
-      return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), wait); };
-    }
-    const debouncedRender = debounce(() => { renderGrid(true); }, 50);
-    const debouncedAutoFlow = debounce(() => { autoFlow(); }, 200);
-
-    function handleSliderChange(type, value) {
-      const val = parseFloat(value) || 0;
-      if (type === 'photosPerPage') { 
-          document.getElementById('photosPerPageInput').value = parseInt(value); 
-          // FIX: Nå trigger vi autoflow automatisk når slideren endres
-          debouncedAutoFlow();
-      }
-      else if (type === 'tolerance') { document.getElementById('pageToleranceInput').value = parseInt(value); document.getElementById('toleranceValue').textContent = parseInt(value); debouncedRender(); }
-      else if (type === 'margin') { document.getElementById('marginInput').value = val; document.getElementById('marginValue').textContent = val; debouncedRender(); }
-      else if (type === 'gap') { document.getElementById('gapInput').value = val; document.getElementById('gapValue').textContent = val; debouncedRender(); }
-    }
-    
-    function handleInputChange(type, value) {
-      const val = parseFloat(value) || 0;
-      if (type === 'photosPerPage') {
-          document.getElementById('photosPerPage').value = parseInt(value);
-          debouncedAutoFlow();
-      }
-      else if (type === 'tolerance') { document.getElementById('pageTolerance').value = parseInt(value); document.getElementById('toleranceValue').textContent = parseInt(value); debouncedRender(); }
-      else if (type === 'margin') { document.getElementById('margin').value = val; document.getElementById('marginValue').textContent = val; debouncedRender(); }
-      else if (type === 'gap') { document.getElementById('gap').value = val; document.getElementById('gapValue').textContent = val; debouncedRender(); }
-    }
-    function resetAndRender(save = true) { renderGrid(save); }
-    function togglePreviewQuality(quality) { previewQuality = quality; renderGrid(false); }
-
-    // --- DRAG & DROP UTILS ---
-    let draggedPhotoId = null;
-    let draggedPageIdx = null;
-    let dragSourcePageIndex = null;
-    let dragType = null; // 'photo' or 'page'
-
-    // PHOTO DRAG
-    function handleDragStart(e, id, pageIndex) { 
-        e.stopPropagation();
-        draggedPhotoId = id; dragSourcePageIndex = pageIndex;
-        dragType = 'photo';
-        e.target.classList.add('dragging'); 
-        e.dataTransfer.effectAllowed = 'move'; 
-    }
-
-    // PAGE DRAG
-    function handlePageDragStart(e, pageIndex) {
-        draggedPageIdx = pageIndex;
-        dragType = 'page';
-        const pageContainer = document.getElementById(`page-${pageIndex}`);
-        if(pageContainer) {
-            pageContainer.classList.add('page-dragging');
-        }
-        e.dataTransfer.effectAllowed = 'move';
-        // Hack for blank image if needed, but default ghost is usually ok for divs
-    }
-
-    function handleDragOver(e) { 
-        e.preventDefault(); 
-        e.dataTransfer.dropEffect = 'move';
+    addPhotoToFirstAvailableSlot(imgData) {
+        // Finn første side med plass
+        let targetPage = this.pages.find(p => p.length < this.settings.photosPerPage);
         
-        // Handle visual cues depending on what we are dragging
-        if (dragType === 'page') {
-             const pageContainer = e.target.closest('.page-container');
-             if (pageContainer && pageContainer.dataset.index != draggedPageIdx) {
-                 pageContainer.classList.add('page-drop-target');
-             }
-        } else if (dragType === 'photo') {
-             const page = e.target.closest('.page-container');
-             if (page) page.classList.add('drag-active');
+        if (targetPage) {
+            targetPage.push({ src: imgData, id: Date.now() + Math.random() });
+        } else {
+            // Alle sider fulle, lag ny på slutten
+            this.pages.push([{ src: imgData, id: Date.now() + Math.random() }]);
         }
-        return false; 
-    }
+        this.render();
+        this.updateStats();
+    },
 
-    function handleDragEnter(e) { 
-        e.preventDefault(); 
-        if (dragType === 'photo') {
-            const target = e.target.closest('.photo-cell'); 
-            if (target && target.dataset.id !== String(draggedPhotoId)) target.classList.add('drag-over'); 
-        }
-    }
-
-    function handleDragLeave(e) { 
-        if (dragType === 'photo') {
-            const target = e.target.closest('.photo-cell'); if (target) target.classList.remove('drag-over');
-            const page = e.target.closest('.page-container'); if (page && !page.contains(e.relatedTarget)) page.classList.remove('drag-active');
-        }
-        if (dragType === 'page') {
-            const pageContainer = e.target.closest('.page-container');
-            if (pageContainer) pageContainer.classList.remove('page-drop-target');
-        }
-    }
-
-    function handleDrop(e, targetId) {
-      e.stopPropagation(); e.preventDefault();
-      
-      // Cleanup visuals
-      document.querySelectorAll('.photo-cell').forEach(el => { el.classList.remove('dragging'); el.classList.remove('drag-over'); });
-      document.querySelectorAll('.page-container').forEach(el => {
-          el.classList.remove('drag-active');
-          el.classList.remove('page-dragging');
-          el.classList.remove('page-drop-target');
-      });
-
-      // --- HANDLE PAGE REORDER ---
-      if (dragType === 'page') {
-          const targetPageEl = e.target.closest('.page-container');
-          if (!targetPageEl) return;
-          const targetIdx = parseInt(targetPageEl.dataset.index);
-          
-          if (draggedPageIdx !== null && draggedPageIdx !== targetIdx) {
-              pushHistory();
-              const pageToMove = pages[draggedPageIdx];
-              // Remove
-              pages.splice(draggedPageIdx, 1);
-              // Insert
-              pages.splice(targetIdx, 0, pageToMove);
-              // Update index to follow the page
-              currentPageIndex = targetIdx;
-              renderGrid(true);
-          }
-          draggedPageIdx = null;
-          dragType = null;
-          return;
-      }
-
-      // --- HANDLE PHOTO DROP ---
-      if (dragType === 'photo' && draggedPhotoId !== null) {
-          const pageEl = e.target.closest('.page-container');
-          if (!pageEl) return; 
-          const targetPageIndex = parseInt(pageEl.dataset.index);
-          
-          pushHistory();
-          const photoItem = pages[dragSourcePageIndex].find(p => p.id === draggedPhotoId);
-          if (!photoItem) return;
-          pages[dragSourcePageIndex] = pages[dragSourcePageIndex].filter(p => p.id !== draggedPhotoId);
-          if (targetId) {
-              const targetIndex = pages[targetPageIndex].findIndex(p => p.id === targetId);
-              if (targetIndex > -1) { pages[targetPageIndex].splice(targetIndex, 0, photoItem); } 
-              else { pages[targetPageIndex].push(photoItem); }
-          } else { pages[targetPageIndex].push(photoItem); }
-          
-          draggedPhotoId = null; dragSourcePageIndex = null; dragType = null;
-          renderGrid(true); 
-      }
-      return false;
-    }
-    
-    function handleDragEnd(e) { 
-        // Global cleanup
-        document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
-        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-        document.querySelectorAll('.page-drop-target').forEach(el => el.classList.remove('page-drop-target'));
-        document.querySelectorAll('.page-dragging').forEach(el => el.classList.remove('page-dragging'));
-        document.querySelectorAll('.page-container').forEach(el => el.classList.remove('drag-active')); 
-        draggedPhotoId = null; draggedPageIdx = null; dragType = null;
-    }
-
-    function changePage(delta) {
-      const totalPages = pages.length || 1;
-      let newIndex = currentPageIndex + delta;
-      if (newIndex >= 0 && newIndex < totalPages) { currentPageIndex = newIndex; renderGrid(false); }
-    }
-    document.getElementById('fileInput').addEventListener('change', handleFileUpload);
-    const canvasWrapper = document.getElementById('canvasWrapper');
-    canvasWrapper.addEventListener('dragover', (e) => e.preventDefault());
-    canvasWrapper.addEventListener('drop', (e) => { 
-        if(e.dataTransfer.files.length > 0) { e.preventDefault(); handleFiles(Array.from(e.dataTransfer.files)); } 
-    });
-    function handleFileUpload(e) { handleFiles(Array.from(e.target.files)); }
-
-    async function handleFiles(files) {
-      const imageFiles = files.filter(file => file.type.startsWith('image/'));
-      if (imageFiles.length === 0) return;
-      pushHistory();
-      const processingPromises = imageFiles.map(async (file) => {
-            const originalUrl = URL.createObjectURL(file);
-            const thumbData = await createThumbnail(file);
-            const photoObj = {
-                id: Date.now() + Math.random(), originalFile: file, originalSrc: originalUrl,
-                previewSrc: thumbData.src, name: file.name, width: thumbData.width,
-                height: thumbData.height, aspectRatio: thumbData.width / thumbData.height, hue: thumbData.hue || 0
-            };
-            await savePhotoToDB(photoObj);
-            return photoObj;
+    // *** DENNE FUNKSJONEN SØRGER FOR AT NY SIDE KOMMER RETT ETTER ***
+    addEmptyPage() {
+        this.saveState();
+        
+        // 1. Finn hvilken side brukeren ser på nå (basert på scroll)
+        const wrapper = document.getElementById('canvasWrapper');
+        const scrollCenter = wrapper.scrollLeft + (wrapper.clientWidth / 2);
+        
+        let activeIndex = 0;
+        let minDiff = Infinity;
+        
+        // Gå gjennom alle side-elementene i DOM for å finne den i midten
+        const pageElements = document.querySelectorAll('.page-wrapper');
+        pageElements.forEach((el, index) => {
+            const center = el.offsetLeft + (el.offsetWidth / 2);
+            const diff = Math.abs(scrollCenter - center);
+            if (diff < minDiff) {
+                minDiff = diff;
+                activeIndex = index;
+            }
         });
-      const newPhotos = await Promise.all(processingPromises);
-      newPhotos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-      photos.push(...newPhotos);
-      if (pages.length === 0) pages.push([]);
-      pages[currentPageIndex].push(...newPhotos);
-      renderGrid(true); updateUI();
-    }
+        
+        // 2. Sett inn ny side (tomt array) ETTER den aktive indeksen
+        // splice(index, hvor_mange_slette, hva_legge_til)
+        const newIndex = activeIndex + 1;
+        this.pages.splice(newIndex, 0, []);
+        
+        // 3. Tegn opp på nytt
+        this.render();
+        
+        // 4. Scroll til den nye siden
+        setTimeout(() => {
+            const newPageEl = document.querySelectorAll('.page-wrapper')[newIndex];
+            if (newPageEl) newPageEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        }, 100);
+    },
 
-    function setOrientation(ori) {
-      orientation = ori;
-      document.getElementById('portraitBtn').className = ori === 'portrait' ? 'active' : '';
-      document.getElementById('landscapeBtn').className = ori === 'landscape' ? 'active' : '';
-      renderGrid(true);
-    }
-    async function clearAll() {
-      if(!confirm("Er du sikker på at du vil fjerne alle bilder i dette prosjektet?")) return;
-      photos.forEach(p => { URL.revokeObjectURL(p.originalSrc); URL.revokeObjectURL(p.previewSrc); });
-      photos = []; pages = [[]]; await clearDBForLayout(); historyStack = []; updateUndoBtn(); currentPageIndex = 0; renderGrid(true); updateUI();
-    }
-    function updateUI() {
-      document.getElementById('photoCount').textContent = photos.length;
-      document.getElementById('exportBtn').disabled = photos.length === 0;
-      document.getElementById('downloadAllBtn').style.display = photos.length > 0 ? 'block' : 'none';
-      document.getElementById('clearBtn').style.display = photos.length > 0 ? 'block' : 'none';
-    }
-
-    function getPaperDimensions() {
-      const paperSize = document.getElementById('paperSize').value;
-      let size = PAPER_SIZES[paperSize];
-      if (paperSize === 'CUSTOM') size = customDimensions;
-      return orientation === 'landscape' ? { width: size.height, height: size.width } : { width: size.width, height: size.height };
-    }
-
-    function calculateOptimalGrid(pagePhotos, width, height, gap) {
-      if (pagePhotos.length === 0) return { cells: [], totalHeight: 0, fitScore: Infinity };
-      function createLayout(targetRows) {
-        const rows = [];
-        const baseCount = Math.floor(pagePhotos.length / targetRows);
-        const extras = pagePhotos.length % targetRows;
-        let photoIdx = 0;
-        for (let r = 0; r < targetRows; r++) {
-          const count = baseCount + (r < extras ? 1 : 0);
-          const rowPhotos = [];
-          let aspectSum = 0;
-          for (let i = 0; i < count; i++) {
-            if (photoIdx < pagePhotos.length) { rowPhotos.push(pagePhotos[photoIdx]); aspectSum += pagePhotos[photoIdx].aspectRatio; photoIdx++; }
-          }
-          if (rowPhotos.length > 0) {
-            const gaps = (rowPhotos.length - 1) * gap;
-            const rowHeight = (width - gaps) / aspectSum; 
-            rows.push({ photos: rowPhotos, height: rowHeight, aspectSum });
-          }
+    deletePage(index) {
+        if (this.pages[index].length > 0) {
+            if (!confirm(`Denne siden har ${this.pages[index].length} bilder. Er du sikker på at du vil slette den?`)) return;
         }
-        const totalGapHeight = (rows.length - 1) * gap;
-        const naturalHeight = rows.reduce((sum, r) => sum + r.height, 0) + totalGapHeight;
-        return { rows, naturalHeight, totalGapHeight };
-      }
+        this.saveState();
+        this.pages.splice(index, 1);
+        if (this.pages.length === 0) this.pages.push([]); // Alltid minst én side
+        this.render();
+    },
 
-      let bestLayout = null; let bestScore = Infinity; 
-      for (let r = 1; r <= pagePhotos.length; r++) {
-        const layout = createLayout(r);
-        const contentHeight = layout.naturalHeight - layout.totalGapHeight;
-        const requiredContentHeight = height - layout.totalGapHeight;
-        if (requiredContentHeight <= 0) continue;
-        const scale = requiredContentHeight / contentHeight;
-        let score;
-        if (scale >= 0.9 && scale <= 1.1) { score = Math.abs(1 - scale); } 
-        else { if (scale < 0.9) score = 100 + (0.9 - scale); else score = 100 + (scale - 1.1); }
-        if (score < bestScore) { bestScore = score; bestLayout = { ...layout, optimalScale: scale }; }
-      }
-      if (!bestLayout) return { cells: [], totalHeight: 0, fitScore: Infinity };
+    removePhoto(pageIndex, photoIndex) {
+        this.saveState();
+        this.pages[pageIndex].splice(photoIndex, 1);
+        this.render();
+        this.updateStats();
+    },
 
-      const rows = bestLayout.rows;
-      let finalScale = bestLayout.optimalScale;
-      if (finalScale < 0.9) finalScale = 0.9;
-      if (finalScale > 1.1) finalScale = 1.1;
-
-      let currentTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
-      let fitScale = 1;
-      if (currentTotalHeight > height) { fitScale = height / currentTotalHeight; currentTotalHeight = height; }
-
-      const cells = [];
-      let yPos = (currentTotalHeight < height) ? (height - currentTotalHeight) / 2 : 0;
-      const finalTotalWidth = width * fitScale;
-      const xOffset = (width - finalTotalWidth) / 2;
-
-      rows.forEach(row => {
-        const finalRowHeight = row.height * finalScale * fitScale;
-        const rowGapTotal = (row.photos.length - 1) * gap * fitScale;
-        const availableRowWidth = finalTotalWidth - rowGapTotal;
-        let xPos = xOffset;
-        row.photos.forEach(photo => {
-          const cellWidth = (photo.aspectRatio / row.aspectSum) * availableRowWidth;
-          cells.push({ x: xPos, y: yPos, width: cellWidth, height: finalRowHeight, photo: photo });
-          xPos += cellWidth + (gap * fitScale);
-        });
-        yPos += finalRowHeight + (gap * fitScale);
-      });
-      return { cells, totalHeight: currentTotalHeight, fitScore: bestScore };
-    }
-
-    function partitionPhotosIntoPages(allPhotos, target, tolerance, width, height, gap) {
-      const pages = [];
-      let currentIndex = 0;
-      while (currentIndex < allPhotos.length) {
-        let bestCount = target; let bestChunkScore = Infinity;
-        const minCount = Math.max(1, target - tolerance);
-        const maxCount = target + tolerance;
-        const remaining = allPhotos.length - currentIndex;
-        if (remaining <= maxCount) { pages.push(allPhotos.slice(currentIndex)); break; }
-        for (let c = minCount; c <= maxCount; c++) {
-          if (c > remaining) break;
-          const chunk = allPhotos.slice(currentIndex, currentIndex + c);
-          const result = calculateOptimalGrid(chunk, width, height, gap);
-          const targetDeviation = Math.abs(target - c) * 0.05; 
-          const totalScore = result.fitScore + targetDeviation;
-          if (totalScore < bestChunkScore) { bestChunkScore = totalScore; bestCount = c; }
+    autoFlow() {
+        if(!confirm("Dette vil stokke om alle bildene for å fylle hull. Vil du fortsette?")) return;
+        this.saveState();
+        // Samle alle bilder i en stor haug
+        const allPhotos = this.pages.flat();
+        // Tøm sidene
+        this.pages = [];
+        // Fordel på nytt
+        while(allPhotos.length > 0) {
+            const chunk = allPhotos.splice(0, this.settings.photosPerPage);
+            this.pages.push(chunk);
         }
-        pages.push(allPhotos.slice(currentIndex, currentIndex + bestCount));
-        currentIndex += bestCount;
-      }
-      return pages;
-    }
+        if(this.pages.length === 0) this.pages.push([]);
+        this.render();
+    },
 
-    function renderGrid(save = true) {
-      if (save) saveSettings();
-      
-      const paper = getPaperDimensions();
-      const aspectRatio = paper.width / paper.height;
-      const isMobile = window.innerWidth <= 900;
-      const padding = 80; 
-      const sidebarWidth = isMobile ? 0 : 340;
-      const maxWidth = window.innerWidth - sidebarWidth - (padding * 2);
-      const maxHeight = window.innerHeight - 150; 
+    updateSettings(key, value) {
+        this.settings[key] = value;
+        // Oppdater visuelle verdier i sidebar
+        if(key === 'photosPerPage') document.getElementById('gridSizeVal').innerText = value;
+        if(key === 'margin') document.getElementById('marginVal').innerText = value;
+        if(key === 'gap') document.getElementById('gapVal').innerText = value;
+        
+        this.render();
+    },
 
-      let displayWidth = maxWidth;
-      let displayHeight = displayWidth / aspectRatio;
-      if (displayHeight > maxHeight) { displayHeight = maxHeight; displayWidth = displayHeight * aspectRatio; }
-      displayWidth = Math.max(100, displayWidth); displayHeight = Math.max(100, displayHeight);
+    updateStats() {
+        const count = this.pages.reduce((acc, p) => acc + p.length, 0);
+        document.getElementById('photoCount').innerText = count;
+    },
 
-      const margin = parseFloat(document.getElementById('margin').value) || 0;
-      const gap = parseFloat(document.getElementById('gap').value) || 0;
-      
-      const marginPx = (margin / paper.width) * displayWidth;
-      const gapPx = (gap / paper.width) * displayWidth;
-      const availableWidth = displayWidth - (2 * marginPx);
-      const availableHeight = displayHeight - (2 * marginPx);
+    // --- Rendering (Tegner opp HTML) ---
+    render() {
+        const wrapper = document.getElementById('canvasWrapper');
+        wrapper.innerHTML = ''; // Tøm container
 
-      const canvasWrapper = document.getElementById('canvasWrapper');
-      canvasWrapper.innerHTML = ''; 
+        // Beregn størrelse basert på A4/A3 og retning
+        let dim = this.paperSizes[this.settings.paperSize];
+        if (!dim) dim = this.paperSizes['A4'];
+        
+        let width = dim.w;
+        let height = dim.h;
+        
+        if (this.settings.orientation === 'landscape') {
+            [width, height] = [height, width];
+        }
 
-      if (pages.length === 0 && photos.length === 0) { pages = [[]]; }
+        // CSS skalering for visning (konverter mm til px grovt)
+        const scale = 1.5; // Zoom factor for skjerm
+        const pxW = width * 3.78 * scale; // 1mm ≈ 3.78px
+        const pxH = height * 3.78 * scale;
 
-      const totalPages = pages.length;
-      if (currentPageIndex >= totalPages) currentPageIndex = totalPages - 1;
-      if (currentPageIndex < 0) currentPageIndex = 0;
-
-      document.getElementById('pageNav').style.display = 'flex';
-      document.getElementById('pageIndicator').textContent = `Side ${currentPageIndex + 1} av ${totalPages}`;
-      document.getElementById('prevBtn').disabled = currentPageIndex === 0;
-      document.getElementById('nextBtn').disabled = currentPageIndex === totalPages - 1;
-
-      let startRender = Math.max(0, currentPageIndex - 1);
-      let endRender = Math.min(totalPages - 1, currentPageIndex + 1);
-
-      for (let i = startRender; i <= endRender; i++) {
-          const pagePhotos = pages[i];
-          const pageContainer = document.createElement('div');
-          pageContainer.className = 'page-container';
-          if (i === currentPageIndex) pageContainer.classList.add('active');
-          pageContainer.id = `page-${i}`;
-          pageContainer.dataset.index = i; 
-          
-          const header = document.createElement('div');
-          header.className = 'page-header';
-          
-          // Labels & Drag Handle
-          const labelGroup = document.createElement('div');
-          labelGroup.className = 'page-label-group';
-          
-          const dragHandle = document.createElement('div');
-          dragHandle.className = 'page-drag-handle';
-          dragHandle.title = 'Dra for å flytte side';
-          // Icon for drag handle (dots)
-          dragHandle.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px; cursor: grab;"><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>';
-          // PAGE DRAG EVENT LISTENERS (On Handle)
-          dragHandle.draggable = true;
-          dragHandle.ondragstart = (e) => handlePageDragStart(e, i);
-          dragHandle.ondragend = handleDragEnd;
-
-          const label = document.createElement('div');
-          label.className = 'page-label';
-          label.textContent = `Side ${i + 1}`;
-          
-          labelGroup.appendChild(dragHandle);
-          labelGroup.appendChild(label);
-
-          const delBtn = document.createElement('button');
-          delBtn.className = 'delete-page-btn';
-          delBtn.innerHTML = '×';
-          delBtn.title = 'Slett side';
-          delBtn.onclick = (e) => { e.stopPropagation(); removePage(i); };
-
-          header.appendChild(labelGroup);
-          header.appendChild(delBtn);
-          pageContainer.appendChild(header);
-
-          const canvasEl = document.createElement('div');
-          canvasEl.className = 'canvas';
-          canvasEl.style.width = displayWidth + 'px';
-          canvasEl.style.height = displayHeight + 'px';
-          canvasEl.style.backgroundColor = document.getElementById('bgColorText').value;
-          canvasEl.ondragover = handleDragOver;
-          canvasEl.ondrop = (e) => handleDrop(e, null);
-
-          const gridEl = document.createElement('div');
-          gridEl.className = 'grid-container';
-          gridEl.style.width = availableWidth + 'px';
-          gridEl.style.height = availableHeight + 'px';
-          gridEl.style.left = marginPx + 'px';
-          gridEl.style.top = marginPx + 'px';
-
-          const grid = calculateOptimalGrid(pagePhotos, availableWidth, availableHeight, gapPx);
-
-          grid.cells.forEach((cell) => {
-            const div = document.createElement('div');
-            div.className = 'photo-cell';
-            div.style.left = cell.x + 'px'; div.style.top = cell.y + 'px';
-            div.style.width = cell.width + 'px'; div.style.height = cell.height + 'px';
-            div.draggable = true;
-            div.dataset.id = cell.photo.id;
-            div.ondragstart = (e) => handleDragStart(e, cell.photo.id, i);
-            div.ondragover = handleDragOver;
-            div.ondragenter = handleDragEnter;
-            div.ondragleave = handleDragLeave;
-            div.ondrop = (e) => handleDrop(e, cell.photo.id);
-            div.ondragend = handleDragEnd;
-
-            const img = document.createElement('img');
-            img.src = previewQuality === 'low' ? cell.photo.previewSrc : cell.photo.originalSrc;
+        this.pages.forEach((photos, pageIndex) => {
+            // Wrapper for label + page
+            const pageWrap = document.createElement('div');
+            pageWrap.className = 'page-wrapper';
             
-            const btn = document.createElement('button');
-            btn.className = 'remove-btn';
-            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-            btn.onclick = (e) => {
-              e.stopPropagation();
-              pushHistory();
-              pages[i] = pages[i].filter(p => p.id !== cell.photo.id);
-              photos = photos.filter(p => p.id !== cell.photo.id);
-              deletePhotoFromDB(cell.photo.id);
-              renderGrid(true);
-              updateUI();
-            };
+            // Header
+            const header = document.createElement('div');
+            header.className = 'page-header';
+            header.innerHTML = `
+                <span>Side ${pageIndex + 1}</span>
+                <button class="delete-page-btn" onclick="app.deletePage(${pageIndex})" title="Slett side">×</button>
+            `;
+            pageWrap.appendChild(header);
 
-            div.appendChild(img);
-            div.appendChild(btn);
-            gridEl.appendChild(div);
-          });
-          
-          canvasEl.appendChild(gridEl);
-          pageContainer.appendChild(canvasEl);
-          canvasWrapper.appendChild(pageContainer);
-      }
-      
-      setTimeout(() => {
-          const activeEl = document.getElementById(`page-${currentPageIndex}`);
-          if(activeEl) { activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }
-      }, 0);
-    }
+            // Selve siden
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'page-container';
+            pageDiv.style.width = `${pxW}px`;
+            pageDiv.style.height = `${pxH}px`;
+            pageDiv.style.backgroundColor = this.settings.bgColor;
+            pageDiv.style.padding = `${this.settings.margin * 3.78 * scale}px`;
 
-    function getProjectName() {
-        let name = document.getElementById('projectName').value.trim();
-        if(!name) name = `prosjekt-${currentLayoutId}`;
-        return name.replace(/[^a-z0-9æøå]/gi, '-'); 
-    }
-    function loadImage(src) {
-      return new Promise((resolve, reject) => {
-        const img = new Image(); img.crossOrigin = "Anonymous";
-        img.onload = () => resolve(img); img.onerror = (e) => reject(e); img.src = src;
-      });
-    }
-    function createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, bgColor) {
-      return new Promise(async (resolve, reject) => {
+            // Grid Layout kalkulering
+            const count = parseInt(this.settings.photosPerPage);
+            // En enkel algoritme for rader/kolonner (beste fit)
+            const cols = Math.ceil(Math.sqrt(count));
+            const rows = Math.ceil(count / cols);
+            
+            const grid = document.createElement('div');
+            grid.className = 'photo-grid';
+            grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+            grid.style.gap = `${this.settings.gap * 3.78 * scale}px`;
+
+            // Fyll rutenettet
+            for (let i = 0; i < count; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'photo-cell';
+                
+                if (photos[i]) {
+                    const img = document.createElement('img');
+                    img.src = photos[i].src;
+                    cell.appendChild(img);
+                    
+                    const rmBtn = document.createElement('button');
+                    rmBtn.className = 'remove-photo';
+                    rmBtn.innerHTML = '×';
+                    rmBtn.onclick = () => app.removePhoto(pageIndex, i);
+                    cell.appendChild(rmBtn);
+                } else {
+                    // Tom celle styling (valgfritt)
+                    cell.style.background = 'transparent'; 
+                    cell.style.border = '1px dashed #e5e7eb';
+                }
+                grid.appendChild(cell);
+            }
+
+            pageDiv.appendChild(grid);
+            pageWrap.appendChild(pageDiv);
+            wrapper.appendChild(pageWrap);
+        });
+    },
+
+    // --- Export Logic (ZIP) ---
+    async exportAll() {
+        const overlay = document.getElementById('loadingOverlay');
+        const status = document.getElementById('loadingText');
+        overlay.style.display = 'flex';
+        status.innerText = "Forbereder eksport...";
+
         try {
-          const canvas = document.createElement('canvas'); canvas.width = exportWidth; canvas.height = exportHeight;
-          const ctx = canvas.getContext('2d'); ctx.fillStyle = bgColor; ctx.fillRect(0, 0, exportWidth, exportHeight);
-          const availableWidth = exportWidth - 2 * marginPx; const availableHeight = exportHeight - 2 * marginPx;
-          const grid = calculateOptimalGrid(pagePhotos, availableWidth, availableHeight, gapPx);
-          for (let i = 0; i < grid.cells.length; i++) {
-            const cell = grid.cells[i]; const photo = cell.photo;
-            const img = await loadImage(photo.originalSrc); 
-            const cellAspect = cell.width / cell.height; const photoAspect = photo.aspectRatio;
-            let drawWidth, drawHeight, offsetX, offsetY;
-            if (photoAspect > cellAspect) { drawHeight = cell.height; drawWidth = drawHeight * photoAspect; offsetX = (cell.width - drawWidth) / 2; offsetY = 0; } 
-            else { drawWidth = cell.width; drawHeight = drawWidth / photoAspect; offsetX = 0; offsetY = (cell.height - drawHeight) / 2; }
-            const x = Math.round(marginPx + cell.x + offsetX); const y = Math.round(marginPx + cell.y + offsetY);
-            ctx.save(); ctx.beginPath(); ctx.rect(Math.round(marginPx + cell.x), Math.round(marginPx + cell.y), Math.round(cell.width), Math.round(cell.height)); ctx.clip();
-            ctx.drawImage(img, x, y, Math.round(drawWidth), Math.round(drawHeight)); ctx.restore();
-          }
-          canvas.toBlob((blob) => { if (blob) resolve(blob); else reject(new Error('Failed to create blob')); }, 'image/jpeg', 0.95);
-        } catch (err) { reject(err); }
-      });
-    }
+            const zip = new JSZip();
+            const dpi = 300;
+            const pxPerMm = dpi / 25.4;
 
-    async function exportGrid() {
-      if (photos.length === 0) return;
-      const paper = getPaperDimensions(); const dpi = parseInt(document.getElementById('dpi').value);
-      const mmToPixels = dpi / 25.4; const exportWidth = Math.round(paper.width * mmToPixels); const exportHeight = Math.round(paper.height * mmToPixels);
-      const margin = parseFloat(document.getElementById('margin').value); const gap = parseFloat(document.getElementById('gap').value);
-      const marginPx = Math.round(margin * mmToPixels); const gapPx = Math.round(gap * mmToPixels);
-      const pagesToExport = pages; 
-      const baseName = getProjectName(); const btn = document.getElementById('exportBtn');
-      btn.disabled = true; btn.textContent = "Genererer...";
-      try {
-        for (let pageIndex = 0; pageIndex < pagesToExport.length; pageIndex++) {
-          const pagePhotos = pagesToExport[pageIndex];
-          const blob = await createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, document.getElementById('bgColorText').value);
-          const url = URL.createObjectURL(blob); const a = document.createElement('a');
-          const fileName = pagesToExport.length > 1 ? `${baseName}-side${pageIndex + 1}-${dpi}dpi.jpg` : `${baseName}-${dpi}dpi.jpg`;
-          a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-          await new Promise(r => setTimeout(r, 200));
+            // Få dimensjoner
+            let dim = this.paperSizes[this.settings.paperSize] || this.paperSizes['A4'];
+            let pgW = (this.settings.orientation === 'portrait' ? dim.w : dim.h) * pxPerMm;
+            let pgH = (this.settings.orientation === 'portrait' ? dim.h : dim.w) * pxPerMm;
+
+            for (let i = 0; i < this.pages.length; i++) {
+                if (this.pages[i].length === 0) continue; // Hopp over tomme sider
+                
+                status.innerText = `Genererer side ${i + 1} av ${this.pages.length}...`;
+                
+                // Vi tegner hver side på et midlertidig canvas
+                const canvas = document.createElement('canvas');
+                canvas.width = pgW;
+                canvas.height = pgH;
+                const ctx = canvas.getContext('2d');
+                
+                // Bakgrunn
+                ctx.fillStyle = this.settings.bgColor;
+                ctx.fillRect(0, 0, pgW, pgH);
+
+                // Grid kalkulasjoner
+                const count = parseInt(this.settings.photosPerPage);
+                const cols = Math.ceil(Math.sqrt(count));
+                const rows = Math.ceil(count / cols);
+                
+                const marginPx = this.settings.margin * pxPerMm;
+                const gapPx = this.settings.gap * pxPerMm;
+                
+                // Område tilgjengelig for bilder
+                const contentW = pgW - (marginPx * 2);
+                const contentH = pgH - (marginPx * 2);
+                
+                const cellW = (contentW - (gapPx * (cols - 1))) / cols;
+                const cellH = (contentH - (gapPx * (rows - 1))) / rows;
+
+                // Tegn bilder
+                const photos = this.pages[i];
+                for (let j = 0; j < photos.length; j++) {
+                    const r = Math.floor(j / cols);
+                    const c = j % cols;
+                    
+                    const x = marginPx + (c * (cellW + gapPx));
+                    const y = marginPx + (r * (cellH + gapPx));
+
+                    const img = new Image();
+                    img.src = photos[j].src;
+                    await new Promise(r => img.onload = r); // Vent på last
+                    
+                    // "Object-fit: cover" logikk for canvas
+                    const imgRatio = img.width / img.height;
+                    const cellRatio = cellW / cellH;
+                    let drawW, drawH, drawX, drawY;
+
+                    if (imgRatio > cellRatio) {
+                        drawH = cellH;
+                        drawW = cellH * imgRatio;
+                        drawY = y;
+                        drawX = x - (drawW - cellW) / 2;
+                    } else {
+                        drawW = cellW;
+                        drawH = cellW / imgRatio;
+                        drawX = x;
+                        drawY = y - (drawH - cellH) / 2;
+                    }
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(x, y, cellW, cellH);
+                    ctx.clip(); // Klipp til cellen
+                    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+                    ctx.restore();
+                }
+
+                // Legg til i zip
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+                zip.file(`Fotogrid-Side-${i+1}.jpg`, blob);
+            }
+
+            status.innerText = "Komprimerer ZIP...";
+            const content = await zip.generateAsync({type:"blob"});
+            
+            // Last ned
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(content);
+            a.download = "fotogrid-eksport.zip";
+            a.click();
+            
+        } catch (err) {
+            alert("En feil oppstod: " + err.message);
+            console.error(err);
+        } finally {
+            overlay.style.display = 'none';
         }
-      } catch (err) { alert('Feil ved eksport: ' + err.message); } 
-      finally { btn.disabled = false; btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Eksporter grid`; }
     }
+};
 
-    async function downloadAllZip() {
-      if (photos.length === 0) return;
-      const paper = getPaperDimensions(); const dpi = parseInt(document.getElementById('dpi').value);
-      const mmToPixels = dpi / 25.4; const exportWidth = Math.round(paper.width * mmToPixels); const exportHeight = Math.round(paper.height * mmToPixels);
-      const margin = parseFloat(document.getElementById('margin').value); const gap = parseFloat(document.getElementById('gap').value);
-      const marginPx = Math.round(margin * mmToPixels); const gapPx = Math.round(gap * mmToPixels);
-      const pagesToExport = pages;
-      const zip = new JSZip(); const baseName = getProjectName(); const btn = document.getElementById('downloadAllBtn');
-      btn.disabled = true; btn.textContent = "Pakker zip...";
-      try {
-        for (let pageIndex = 0; pageIndex < pagesToExport.length; pageIndex++) {
-          const pagePhotos = pagesToExport[pageIndex];
-          const blob = await createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, document.getElementById('bgColorText').value);
-          const fileName = pagesToExport.length > 1 ? `${baseName}-side${pageIndex + 1}-${dpi}dpi.jpg` : `${baseName}-${dpi}dpi.jpg`;
-          zip.file(fileName, blob); await new Promise(r => setTimeout(r, 100));
-        }
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        const url = URL.createObjectURL(zipBlob); const a = document.createElement('a');
-        a.href = url; a.download = `${baseName}-${dpi}dpi.zip`;
-        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-      } catch (err) { alert('Feil ved zip: ' + err.message); } 
-      finally { btn.disabled = false; btn.textContent = "Last ned zip"; }
-    }
-
-    (async function startApp() {
-        try {
-            await initDB();
-            const loadedPhotos = await loadPhotosFromDB();
-            const savedSettings = await loadSettings();
-            applyLoadedState(loadedPhotos, savedSettings);
-            updateUI();
-        } catch (e) {
-            console.error("Database init failed", e);
-        }
-    })();
-
-    window.addEventListener('resize', () => debouncedRender());
-  </script>
+// Start appen
+app.init();
+</script>
 </body>
 </html>
