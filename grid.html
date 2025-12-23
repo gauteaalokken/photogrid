@@ -1,936 +1,1295 @@
 <!DOCTYPE html>
 <html lang="no">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fotogrid Pro V1.0</title>
-    <meta name="description" content="Profesjonelt verktøy for å lage bildegrid for utskrift og sosiale medier.">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fotogrid Pro V0.8 - Depot & Insert</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  
+  <style>
+    /* --- CSS STYLES --- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; height: 100vh; overflow: hidden; }
+    
+    .app-container { height: 100vh; background-color: #e5e7eb; display: flex; flex-direction: column; }
+    .main-area { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 140px); /* Plass til depot */ }
 
-    <style>
-        :root {
-            /* Farger */
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --bg-app: #f3f4f6;
-            --bg-panel: #ffffff;
-            --text-main: #111827;
-            --text-muted: #6b7280;
-            --border: #e5e7eb;
-            --danger: #ef4444;
-            --success-bg: #ecfdf5;
-            --success-text: #065f46;
-            
-            /* Dimensjoner */
-            --sidebar-width: 320px;
-            --depot-height: 140px;
-        }
+    /* Sidebar */
+    .sidebar { width: 340px; background-color: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; z-index: 30; flex-shrink: 0; overflow-y: auto; }
+    .sidebar-header { padding: 20px; border-bottom: 1px solid #e5e7eb; }
+    .sidebar-header h1 { font-size: 22px; font-weight: 600; color: #111827; }
+    .sidebar-content { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+    
+    /* Layout Tabs */
+    .layout-tabs { display: flex; gap: 8px; margin-top: 10px; }
+    .layout-tab { flex: 1; padding: 8px; font-size: 13px; font-weight: 600; background-color: #f3f4f6; border: 1px solid #e5e7eb; color: #6b7280; border-radius: 6px; cursor: pointer; text-align: center; }
+    .layout-tab.active { background-color: #eff6ff; border-color: #2563eb; color: #2563eb; }
 
-        /* Nullstilling & Base */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            height: 100vh; 
-            overflow: hidden; 
-            background: var(--bg-app); 
-            color: var(--text-main); 
-        }
+    /* Controls */
+    .control-group { display: flex; flex-direction: column; gap: 6px; }
+    .control-group label { font-size: 13px; font-weight: 500; color: #374151; }
+    .btn-primary { width: 100%; padding: 10px; background-color: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
+    .btn-primary:hover { background-color: #1d4ed8; }
+    .btn-secondary { width: 100%; padding: 8px; background-color: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; }
+    .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .button-group { display: flex; gap: 8px; }
+    .button-group button { flex: 1; padding: 6px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer; }
+    .button-group button.active { background-color: #eff6ff; border-color: #2563eb; color: #2563eb; }
+    
+    input[type="text"], input[type="number"], select { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; }
+    
+    /* Main Canvas Area */
+    .main-canvas { flex: 1; display: flex; flex-direction: column; position: relative; background-color: #f3f4f6; overflow: hidden; }
+    .canvas-scroller { 
+      flex: 1; 
+      overflow-x: auto; 
+      overflow-y: hidden; 
+      display: flex; 
+      align-items: center; 
+      padding: 40px; 
+      gap: 0; /* Gap håndteres av insert-zones */
+    }
 
-        /* CSS Grid Layout - App Shell */
-        .app-shell {
-            display: grid;
-            grid-template-areas: "sidebar main" "sidebar depot";
-            grid-template-columns: var(--sidebar-width) 1fr;
-            grid-template-rows: 1fr var(--depot-height);
-            height: 100vh;
-            width: 100vw;
-        }
+    /* Page styles */
+    .page-container { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; transition: transform 0.2s; margin: 0 10px; }
+    .page-container.active { transform: scale(1.02); z-index: 10; }
+    .page-header { display: flex; justify-content: space-between; width: 100%; margin-bottom: 8px; align-items: center; }
+    .page-label-group { background: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    .delete-page-btn { background: #fee2e2; border: 1px solid #fecaca; color: #dc2626; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; line-height: 1; }
+    
+    .canvas { background: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden; transition: all 0.2s; }
+    .page-drop-target .canvas { border: 3px solid #2563eb; box-shadow: 0 0 15px rgba(37, 99, 235, 0.3); }
 
-        /* --- SIDEBAR --- */
-        .sidebar {
-            grid-area: sidebar;
-            background: var(--bg-panel);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            z-index: 20;
-        }
-        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); }
-        .sidebar-header h1 { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
-        
-        .layout-tabs { display: flex; gap: 5px; background: var(--bg-app); padding: 4px; border-radius: 8px; }
-        .tab-btn {
-            flex: 1; border: none; padding: 6px; font-size: 12px; font-weight: 600;
-            background: transparent; color: var(--text-muted); cursor: pointer; border-radius: 6px;
-        }
-        .tab-btn.active { background: white; color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    /* Insert Zone (The + buttons) */
+    .insert-zone { width: 40px; height: 80%; display: flex; align-items: center; justify-content: center; z-index: 20; flex-shrink: 0; opacity: 0; transition: opacity 0.2s; }
+    .insert-zone:hover { opacity: 1; }
+    .btn-insert { width: 32px; height: 32px; border-radius: 50%; background: #2563eb; color: white; border: none; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.15); transform: scale(0.8); transition: transform 0.2s; }
+    .btn-insert:hover { transform: scale(1.1); background: #1d4ed8; }
 
-        .sidebar-content { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+    /* Grid & Photos */
+    .photo-cell { position: absolute; background: #e5e7eb; transition: all 0.2s; cursor: grab; overflow: hidden; }
+    .photo-cell img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+    .photo-cell:hover .remove-btn { opacity: 1; }
+    .remove-btn { position: absolute; top: 2px; right: 2px; background: rgba(239, 68, 68, 0.9); color: white; border: none; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; opacity: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+    
+    /* Depot (Bottom Bar) */
+    .depot-area {
+      height: 140px; background: white; border-top: 2px solid #e5e7eb; 
+      display: flex; flex-direction: column; z-index: 50; flex-shrink: 0;
+      box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .depot-header { 
+      padding: 8px 20px; font-size: 12px; font-weight: bold; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; 
+      display: flex; justify-content: space-between; align-items: center; background: #f9fafb; border-bottom: 1px solid #f3f4f6;
+    }
+    .depot-content { 
+      flex: 1; overflow-x: auto; padding: 10px 20px; display: flex; gap: 10px; align-items: center; 
+    }
+    .depot-content.drag-over { background-color: #eff6ff; }
+    
+    .depot-item { 
+      width: 80px; height: 80px; flex-shrink: 0; position: relative; 
+      border-radius: 6px; overflow: hidden; border: 1px solid #d1d5db; cursor: grab; 
+      background: #f3f4f6; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .depot-item img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+    .depot-item:hover .remove-btn { opacity: 1; }
+    
+    .empty-msg { font-size: 13px; color: #9ca3af; font-style: italic; width: 100%; text-align: center; }
 
-        /* Skjemakontroller */
-        fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
-        legend { font-weight: 600; font-size: 13px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
-        
-        .control-group { display: flex; flex-direction: column; gap: 6px; }
-        label { font-size: 13px; font-weight: 500; display: flex; justify-content: space-between; }
-        
-        input[type="text"], select {
-            width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
-        }
-        input[type="range"] { width: 100%; cursor: pointer; }
-
-        /* Knapper */
-        .btn { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid transparent; cursor: pointer; font-weight: 500; font-size: 13px; transition: all 0.2s; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: var(--primary-hover); }
-        .btn-secondary { background: white; border-color: var(--border); color: var(--text-main); }
-        .btn-secondary:hover { background: var(--bg-app); }
-        .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-danger { color: var(--danger); border-color: #fecaca; background: #fef2f2; }
-        
-        .btn-group { display: flex; gap: 8px; }
-        .toggle-btn { flex: 1; padding: 6px; background: white; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
-        .toggle-btn.active { background: #eff6ff; border-color: var(--primary); color: var(--primary); }
-
-        /* Visuell fokus for tilgjengelighet */
-        *:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-
-        /* --- MAIN AREA --- */
-        .main-area {
-            grid-area: main;
-            background: var(--bg-app);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-        }
-        
-        .canvas-scroller {
-            flex: 1; overflow-x: auto; overflow-y: hidden;
-            display: flex; align-items: center; padding: 40px; gap: 20px;
-        }
-
-        /* --- SIDER --- */
-        .page-wrapper {
-            display: flex; flex-direction: column; align-items: center; flex-shrink: 0;
-            transition: transform 0.2s; position: relative;
-        }
-        .page-wrapper.active { transform: scale(1.02); z-index: 10; }
-        
-        .page-header { width: 100%; display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .page-badge { background: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        
-        .canvas {
-            background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            position: relative; overflow: hidden; transition: box-shadow 0.2s;
-        }
-        .canvas.drag-target { box-shadow: 0 0 0 4px var(--primary); }
-
-        /* --- BILDER & CELLER --- */
-        .photo-cell {
-            position: absolute; background: #e5e7eb; overflow: hidden; cursor: grab;
-        }
-        .photo-cell img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
-        .photo-cell.dragging { opacity: 0.5; }
-        
-        .warn-icon {
-            position: absolute; bottom: 5px; left: 5px; background: rgba(255,255,255,0.9);
-            border-radius: 4px; padding: 2px 5px; font-size: 12px; cursor: help; display: flex; gap: 4px; align-items: center;
-        }
-
-        .remove-btn {
-            position: absolute; top: 5px; right: 5px; width: 22px; height: 22px;
-            background: rgba(220, 38, 38, 0.9); color: white; border: none; border-radius: 50%;
-            cursor: pointer; opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center;
-        }
-        .photo-cell:hover .remove-btn, .depot-item:focus-within .remove-btn, .photo-cell:focus-within .remove-btn { opacity: 1; }
-
-        /* --- DEPOT --- */
-        .depot-area {
-            grid-area: depot;
-            background: var(--bg-panel);
-            border-top: 1px solid var(--border);
-            display: flex; flex-direction: column; z-index: 30;
-        }
-        .depot-header {
-            padding: 8px 20px; font-size: 11px; font-weight: 700; text-transform: uppercase;
-            color: var(--text-muted); background: #f9fafb; border-bottom: 1px solid var(--border);
-            display: flex; justify-content: space-between;
-        }
-        .depot-content {
-            flex: 1; overflow-x: auto; padding: 10px 20px; display: flex; gap: 10px; align-items: center;
-        }
-        .depot-content.drag-over { background: #eff6ff; }
-        
-        .depot-item {
-            width: 80px; height: 80px; flex-shrink: 0; border-radius: 6px; overflow: hidden;
-            border: 1px solid var(--border); position: relative; cursor: grab; background: white;
-        }
-        .depot-item:focus { outline: 2px solid var(--primary); }
-
-        /* --- UTILITIES --- */
-        .hidden { display: none !important; }
-        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
-        
-        /* Insert Zone */
-        .insert-zone { width: 40px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
-        .insert-zone:hover, .insert-zone:focus-within { opacity: 1; }
-        .btn-insert { width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-
-        /* Mobil Responsivitet */
-        @media (max-width: 900px) {
-            .app-shell { 
-                grid-template-areas: "main" "depot"; 
-                grid-template-columns: 1fr; 
-                grid-template-rows: 1fr 120px; 
-            }
-            .sidebar { 
-                position: fixed; inset: 0; z-index: 50; 
-                transform: translateX(-100%); transition: transform 0.3s; 
-            }
-            .sidebar.open { transform: translateX(0); }
-            .mobile-toggle { display: block; position: absolute; top: 10px; left: 10px; z-index: 40; }
-        }
-        @media (min-width: 901px) { .mobile-toggle { display: none; } }
-    </style>
+    /* Modals */
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; }
+    .modal.open { display: flex; }
+    .modal-box { background: white; padding: 24px; border-radius: 8px; width: 300px; }
+  </style>
 </head>
 <body>
 
-<div class="app-shell">
+<div class="app-container">
+  
+  <div class="main-area">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h1>Fotogrid Pro</h1>
+        <div class="layout-tabs">
+          <div class="layout-tab active" id="tab-1" onclick="switchLayout(1)">Grid 1</div>
+          <div class="layout-tab" id="tab-2" onclick="switchLayout(2)">Grid 2</div>
+          <div class="layout-tab" id="tab-3" onclick="switchLayout(3)">Grid 3</div>
+        </div>
+      </div>
+      
+      <div class="sidebar-content">
+        <div class="control-group">
+          <button class="btn-primary" onclick="document.getElementById('fileInput').click()">+ Last opp bilder</button>
+          <input type="file" id="fileInput" multiple accept="image/*" style="display: none">
+          <div style="font-size: 12px; color: #666; margin-top: 5px;">Antall bilder: <span id="photoCount">0</span></div>
+        </div>
 
-    <button class="mobile-toggle btn-secondary" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Åpne meny">☰ Meny</button>
+        <div class="control-group">
+          <label>Prosjektnavn</label>
+          <input type="text" id="projectName" placeholder="Mitt Prosjekt">
+        </div>
 
-    <aside class="sidebar" aria-label="Kontrollpanel">
-        <div class="sidebar-header">
-            <h1>Fotogrid Pro</h1>
-            <nav class="layout-tabs" aria-label="Velg layout type">
-                <button class="tab-btn active" aria-pressed="true">Standard</button>
-                <button class="tab-btn" aria-pressed="false" onclick="alert('Kommer snart')">Kollasj</button>
-                <button class="tab-btn" aria-pressed="false" onclick="alert('Kommer snart')">Friform</button>
-            </nav>
-        </div>
+        <div class="control-group">
+          <label>Papirstørrelse</label>
+          <select id="paperSize" onchange="checkPaperSize(this)">
+            <option value="A4">A4</option>
+            <option value="A3">A3</option>
+            <option value="PHOTO_10X15">10x15 Foto</option>
+            <option value="INSTASTORY">Instagram Story</option>
+            <option value="INSTAINLEGG">Instagram Innlegg</option>
+            <option value="CUSTOM">Spesial...</option>
+          </select>
+        </div>
 
-        <form class="sidebar-content" onsubmit="event.preventDefault();">
-            <div class="control-group">
-                <button type="button" class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
-                    <span aria-hidden="true">+</span> Last opp bilder
-                </button>
-                <input type="file" id="fileInput" multiple accept="image/*" class="hidden">
-                <div id="uploadStatus" role="status" style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">
-                    Antall bilder: <span id="photoCount">0</span>
-                </div>
-            </div>
+        <div class="control-group">
+          <label>Orientering</label>
+          <div class="button-group">
+            <button id="portraitBtn" class="active" onclick="setOrientation('portrait')">Stående</button>
+            <button id="landscapeBtn" onclick="setOrientation('landscape')">Liggende</button>
+          </div>
+        </div>
 
-            <fieldset>
-                <legend>Prosjektinnstillinger</legend>
-                <div class="control-group">
-                    <label for="projectName">Prosjektnavn</label>
-                    <input type="text" id="projectName" placeholder="Mitt Prosjekt" autocomplete="off">
-                </div>
-                <div class="control-group">
-                    <label for="paperSize">Papirstørrelse</label>
-                    <select id="paperSize">
-                        <option value="A4">A4 (210x297mm)</option>
-                        <option value="A3">A3 (297x420mm)</option>
-                        <option value="PHOTO_10X15">10x15 Foto</option>
-                        <option value="INSTASTORY">Instagram Story</option>
-                    </select>
-                </div>
-                <div class="control-group">
-                    <label id="orientLabel">Orientering</label>
-                    <div class="btn-group" role="group" aria-labelledby="orientLabel">
-                        <button type="button" id="btnPortrait" class="toggle-btn active" aria-pressed="true">Stående</button>
-                        <button type="button" id="btnLandscape" class="toggle-btn" aria-pressed="false">Liggende</button>
-                    </div>
-                </div>
-            </fieldset>
+        <div class="control-group">
+            <label>Bilder pr side: <input type="number" id="photosPerPageInput" value="10" style="width:50px; display:inline;" onchange="handleInputChange('photosPerPage', this.value)"></label>
+            <input type="range" id="photosPerPage" min="1" max="50" value="10" oninput="handleSliderChange('photosPerPage', this.value)">
+        </div>
 
-            <hr style="border: 0; border-top: 1px solid var(--border);">
+        <div class="control-group">
+            <label>Toleranse (+/-): <span id="toleranceValue">0</span></label>
+            <input type="range" id="pageTolerance" min="0" max="10" value="0" oninput="handleSliderChange('tolerance', this.value)">
+            <input type="hidden" id="pageToleranceInput" value="0">
+        </div>
 
-            <fieldset>
-                <legend>Grid & Layout</legend>
-                
-                <div class="control-group">
-                    <label for="photosPerPage">Bilder pr side: <output id="outPhotosPerPage">10</output></label>
-                    <input type="range" id="photosPerPage" min="1" max="50" value="10">
-                </div>
+        <div class="control-group">
+          <label>Margin (mm): <span id="marginValue">5</span></label>
+          <input type="range" id="margin" min="0" max="50" value="5" oninput="handleSliderChange('margin', this.value)">
+          <input type="hidden" id="marginInput" value="5">
+        </div>
+        
+        <div class="control-group">
+          <label>Avstand (mm): <span id="gapValue">2</span></label>
+          <input type="range" id="gap" min="0" max="20" value="2" oninput="handleSliderChange('gap', this.value)">
+          <input type="hidden" id="gapInput" value="2">
+        </div>
 
-                <div class="control-group">
-                    <label for="margin">Margin (mm): <output id="outMargin">5</output></label>
-                    <input type="range" id="margin" min="0" max="50" value="5">
-                </div>
+        <div class="control-group">
+          <label>Bakgrunn</label>
+          <div style="display:flex; gap:5px;">
+             <input type="color" id="bgColorPicker" value="#FFFFFF" oninput="document.getElementById('bgColorText').value=this.value; debouncedRender()">
+             <input type="text" id="bgColorText" value="#FFFFFF" onchange="document.getElementById('bgColorPicker').value=this.value; debouncedRender()">
+          </div>
+        </div>
+        
+        <div class="control-group" style="margin-top:auto;">
+          <button class="btn-secondary" onclick="autoFlow()">Autoflow (Nullstill)</button>
+          <button class="btn-secondary" onclick="sortByColor()">Sorter etter farge</button>
+          <button class="btn-secondary" id="undoBtn" onclick="undo()" disabled>Angre (Ctrl+Z)</button>
+          <button class="btn-secondary" id="exportBtn" onclick="exportGrid()">Lagre som JPG</button>
+          <button class="btn-secondary" id="downloadAllBtn" onclick="downloadAllZip()" style="display:none">Last ned ZIP</button>
+          <button class="btn-secondary" id="clearBtn" onclick="clearAll()" style="color:red; border-color:red; display:none;">Slett alt</button>
+        </div>
+        
+        <div style="font-size:10px; color:#aaa; margin-top:10px;">DPI for eksport: <select id="dpi" style="width:60px; padding:2px;"><option value="150">150</option><option value="300" selected>300</option></select></div>
+      </div>
+    </div>
 
-                <div class="control-group">
-                    <label for="gap">Avstand (mm): <output id="outGap">2</output></label>
-                    <input type="range" id="gap" min="0" max="20" value="2">
-                </div>
+    <div class="main-canvas">
+      <div id="saveStatus" style="position:absolute; top:10px; right:10px; background:white; padding:5px 10px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.1); display:none; font-size:12px; z-index:100;">Lagret</div>
+      
+      <div class="canvas-scroller" id="canvasWrapper">
+        </div>
+      
+      <div id="pageNav" style="display:flex; justify-content:center; align-items:center; gap:15px; padding:10px; background:white; border-top:1px solid #ddd; position:absolute; bottom:10px; left:50%; transform:translateX(-50%); border-radius:20px; box-shadow:0 2px 10px rgba(0,0,0,0.1); z-index:40;">
+        <button onclick="changePage(-1)" id="prevBtn" style="border:none; background:none; cursor:pointer;">◀</button>
+        <span id="pageIndicator" style="font-weight:bold; font-size:14px;">Side 1 av 1</span>
+        <button onclick="changePage(1)" id="nextBtn" style="border:none; background:none; cursor:pointer;">▶</button>
+      </div>
+    </div>
+  </div>
 
-                <div class="control-group">
-                    <label for="bgColor">Bakgrunn</label>
-                    <div style="display: flex; gap: 5px;">
-                        <input type="color" id="bgColor" value="#FFFFFF" style="width:40px; height:36px; padding:0;">
-                        <input type="text" id="bgColorText" value="#FFFFFF" readonly>
-                    </div>
-                </div>
-            </fieldset>
-
-            <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
-                <button type="button" class="btn btn-secondary" id="autoFlowBtn" title="Omorganiser alle bilder automatisk">Nullstill (Autoflow)</button>
-                <button type="button" class="btn btn-secondary" id="undoBtn" disabled aria-keyshortcuts="Control+Z">Angre (Ctrl+Z)</button>
-                
-                <div style="display:flex; gap:5px; align-items:end;">
-                    <div style="flex:1">
-                        <label for="dpi" style="font-size:10px; margin-bottom:2px;">Kvalitet (DPI)</label>
-                        <select id="dpi" style="padding:6px;"><option value="150">150 (Rask)</option><option value="300" selected>300 (Print)</option></select>
-                    </div>
-                    <button type="button" class="btn btn-secondary" id="exportBtn" style="flex:2; background:var(--success-bg); border-color:#6ee7b7; color:var(--success-text); font-weight:600;">
-                        Last ned JPG
-                    </button>
-                </div>
-                <button type="button" class="btn btn-danger" id="resetAllBtn">Slett alt</button>
-            </div>
-        </form>
-    </aside>
-
-    <main class="main-area" id="mainArea">
-        <div id="toast" role="alert" aria-live="polite" style="position: absolute; top: 20px; right: 20px; background: white; padding: 8px 16px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); font-weight: 600; transform: translateY(-100px); transition: transform 0.3s; z-index: 100;">
-            Status melding
-        </div>
-        
-        <div class="canvas-scroller" id="canvasWrapper">
-            </div>
-    </main>
-
-    <section class="depot-area" aria-label="Bilde depot">
-        <div class="depot-header">
-            <span>Bilde-depot (Mellomlagring)</span>
-            <span id="depotCount">0 bilder</span>
-        </div>
-        <div class="depot-content" id="depotContainer" tabindex="0" aria-label="Liste over bilder i depotet. Bruk pilene for å navigere.">
-            <div class="empty-msg" style="width:100%; text-align:center; color:var(--text-muted); font-style:italic; font-size:13px;">Dra bilder hit for å spare dem</div>
-        </div>
-    </section>
+  <div class="depot-area">
+    <div class="depot-header">
+      <span>Bilde-depot (Dra bilder hit for å lagre midlertidig)</span>
+      <span id="depotCount" style="background:#e5e7eb; padding:2px 6px; border-radius:4px;">0</span>
+    </div>
+    <div class="depot-content" id="depotContainer" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'depot')">
+       <div class="empty-msg">Depotet er tomt</div>
+    </div>
+  </div>
 
 </div>
 
+<div id="customSizeModal" class="modal">
+  <div class="modal-box">
+    <h3>Tilpasset størrelse</h3>
+    <div style="margin:10px 0;">
+      <label>Bredde (mm)</label>
+      <input type="number" id="customWidth" value="200">
+    </div>
+    <div style="margin:10px 0;">
+      <label>Høyde (mm)</label>
+      <input type="number" id="customHeight" value="200">
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:10px;">
+      <button class="btn-secondary" onclick="closeCustomModal()">Avbryt</button>
+      <button class="btn-primary" onclick="applyCustomSize()">OK</button>
+    </div>
+  </div>
+</div>
+
 <script>
-/** * --- KONFIGURASJON & WORKER --- 
- */
-const CONFIG = {
-    PAPER: {
-        A4: { w: 210, h: 297 }, A3: { w: 297, h: 420 },
-        PHOTO_10X15: { w: 100, h: 150 }, INSTASTORY: { w: 108, h: 192 }
-    },
-    HISTORY_LIMIT: 20
-};
+    // --- KONFIGURASJON ---
+    const PAPER_SIZES = {
+      A4: { width: 210, height: 297 },
+      A3: { width: 297, height: 420 },
+      A2: { width: 420, height: 594 },
+      LETTER: { width: 216, height: 279 },
+      PHOTO_10X15: { width: 100, height: 150 },
+      INSTASTORY: { width: 108, height: 192 },
+      INSTAINLEGG: { width: 108, height: 135 },
+      CUSTOM: { width: 0, height: 0 } 
+    };
+    
+    let customDimensions = { width: 200, height: 200 };
+    let previousPaperSize = 'A4';
 
-// Web Worker Code (Inline for single-file portability)
-const WORKER_SCRIPT = `
-self.onmessage = async (e) => {
-    const { type, payload } = e.data;
-    if (type === 'EXPORT') {
-        const { pages, width, height, bgColor, dpi, quality } = payload;
-        const results = [];
-        
-        try {
-            const offCanvas = new OffscreenCanvas(width, height);
-            const ctx = offCanvas.getContext('2d');
+    let photos = []; 
+    let pages = []; 
+    let depotPhotos = []; // NY: Array for bilder i depotet
+    
+    let orientation = 'portrait';
+    let currentPageIndex = 0;
+    let previewQuality = 'low'; 
+    let historyStack = [];
+    const MAX_HISTORY = 20;
+    let currentLayoutId = 1;
 
-            for (let i = 0; i < pages.length; i++) {
-                const page = pages[i];
-                
-                // Clear & BG
-                ctx.fillStyle = bgColor;
-                ctx.fillRect(0, 0, width, height);
-                
-                // Draw Photos
-                for (const cell of page.cells) {
-                    const bitmap = await createImageBitmap(cell.blob);
-                    
-                    // Object-fit: cover logic
-                    const imgRatio = bitmap.width / bitmap.height;
-                    const targetRatio = cell.w / cell.h;
-                    let sx=0, sy=0, sw=bitmap.width, sh=bitmap.height;
-                    
-                    if (imgRatio > targetRatio) {
-                        sw = sh * targetRatio; sx = (bitmap.width - sw) / 2;
-                    } else {
-                        sh = sw / targetRatio; sy = (bitmap.height - sh) / 2;
-                    }
+    // --- DATABASE ---
+    const dbName = 'PhotoGridDB_Multi_V3'; // Oppdatert versjon for ny struktur
+    const storeName = 'photos';
+    const settingsStore = 'settings';
+    let db;
 
-                    ctx.drawImage(bitmap, sx, sy, sw, sh, cell.x, cell.y, cell.w, cell.h);
-                }
+    async function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(dbName, 1);
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains(storeName)) { db.createObjectStore(storeName, { keyPath: 'id' }); }
+          if (!db.objectStoreNames.contains(settingsStore)) { db.createObjectStore(settingsStore, { keyPath: 'key' }); }
+        };
+        request.onsuccess = (event) => { db = event.target.result; resolve(db); };
+        request.onerror = (event) => reject(event.target.error);
+      });
+    }
 
-                const blob = await offCanvas.convertToBlob({ type: 'image/jpeg', quality: 0.95 });
-                results.push(blob);
-                self.postMessage({ type: 'PROGRESS', current: i + 1, total: pages.length });
-            }
-            self.postMessage({ type: 'COMPLETE', blobs: results });
-        } catch (err) {
-            self.postMessage({ type: 'ERROR', message: err.message });
-        }
-    }
-};
-`;
+    async function savePhotoToDB(photo) {
+      if (!db) return;
+      const tx = db.transaction([storeName], 'readwrite');
+      tx.objectStore(storeName).put({
+        id: photo.id, layoutId: currentLayoutId, name: photo.name,
+        width: photo.width, height: photo.height, aspectRatio: photo.aspectRatio,
+        file: photo.originalFile 
+      });
+    }
 
-/**
- * --- CLASSES ---
- */
+    async function loadPhotosFromDB() {
+      if (!db) return [];
+      return new Promise((resolve) => {
+        const tx = db.transaction([storeName], 'readonly');
+        const req = tx.objectStore(storeName).getAll();
+        req.onsuccess = async () => {
+          const layoutRecords = req.result.filter(r => r.layoutId === currentLayoutId);
+          const loadedPhotos = [];
+          for (const rec of layoutRecords) {
+            const thumbData = await createThumbnail(rec.file);
+            loadedPhotos.push({
+              id: rec.id, name: rec.name, width: rec.width, height: rec.height, aspectRatio: rec.aspectRatio,
+              originalFile: rec.file, originalSrc: URL.createObjectURL(rec.file),
+              previewSrc: thumbData.src, hue: thumbData.hue || 0
+            });
+          }
+          resolve(loadedPhotos);
+        };
+      });
+    }
 
-class Utils {
-    static uuid() { return Math.random().toString(36).substr(2, 9); }
-    
-    static debounce(func, wait) {
-        let timeout;
-        return function(...args) {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => func.apply(this, args), wait);
-        };
-    }
+    async function saveSettings() {
+      if(!db) return;
+      const pagesStructure = pages.map(page => page.map(p => p.id));
+      const depotStructure = depotPhotos.map(p => p.id); // Lagre depot
 
-    static validateRes(originalW, renderW, paperW, dpi) {
-        // Beregn faktisk mm-bredde av bildet på papiret
-        const mmPerPx = paperW / 1000; // Forenklet ratio, justeres i render
-        const actualWidthMM = (renderW / paperW) * paperW; // renderW er px på skjerm, men vi trenger forholdet
-        // Egentlig: Vi vet hvor stor andel av bredden bildet tar
-        const ratio = renderW; // renderW er allerede i 'grid units' som tilsvarer tilgjengelig bredde
-        // La oss si renderW er piksler på skjermen. Vi må vite forholdet.
-        // Enklere: Hvis vi skal printe 300 DPI, trenger vi ca 11.8 px per mm.
-        const requiredPx = (renderW / 25.4) * dpi; // Dette blir feil fordi renderW er skjerm-px.
-        // Vi lar Renderer håndtere dette da den vet skaleringen.
-        return true; 
-    }
-}
+      const tx = db.transaction([settingsStore], 'readwrite');
+      const store = tx.objectStore(settingsStore);
+      const settings = {
+        key: 'settings_layout_' + currentLayoutId,
+        pagesStructure: pagesStructure,
+        depotStructure: depotStructure, // NY
+        projectName: document.getElementById('projectName').value,
+        photosPerPage: document.getElementById('photosPerPage').value,
+        paperSize: document.getElementById('paperSize').value,
+        customDimensions: customDimensions,
+        orientation: orientation,
+        margin: document.getElementById('margin').value,
+        gap: document.getElementById('gap').value,
+        bgColor: document.getElementById('bgColorText').value
+      };
+      store.put(settings);
+      const status = document.getElementById('saveStatus');
+      status.style.display = 'block'; setTimeout(() => status.style.display = 'none', 1000);
+    }
 
-class StateManager {
-    constructor() {
-        this.photos = new Map(); // id -> {id, file, blobUrl, w, h, ratio}
-        this.pages = [[]]; // Array of Arrays of IDs
-        this.depot = []; // Array of IDs
-        
-        this.settings = {
-            projectName: '', paperSize: 'A4', orientation: 'portrait',
-            perPage: 10, margin: 5, gap: 2, bgColor: '#FFFFFF'
-        };
+    async function loadSettings() {
+      if(!db) return null;
+      return new Promise(resolve => {
+        const tx = db.transaction([settingsStore], 'readonly');
+        const req = tx.objectStore(settingsStore).get('settings_layout_' + currentLayoutId);
+        req.onsuccess = () => resolve(req.result);
+      });
+    }
+    
+    async function deletePhotoFromDB(id) {
+        if(!db) return;
+        db.transaction([storeName], 'readwrite').objectStore(storeName).delete(id);
+    }
+    
+    async function clearDBForLayout() {
+      if(!db) return;
+      const tx = db.transaction([storeName], 'readwrite');
+      const store = tx.objectStore(storeName);
+      store.getAll().onsuccess = (e) => {
+          e.target.result.forEach(r => { if (r.layoutId === currentLayoutId) store.delete(r.id); });
+      };
+      db.transaction([settingsStore], 'readwrite').objectStore(settingsStore).delete('settings_layout_' + currentLayoutId);
+    }
 
-        this.history = [];
-        this.historyPointer = -1;
-        this.listeners = [];
-    }
+    // --- NEW: Insert Page Logic ---
+    function insertPageAt(index) {
+        pushHistory();
+        pages.splice(index, 0, []); // Sett inn tom array (ny side)
+        // Oppdater hvilken side vi ser på hvis vi setter inn før nåværende
+        if (index <= currentPageIndex) currentPageIndex++;
+        
+        saveSettings();
+        renderGrid(false); // UI update without resaving immediately
+        
+        // Scroll to the newly inserted page
+        setTimeout(() => {
+            const wrapper = document.getElementById('canvasWrapper');
+            // index * 2 + 1 fordi vi har insert-zones mellom hver side
+            const targetChild = wrapper.children[(index * 2) + 1]; 
+            if(targetChild) {
+                targetChild.scrollIntoView({behavior: 'smooth', inline: 'center'});
+            }
+        }, 100);
+    }
 
-    subscribe(cb) { this.listeners.push(cb); }
-    notify() { this.listeners.forEach(cb => cb()); }
+    function createInsertZone(index) {
+        const div = document.createElement('div');
+        div.className = 'insert-zone';
+        div.innerHTML = `<button class="btn-insert" onclick="insertPageAt(${index})" title="Sett inn ny side her">+</button>`;
+        return div;
+    }
 
-    pushState() {
-        // Remove future if we are in past
-        if (this.historyPointer < this.history.length - 1) {
-            this.history = this.history.slice(0, this.historyPointer + 1);
-        }
-        
-        const snapshot = JSON.parse(JSON.stringify({
-            pages: this.pages,
-            depot: this.depot,
-            settings: this.settings
-        }));
+    // --- OLD Page Logic (Updated) ---
+    function removePage(pageIndex) {
+        if (pages.length <= 1) {
+             if(confirm("Dette er siste side. Vil du tømme den?")) {
+                 pushHistory();
+                 // Flytt bildene til depot i stedet for å slette? Nei, slett for nå, eller legg til depot.
+                 // La oss slette fra side, men beholde i minnet (sletting fra DB skjer manuelt).
+                 // For konsistens med gammel kode:
+                 const photosToRemove = pages[pageIndex];
+                 photosToRemove.forEach(p => deletePhotoFromDB(p.id));
+                 photos = photos.filter(p => !photosToRemove.includes(p));
+                 pages[pageIndex] = [];
+                 renderGrid(true);
+             }
+             return; 
+        }
+        if (!confirm("Vil du slette denne siden? Bildene blir slettet permanent.")) return;
+        
+        pushHistory();
+        const photosToRemove = pages[pageIndex];
+        photosToRemove.forEach(p => deletePhotoFromDB(p.id));
+        const idsToRemove = new Set(photosToRemove.map(p => p.id));
+        photos = photos.filter(p => !idsToRemove.has(p.id));
+        
+        pages.splice(pageIndex, 1);
+        if (currentPageIndex >= pages.length) currentPageIndex = pages.length - 1;
+        renderGrid(true);
+    }
 
-        this.history.push(snapshot);
-        if (this.history.length > CONFIG.HISTORY_LIMIT) this.history.shift();
-        else this.historyPointer++;
-        
-        this.notify();
-    }
+    function autoFlow() {
+        pushHistory();
+        const photosPerPage = parseInt(document.getElementById('photosPerPage').value) || 10;
+        const tolerance = parseInt(document.getElementById('pageTolerance').value) || 0;
+        const paper = getPaperDimensions();
+        const margin = parseFloat(document.getElementById('margin').value) || 0;
+        const gap = parseFloat(document.getElementById('gap').value) || 0;
+        const availableWidth = paper.width - (2*margin); 
+        const availableHeight = paper.height - (2*margin);
+        
+        // Samle alle bilder fra sider OG depot for en full reset?
+        // Nei, autoflow bør gjelde "aktive" bilder. La oss beholde depot separat, 
+        // eller spørre brukeren. Standard: Autoflow kun sidene.
+        
+        const allPagePhotos = [];
+        pages.forEach(p => allPagePhotos.push(...p));
+        
+        pages = partitionPhotosIntoPages(allPagePhotos, photosPerPage, tolerance, availableWidth, availableHeight, gap);
+        if (pages.length === 0) pages = [[]]; 
+        renderGrid(true);
+    }
 
-    undo() {
-        if (this.historyPointer > 0) {
-            this.historyPointer--;
-            const state = JSON.parse(JSON.stringify(this.history[this.historyPointer]));
-            this.pages = state.pages;
-            this.depot = state.depot;
-            this.settings = state.settings; // Restore sliders too
-            this.notify();
-            return true;
-        }
-        return false;
-    }
+    function checkPaperSize(select) {
+        if (select.value === 'CUSTOM') {
+            document.getElementById('customSizeModal').classList.add('open');
+            document.getElementById('customWidth').focus();
+        } else { previousPaperSize = select.value; resetAndRender(); }
+    }
+    function closeCustomModal() { document.getElementById('customSizeModal').classList.remove('open'); document.getElementById('paperSize').value = previousPaperSize; }
+    function applyCustomSize() {
+        const w = parseFloat(document.getElementById('customWidth').value);
+        const h = parseFloat(document.getElementById('customHeight').value);
+        if (w > 0 && h > 0) { customDimensions = { width: w, height: h }; updateCustomOptionText(); document.getElementById('customSizeModal').classList.remove('open'); previousPaperSize = 'CUSTOM'; resetAndRender(); } 
+        else { alert("Ugyldige dimensjoner"); }
+    }
+    function updateCustomOptionText() { const opt = document.querySelector('option[value="CUSTOM"]'); if(opt) opt.textContent = `Spesial (${customDimensions.width}×${customDimensions.height}mm)`; }
 
-    addPhotos(fileList) {
-        this.pushState();
-        const promises = fileList.map(file => {
-            return new Promise(resolve => {
-                const img = new Image();
-                const url = URL.createObjectURL(file);
-                img.onload = () => {
-                    const asset = {
-                        id: Utils.uuid(),
-                        file: file, // Keep file for worker
-                        src: url,
-                        w: img.width, h: img.height,
-                        ratio: img.width / img.height
-                    };
-                    this.photos.set(asset.id, asset);
-                    resolve(asset.id);
-                };
-                img.src = url;
-            });
-        });
+    async function switchLayout(newId) {
+        if (newId === currentLayoutId) return;
+        await saveSettings();
+        // Revoke URLs to free memory
+        photos.forEach(p => { URL.revokeObjectURL(p.originalSrc); URL.revokeObjectURL(p.previewSrc); });
+        depotPhotos.forEach(p => { URL.revokeObjectURL(p.originalSrc); URL.revokeObjectURL(p.previewSrc); });
 
-        Promise.all(promises).then(ids => {
-            // Add to current page or new page
-            const currPage = this.pages[this.pages.length - 1];
-            this.pages[this.pages.length - 1] = [...currPage, ...ids];
-            this.autoFlow(); // Redistribute
-        });
-    }
+        photos = []; pages = []; depotPhotos = []; historyStack = [];
+        currentLayoutId = newId;
+        
+        document.querySelectorAll('.layout-tab').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + newId).classList.add('active');
+        document.getElementById('projectName').value = '';
+        orientation = 'portrait';
+        
+        const loadedPhotos = await loadPhotosFromDB();
+        const savedSettings = await loadSettings();
+        applyLoadedState(loadedPhotos, savedSettings);
+    }
+    
+    function applyLoadedState(loadedPhotos, savedSettings) {
+        // Build map for lookup
+        const photoMap = new Map(loadedPhotos.map(p => [p.id, p]));
+        
+        if (savedSettings) {
+            document.getElementById('projectName').value = savedSettings.projectName || '';
+            document.getElementById('photosPerPage').value = savedSettings.photosPerPage;
+            document.getElementById('paperSize').value = savedSettings.paperSize;
+            if (savedSettings.customDimensions) {
+                customDimensions = savedSettings.customDimensions;
+                document.getElementById('customWidth').value = customDimensions.width;
+                document.getElementById('customHeight').value = customDimensions.height;
+                updateCustomOptionText();
+            }
+            previousPaperSize = savedSettings.paperSize;
+            orientation = savedSettings.orientation || 'portrait';
+            setOrientation(orientation); 
+            document.getElementById('margin').value = savedSettings.margin;
+            document.getElementById('gap').value = savedSettings.gap;
+            const bg = savedSettings.bgColor || '#FFFFFF';
+            document.getElementById('bgColorText').value = bg;
+            document.getElementById('bgColorPicker').value = bg;
+            
+            // Gjenopprett sider
+            if (savedSettings.pagesStructure) {
+                pages = savedSettings.pagesStructure.map(pageIds => {
+                    return pageIds.map(id => photoMap.get(id)).filter(p => p); 
+                });
+            } else {
+                pages = [loadedPhotos]; // Fallback
+                setTimeout(autoFlow, 100);
+            }
+            
+            // Gjenopprett depot
+            depotPhotos = [];
+            if (savedSettings.depotStructure) {
+                savedSettings.depotStructure.forEach(id => {
+                    const p = photoMap.get(id);
+                    if(p) depotPhotos.push(p);
+                });
+            }
+            // Add photos currently not in pages or depot (orphans) to depot
+            // (Optional safety check)
 
-    autoFlow() {
-        const allIds = this.pages.flat();
-        const limit = this.settings.perPage;
-        const newPages = [];
-        for (let i = 0; i < allIds.length; i += limit) {
-            newPages.push(allIds.slice(i, i + limit));
-        }
-        if (newPages.length === 0) newPages.push([]);
-        this.pages = newPages;
-        this.notify();
-    }
+            photos = loadedPhotos; // Keep reference to all
+        } else {
+            // New project default
+            document.getElementById('projectName').value = "Prosjekt " + currentLayoutId;
+            document.getElementById('paperSize').value = 'A4';
+            previousPaperSize = 'A4';
+            pages = [loadedPhotos]; 
+            depotPhotos = [];
+            photos = loadedPhotos;
+            setTimeout(autoFlow, 100);
+        }
+        renderGrid(false);
+    }
 
-    deletePhoto(id) {
-        this.pushState();
-        this.pages = this.pages.map(p => p.filter(x => x !== id));
-        this.depot = this.depot.filter(x => x !== id);
-        this.photos.delete(id);
-        this.notify();
-    }
+    // --- Graphics Helpers ---
+    function rgbToHsl(r, g, b) {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+        if (max === min) { h = s = 0; } 
+        else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+        return { h: h * 360, s: s, l: l };
+    }
 
-    movePhoto(id, from, to) {
-        this.pushState();
-        // Remove
-        if (from.type === 'depot') this.depot = this.depot.filter(x => x !== id);
-        else this.pages[from.idx] = this.pages[from.idx].filter(x => x !== id);
+    function createThumbnail(file, maxWidth = 600) {
+      return new Promise((resolve) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, maxWidth / img.width);
+          const w = img.width * scale;
+          const h = img.height * scale;
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const imageData = ctx.getImageData(0, 0, w, h);
+          const data = imageData.data;
+          let r = 0, g = 0, b = 0, count = 0;
+          for (let i = 0; i < data.length; i += 40) { r += data[i]; g += data[i + 1]; b += data[i + 2]; count++; }
+          r = Math.floor(r/count); g = Math.floor(g/count); b = Math.floor(b/count);
+          const hsl = rgbToHsl(r, g, b);
+          canvas.toBlob((blob) => {
+            URL.revokeObjectURL(url);
+            resolve({ src: URL.createObjectURL(blob), width: img.width, height: img.height, hue: hsl.h });
+          }, 'image/jpeg', 0.7);
+        };
+        img.onerror = () => resolve({ src: url, width: 1000, height: 1000, hue: 0 });
+        img.src = url;
+      });
+    }
 
-        // Add
-        if (to.type === 'depot') this.depot.push(id);
-        else this.pages[to.idx].push(id);
-        
-        this.notify();
-    }
+    function sortByColor() {
+        if (photos.length < 2) return;
+        pushHistory();
+        const allPhotos = [];
+        pages.forEach(p => allPhotos.push(...p));
+        allPhotos.sort((a, b) => a.hue - b.hue);
+        pages = [allPhotos];
+        autoFlow();
+    }
 
-    insertPage(index) {
-        this.pushState();
-        this.pages.splice(index, 0, []);
-        this.notify();
-    }
+    // --- OPTIMIZED HISTORY (UNDO) ---
+    function pushHistory() {
+        const currentState = {
+            pages: pages.map(page => page.map(p => p.id)),
+            depot: depotPhotos.map(p => p.id)
+        };
+        
+        // Unngå duplikater (enkel sjekk)
+        if(historyStack.length > 0) {
+            const last = historyStack[historyStack.length - 1];
+            if(JSON.stringify(last) === JSON.stringify(currentState)) return;
+        }
 
-    removePage(index) {
-        this.pushState();
-        const pIds = this.pages[index];
-        pIds.forEach(id => this.photos.delete(id)); // Delete photos permanently
-        this.pages.splice(index, 1);
-        if(this.pages.length === 0) this.pages.push([]);
-        this.notify();
-    }
-    
-    wipe() {
-        this.pushState();
-        this.pages = [[]];
-        this.depot = [];
-        this.photos.clear();
-        this.notify();
-    }
-}
+        historyStack.push(currentState);
+        if (historyStack.length > MAX_HISTORY) historyStack.shift();
+        updateUndoBtn();
+    }
+    
+    function undo() {
+        if (historyStack.length === 0) return;
+        const previousState = historyStack.pop();
+        
+        const photoMap = new Map(photos.map(p => [p.id, p]));
+        
+        // Restore Pages
+        pages = previousState.pages.map(pageIds => {
+            return pageIds.map(id => photoMap.get(id)).filter(p => p);
+        });
+        
+        // Restore Depot
+        depotPhotos = [];
+        if(previousState.depot) {
+            previousState.depot.forEach(id => {
+                const p = photoMap.get(id);
+                if(p) depotPhotos.push(p);
+            });
+        }
+        
+        renderGrid(false); // No save on undo, wait for next action or manual
+        updateUndoBtn();
+    }
+    
+    function updateUndoBtn() { 
+        const btn = document.getElementById('undoBtn');
+        btn.disabled = historyStack.length === 0; 
+        btn.textContent = `Angre (${historyStack.length})`;
+    }
 
-class LayoutEngine {
-    static calculate(ids, photosMap, width, gap) {
-        if (!ids.length) return { cells: [], height: 0 };
-        
-        // Forenklet "Row Balance" algoritme
-        const rows = [];
-        const idealHeight = width / 3; // Start gjetning
-        let currentRow = [];
-        let currentWidth = 0;
+    // Keyboard Shortcut for Undo
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            e.preventDefault();
+            undo();
+        }
+    });
 
-        // 1. Group into rows
-        for (const id of ids) {
-            const p = photosMap.get(id);
-            if(!p) continue;
-            
-            // Scaled width if height was 100
-            const w = 100 * p.ratio;
-            currentRow.push({ ...p, scaledW: w });
-            currentWidth += w;
+    // --- DEBOUNCE & HANDLERS ---
+    function debounce(func, wait) {
+      let timeout;
+      return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), wait); };
+    }
+    const debouncedRender = debounce(() => { renderGrid(true); }, 50);
+    const debouncedAutoFlow = debounce(() => { autoFlow(); }, 200);
 
-            // Check if row is full enough
-            if (currentWidth > (width / idealHeight * 100) || currentRow.length >= 5) {
-                rows.push(currentRow);
-                currentRow = [];
-                currentWidth = 0;
-            }
-        }
-        if (currentRow.length) rows.push(currentRow);
+    function handleSliderChange(type, value) {
+      const val = parseFloat(value) || 0;
+      if (type === 'photosPerPage') { 
+          document.getElementById('photosPerPageInput').value = parseInt(value); 
+          debouncedAutoFlow();
+      }
+      else if (type === 'tolerance') { document.getElementById('pageToleranceInput').value = parseInt(value); document.getElementById('toleranceValue').textContent = parseInt(value); debouncedRender(); }
+      else if (type === 'margin') { document.getElementById('marginInput').value = val; document.getElementById('marginValue').textContent = val; debouncedRender(); }
+      else if (type === 'gap') { document.getElementById('gapInput').value = val; document.getElementById('gapValue').textContent = val; debouncedRender(); }
+    }
+    
+    function handleInputChange(type, value) {
+      const val = parseFloat(value) || 0;
+      if (type === 'photosPerPage') {
+          document.getElementById('photosPerPage').value = parseInt(value);
+          debouncedAutoFlow();
+      }
+      else if (type === 'tolerance') { document.getElementById('pageTolerance').value = parseInt(value); document.getElementById('toleranceValue').textContent = parseInt(value); debouncedRender(); }
+      else if (type === 'margin') { document.getElementById('margin').value = val; document.getElementById('marginValue').textContent = val; debouncedRender(); }
+      else if (type === 'gap') { document.getElementById('gap').value = val; document.getElementById('gapValue').textContent = val; debouncedRender(); }
+    }
+    function resetAndRender(save = true) { renderGrid(save); }
+    
+    // --- DRAG & DROP UTILS (Updated for Depot) ---
+    let draggedPhotoId = null;
+    let draggedPageIdx = null; // Source page index for photo, or index of page being moved
+    let dragSourceType = null; // 'page', 'depot'
+    let dragType = null; // 'photo', 'page-move'
 
-        // 2. Calculate coordinates
-        const cells = [];
-        let y = 0;
-        
-        rows.forEach(row => {
-            // Calculate scale factor to fill width
-            const aspectSum = row.reduce((sum, item) => sum + item.ratio, 0);
-            const gaps = (row.length - 1) * gap;
-            const rowHeight = (width - gaps) / aspectSum;
-            
-            let x = 0;
-            row.forEach(item => {
-                const w = rowHeight * item.ratio;
-                cells.push({
-                    id: item.id, x, y, width: w, height: rowHeight,
-                    photo: item // Ref for checking resolution
-                });
-                x += w + gap;
-            });
-            y += rowHeight + gap;
-        });
+    // PHOTO DRAG
+    function handleDragStart(e, id, sourcePageIndex, sourceType = 'page') { 
+        e.stopPropagation();
+        draggedPhotoId = id; 
+        draggedPageIdx = sourcePageIndex; 
+        dragSourceType = sourceType;
+        dragType = 'photo';
+        e.target.classList.add('dragging'); 
+        e.dataTransfer.effectAllowed = 'move'; 
+    }
 
-        return { cells, height: y };
-    }
-}
+    // PAGE DRAG (Reordering pages)
+    function handlePageDragStart(e, pageIndex) {
+        draggedPageIdx = pageIndex;
+        dragType = 'page-move';
+        const pageContainer = document.getElementById(`page-${pageIndex}`);
+        if(pageContainer) {
+            pageContainer.classList.add('page-dragging');
+        }
+        e.dataTransfer.effectAllowed = 'move';
+    }
 
-class App {
-    constructor() {
-        this.state = new StateManager();
-        
-        // DOM Elements
-        this.dom = {
-            wrapper: document.getElementById('canvasWrapper'),
-            depot: document.getElementById('depotContainer'),
-            inputs: {
-                perPage: document.getElementById('photosPerPage'),
-                margin: document.getElementById('margin'),
-                gap: document.getElementById('gap'),
-                bg: document.getElementById('bgColor'),
-                project: document.getElementById('projectName')
-            }
-        };
+    function handleDragOver(e) { 
+        e.preventDefault(); 
+        e.dataTransfer.dropEffect = 'move';
+        
+        if (dragType === 'page-move') {
+             const pageContainer = e.target.closest('.page-container');
+             if (pageContainer && pageContainer.dataset.index != draggedPageIdx) {
+                 pageContainer.classList.add('page-drop-target');
+             }
+        } else if (dragType === 'photo') {
+             const page = e.target.closest('.page-container');
+             if (page) page.classList.add('drag-active');
+             
+             const depot = e.target.closest('.depot-content');
+             if (depot) depot.classList.add('drag-over');
+             
+             const cell = e.target.closest('.photo-cell');
+             if (cell && cell.dataset.id !== String(draggedPhotoId)) cell.classList.add('drag-over');
+        }
+        return false; 
+    }
 
-        // Worker Init
-        const blob = new Blob([WORKER_SCRIPT], { type: 'application/javascript' });
-        this.worker = new Worker(URL.createObjectURL(blob));
-        this.worker.onmessage = this.handleWorkerMsg.bind(this);
+    function handleDragEnter(e) { 
+        e.preventDefault(); 
+    }
 
-        this.bindEvents();
-        this.state.subscribe(() => this.render());
-        
-        // Init
-        this.state.pushState(); // Initial state
-    }
+    function handleDragLeave(e) { 
+        if (dragType === 'photo') {
+            const target = e.target.closest('.photo-cell'); if (target) target.classList.remove('drag-over');
+            const page = e.target.closest('.page-container'); if (page && !page.contains(e.relatedTarget)) page.classList.remove('drag-active');
+            const depot = e.target.closest('.depot-content'); if(depot && !depot.contains(e.relatedTarget)) depot.classList.remove('drag-over');
+        }
+        if (dragType === 'page-move') {
+            const pageContainer = e.target.closest('.page-container');
+            if (pageContainer) pageContainer.classList.remove('page-drop-target');
+        }
+    }
 
-    bindEvents() {
-        const s = this.state;
-        
-        // Inputs
-        const bindInput = (el, key, isNum=false) => {
-            el.addEventListener('input', Utils.debounce(e => {
-                s.settings[key] = isNum ? parseFloat(e.target.value) : e.target.value;
-                document.getElementById('out' + el.id.charAt(0).toUpperCase() + el.id.slice(1))?.setAttribute('value', el.value);
-                if(key === 'perPage') s.autoFlow();
-                else s.notify(); // Trigger render
-            }, 50));
-        };
+    function handleDrop(e, targetId) {
+      e.stopPropagation(); e.preventDefault();
+      
+      // Cleanup visuals
+      document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      document.querySelectorAll('.page-drop-target').forEach(el => el.classList.remove('page-drop-target'));
+      document.querySelectorAll('.page-dragging').forEach(el => el.classList.remove('page-dragging'));
+      document.querySelectorAll('.page-container').forEach(el => el.classList.remove('drag-active'));
+      document.querySelectorAll('.depot-content').forEach(el => el.classList.remove('drag-over'));
 
-        bindInput(this.dom.inputs.perPage, 'perPage', true);
-        bindInput(this.dom.inputs.margin, 'margin', true);
-        bindInput(this.dom.inputs.gap, 'gap', true);
-        
-        this.dom.inputs.bg.addEventListener('input', (e) => {
-            s.settings.bgColor = e.target.value;
-            document.getElementById('bgColorText').value = e.target.value;
-            s.notify();
-        });
+      // --- HANDLE PAGE REORDER ---
+      if (dragType === 'page-move') {
+          const targetPageEl = e.target.closest('.page-container');
+          if (!targetPageEl) return;
+          const targetIdx = parseInt(targetPageEl.dataset.index);
+          
+          if (draggedPageIdx !== null && draggedPageIdx !== targetIdx) {
+              pushHistory();
+              const pageToMove = pages[draggedPageIdx];
+              pages.splice(draggedPageIdx, 1);
+              pages.splice(targetIdx, 0, pageToMove);
+              currentPageIndex = targetIdx;
+              renderGrid(true);
+          }
+          draggedPageIdx = null; dragType = null;
+          return;
+      }
 
-        this.dom.inputs.project.addEventListener('change', e => s.settings.projectName = e.target.value);
+      // --- HANDLE PHOTO DROP ---
+      if (dragType === 'photo' && draggedPhotoId !== null) {
+          pushHistory();
+          let photoItem;
+          
+          // 1. Remove from Source
+          if (dragSourceType === 'depot') {
+              photoItem = depotPhotos.find(p => p.id === draggedPhotoId);
+              depotPhotos = depotPhotos.filter(p => p.id !== draggedPhotoId);
+          } else {
+              photoItem = pages[draggedPageIdx].find(p => p.id === draggedPhotoId);
+              pages[draggedPageIdx] = pages[draggedPageIdx].filter(p => p.id !== draggedPhotoId);
+          }
+          
+          if (!photoItem) return; // Error safety
 
-        // Buttons
-        document.getElementById('btnPortrait').onclick = () => this.setOri('portrait');
-        document.getElementById('btnLandscape').onclick = () => this.setOri('landscape');
-        document.getElementById('autoFlowBtn').onclick = () => s.autoFlow();
-        document.getElementById('undoBtn').onclick = () => s.undo();
-        document.getElementById('resetAllBtn').onclick = () => confirm('Slette alt?') && s.wipe();
-        document.getElementById('exportBtn').onclick = () => this.export();
-        
-        // File Upload
-        document.getElementById('fileInput').onchange = (e) => {
-            if(e.target.files.length) s.addPhotos(Array.from(e.target.files));
-            e.target.value = '';
-        };
+          // 2. Add to Target
+          if (targetId === 'depot') {
+              depotPhotos.push(photoItem);
+          } else {
+              // Dropped on a Page
+              const pageEl = e.target.closest('.page-container');
+              if (!pageEl) {
+                  // Dropped in void, return to source (undo remove)
+                  if(dragSourceType === 'depot') depotPhotos.push(photoItem);
+                  else pages[draggedPageIdx].push(photoItem);
+                  renderGrid(true); return;
+              }
+              
+              const targetPageIndex = parseInt(pageEl.dataset.index);
+              
+              if (targetId && targetId !== 'depot') { // Dropped on specific photo
+                  const targetIndex = pages[targetPageIndex].findIndex(p => p.id === targetId);
+                  if (targetIndex > -1) { pages[targetPageIndex].splice(targetIndex, 0, photoItem); } 
+                  else { pages[targetPageIndex].push(photoItem); }
+              } else {
+                  pages[targetPageIndex].push(photoItem);
+              }
+          }
+          
+          draggedPhotoId = null; dragSourceType = null; dragType = null;
+          renderGrid(true); 
+      }
+      return false;
+    }
+    
+    function handleDragEnd(e) { 
+        // Global cleanup safety
+        document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        document.querySelectorAll('.page-drop-target').forEach(el => el.classList.remove('page-drop-target'));
+        draggedPhotoId = null; draggedPageIdx = null; dragType = null;
+    }
 
-        // Keyboard Undo
-        document.addEventListener('keydown', e => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-                e.preventDefault(); s.undo();
-            }
-        });
+    function changePage(delta) {
+      const totalPages = pages.length || 1;
+      let newIndex = currentPageIndex + delta;
+      if (newIndex >= 0 && newIndex < totalPages) { currentPageIndex = newIndex; renderGrid(false); }
+    }
+    
+    document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+    
+    // --- MAIN RENDER FUNCTION (Aggregates UI updates) ---
+    function renderGrid(save = true) {
+      if (save) saveSettings();
+      
+      const paper = getPaperDimensions();
+      const aspectRatio = paper.width / paper.height;
+      const isMobile = window.innerWidth <= 900;
+      const padding = 80; 
+      const sidebarWidth = isMobile ? 0 : 340;
+      const maxWidth = window.innerWidth - sidebarWidth - (padding * 2);
+      const maxHeight = window.innerHeight - 200; // Justert for depot
 
-        // Drag & Drop
-        this.setupDragDrop();
-    }
+      let displayWidth = maxWidth;
+      let displayHeight = displayWidth / aspectRatio;
+      if (displayHeight > maxHeight) { displayHeight = maxHeight; displayWidth = displayHeight * aspectRatio; }
+      displayWidth = Math.max(100, displayWidth); displayHeight = Math.max(100, displayHeight);
 
-    setOri(o) {
-        this.state.settings.orientation = o;
-        document.getElementById('btnPortrait').classList.toggle('active', o === 'portrait');
-        document.getElementById('btnPortrait').setAttribute('aria-pressed', o === 'portrait');
-        document.getElementById('btnLandscape').classList.toggle('active', o === 'landscape');
-        document.getElementById('btnLandscape').setAttribute('aria-pressed', o === 'landscape');
-        this.state.notify();
-    }
+      const margin = parseFloat(document.getElementById('margin').value) || 0;
+      const gap = parseFloat(document.getElementById('gap').value) || 0;
+      
+      const marginPx = (margin / paper.width) * displayWidth;
+      const gapPx = (gap / paper.width) * displayWidth;
+      const availableWidth = displayWidth - (2 * marginPx);
+      const availableHeight = displayHeight - (2 * marginPx);
 
-    render() {
-        const { pages, depot, settings, photos } = this.state;
-        const wrapper = this.dom.wrapper;
-        
-        // Update Undo Btn
-        document.getElementById('undoBtn').disabled = this.state.historyPointer <= 0;
-        document.getElementById('photoCount').textContent = photos.size;
+      const canvasWrapper = document.getElementById('canvasWrapper');
+      canvasWrapper.innerHTML = ''; 
 
-        // Dimensions
-        const size = CONFIG.PAPER[settings.paperSize];
-        const isPort = settings.orientation === 'portrait';
-        const paperW = isPort ? size.w : size.h;
-        const paperH = isPort ? size.h : size.w;
-        const ratio = paperW / paperH;
+      if (pages.length === 0 && photos.length > 0) { pages = [[]]; }
 
-        // Render Params
-        const viewH = wrapper.clientHeight - 80;
-        const viewW = viewH * ratio;
-        const scale = viewW / paperW; // px per mm
-        const marginPx = settings.margin * scale;
-        const gapPx = settings.gap * scale;
+      const totalPages = pages.length;
+      if (currentPageIndex >= totalPages) currentPageIndex = totalPages - 1;
+      if (currentPageIndex < 0) currentPageIndex = 0;
 
-        // Render Pages
-        wrapper.innerHTML = '';
-        
-        // Prepend Insert Zone
-        wrapper.appendChild(this.createInsertZone(0));
+      // Update Nav Info
+      document.getElementById('photoCount').textContent = photos.length;
+      document.getElementById('pageNav').style.display = totalPages > 0 ? 'flex' : 'none';
+      document.getElementById('pageIndicator').textContent = `Side ${currentPageIndex + 1} av ${Math.max(1, totalPages)}`;
+      document.getElementById('prevBtn').disabled = currentPageIndex <= 0;
+      document.getElementById('nextBtn').disabled = currentPageIndex >= totalPages - 1;
 
-        pages.forEach((pageIds, idx) => {
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'page-wrapper';
-            pageDiv.innerHTML = `
-                <div class="page-header">
-                    <span class="page-badge">Side ${idx + 1}</span>
-                    <button class="btn-secondary" style="width:auto; padding:2px 8px; font-size:11px;" onclick="app.state.removePage(${idx})" title="Slett side">Slett</button>
-                </div>
-                <div class="canvas" data-type="page" data-idx="${idx}" style="width:${viewW}px; height:${viewH}px; background:${settings.bgColor};"></div>
-            `;
-            
-            const canvas = pageDiv.querySelector('.canvas');
-            
-            // Grid Layout
-            const availW = viewW - (2 * marginPx);
-            const availH = viewH - (2 * marginPx);
-            const layout = LayoutEngine.calculate(pageIds, photos, availW, gapPx);
-            
-            // Center grid vertically
-            const offsetY = (availH - layout.height) / 2;
+      // Render Insert Zone Start
+      canvasWrapper.appendChild(createInsertZone(0));
 
-            layout.cells.forEach(cell => {
-                const p = photos.get(cell.id);
-                const el = document.createElement('div');
-                el.className = 'photo-cell';
-                el.draggable = true;
-                el.dataset.id = cell.id;
-                // Position relative to margin + offset
-                el.style.left = (marginPx + cell.x) + 'px';
-                el.style.top = (marginPx + offsetY + cell.y) + 'px';
-                el.style.width = cell.width + 'px';
-                el.style.height = cell.height + 'px';
-                
-                // Resolution Check
-                const dpi = parseInt(document.getElementById('dpi').value);
-                const mmW = (cell.width / scale); // Width in MM
-                const neededPx = (mmW / 25.4) * dpi;
-                const lowRes = p.w < neededPx;
+      // Loop all pages (Vis alle sider side-ved-side i denne versjonen for bedre oversikt?)
+      // Original script viste kun 1 (eller 3 i karusell). La oss vise alle for enklere "Insert".
+      // MEN: for ytelse, hvis vi har 100 sider, bør vi kanskje ikke rende alle. 
+      // La oss rende alle nå for å få "Insert" knapper til å virke overalt.
+      
+      pages.forEach((pagePhotos, i) => {
+          const pageContainer = document.createElement('div');
+          pageContainer.className = 'page-container';
+          if (i === currentPageIndex) pageContainer.classList.add('active');
+          pageContainer.id = `page-${i}`;
+          pageContainer.dataset.index = i; 
+          
+          // Click to set active
+          pageContainer.onclick = () => { currentPageIndex = i; renderGrid(false); };
+          
+          // Header
+          const header = document.createElement('div');
+          header.className = 'page-header';
+          
+          const labelGroup = document.createElement('div');
+          labelGroup.className = 'page-label-group';
+          
+          // Drag Handle for PAGE
+          const dragHandle = document.createElement('div');
+          dragHandle.className = 'page-drag-handle';
+          dragHandle.title = 'Dra for å flytte side';
+          dragHandle.innerHTML = '☰';
+          dragHandle.style.cursor = 'grab';
+          dragHandle.style.marginRight = '6px';
+          dragHandle.draggable = true;
+          dragHandle.ondragstart = (e) => handlePageDragStart(e, i);
+          dragHandle.ondragend = handleDragEnd;
 
-                el.innerHTML = `
-                    <img src="${p.src}">
-                    <button class="remove-btn" onclick="app.state.deletePhoto('${cell.id}')">×</button>
-                    ${lowRes ? `<div class="warn-icon" title="Lav oppløsning for print">⚠️</div>` : ''}
-                `;
-                canvas.appendChild(el);
-            });
+          const label = document.createElement('div');
+          label.className = 'page-label';
+          label.textContent = `Side ${i + 1}`;
+          
+          labelGroup.appendChild(dragHandle);
+          labelGroup.appendChild(label);
 
-            wrapper.appendChild(pageDiv);
-            wrapper.appendChild(this.createInsertZone(idx + 1));
-        });
+          const delBtn = document.createElement('button');
+          delBtn.className = 'delete-page-btn';
+          delBtn.innerHTML = '×';
+          delBtn.title = 'Slett side';
+          delBtn.onclick = (e) => { e.stopPropagation(); removePage(i); };
 
-        // Render Depot
-        const depotEl = this.dom.depot;
-        depotEl.innerHTML = depot.length ? '' : '<div class="empty-msg">Depotet er tomt</div>';
-        document.getElementById('depotCount').textContent = `${depot.length}`;
-        
-        depot.forEach(id => {
-            const p = photos.get(id);
-            const el = document.createElement('div');
-            el.className = 'depot-item';
-            el.draggable = true;
-            el.dataset.id = id;
-            el.tabIndex = 0; // A11y
-            el.innerHTML = `<img src="${p.src}"><button class="remove-btn" onclick="app.state.deletePhoto('${id}')">×</button>`;
-            
-            // Keyboard Nav: Enter to move to active page
-            el.onkeydown = (e) => {
-                if(e.key === 'Enter') this.state.movePhoto(id, {type:'depot'}, {type:'page', idx: this.state.pages.length-1});
-            };
-            
-            depotEl.appendChild(el);
-        });
-    }
+          header.appendChild(labelGroup);
+          header.appendChild(delBtn);
+          pageContainer.appendChild(header);
 
-    createInsertZone(idx) {
-        const div = document.createElement('div');
-        div.className = 'insert-zone';
-        div.innerHTML = `<button class="btn-insert" title="Sett inn ny side" onclick="app.state.insertPage(${idx})">+</button>`;
-        return div;
-    }
+          // Canvas
+          const canvasEl = document.createElement('div');
+          canvasEl.className = 'canvas';
+          canvasEl.style.width = displayWidth + 'px';
+          canvasEl.style.height = displayHeight + 'px';
+          canvasEl.style.backgroundColor = document.getElementById('bgColorText').value;
+          canvasEl.ondragover = handleDragOver;
+          canvasEl.ondrop = (e) => handleDrop(e, null);
 
-    setupDragDrop() {
-        let draggedId = null;
-        let source = null;
+          // Grid Calculation
+          const gridEl = document.createElement('div');
+          gridEl.style.position = 'absolute';
+          gridEl.style.width = availableWidth + 'px';
+          gridEl.style.height = availableHeight + 'px';
+          gridEl.style.left = marginPx + 'px';
+          gridEl.style.top = marginPx + 'px';
 
-        document.addEventListener('dragstart', e => {
-            const target = e.target.closest('.photo-cell, .depot-item');
-            if(!target) return;
-            draggedId = target.dataset.id;
-            target.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-            
-            const pPage = target.closest('.canvas');
-            if(pPage) source = { type: 'page', idx: parseInt(pPage.dataset.idx) };
-            else source = { type: 'depot' };
-        });
+          const grid = calculateOptimalGrid(pagePhotos, availableWidth, availableHeight, gapPx);
 
-        document.addEventListener('dragend', () => {
-            document.querySelectorAll('.dragging').forEach(e => e.classList.remove('dragging'));
-            document.querySelectorAll('.drag-target').forEach(e => e.classList.remove('drag-target'));
-        });
+          grid.cells.forEach((cell) => {
+            const div = document.createElement('div');
+            div.className = 'photo-cell';
+            div.style.left = cell.x + 'px'; div.style.top = cell.y + 'px';
+            div.style.width = cell.width + 'px'; div.style.height = cell.height + 'px';
+            div.draggable = true;
+            div.dataset.id = cell.photo.id;
+            div.ondragstart = (e) => handleDragStart(e, cell.photo.id, i, 'page');
+            
+            const img = document.createElement('img');
+            img.src = previewQuality === 'low' ? cell.photo.previewSrc : cell.photo.originalSrc;
+            
+            const btn = document.createElement('button');
+            btn.className = 'remove-btn';
+            btn.innerHTML = '×';
+            btn.title = "Fjern (flytt til depot?)"; 
+            // Endre slett-knapp til å slette fra side (men beholde i DB/Depot hvis ønskelig? Standard: Slett helt)
+            // Vi holder det som "Slett helt" for nå, men brukeren kan dra til depot.
+            btn.onclick = (e) => {
+              e.stopPropagation();
+              pushHistory();
+              pages[i] = pages[i].filter(p => p.id !== cell.photo.id);
+              // photos = photos.filter(p => p.id !== cell.photo.id); // Beholdes i DB? Ja, tryggere.
+              deletePhotoFromDB(cell.photo.id); // Sletter faktisk.
+              photos = photos.filter(p => p.id !== cell.photo.id);
+              renderGrid(true);
+            };
 
-        document.addEventListener('dragover', e => {
-            e.preventDefault();
-            const target = e.target.closest('.canvas, .depot-content');
-            if(target) target.classList.add('drag-target');
-        });
-        
-        document.addEventListener('dragleave', e => {
-             const target = e.target.closest('.canvas, .depot-content');
-             if(target) target.classList.remove('drag-target');
-        });
+            div.appendChild(img);
+            div.appendChild(btn);
+            gridEl.appendChild(div);
+          });
+          
+          canvasEl.appendChild(gridEl);
+          pageContainer.appendChild(canvasEl);
+          canvasWrapper.appendChild(pageContainer);
+          
+          // Insert Zone After
+          canvasWrapper.appendChild(createInsertZone(i + 1));
+      });
+      
+      // Render Depot UI
+      renderDepot();
 
-        document.addEventListener('drop', e => {
-            e.preventDefault();
-            if(!draggedId) return;
-            
-            const dropPage = e.target.closest('.canvas');
-            const dropDepot = e.target.closest('.depot-content');
-            
-            let dest = null;
-            if(dropPage) dest = { type: 'page', idx: parseInt(dropPage.dataset.idx) };
-            else if(dropDepot) dest = { type: 'depot' };
+      // Scroll to active page only on specific triggers, otherwise annoying on redraw
+      // (Disabled auto-scroll on every render to allow smooth editing)
+    }
+    
+    function renderDepot() {
+        const depotEl = document.getElementById('depotContainer');
+        const countEl = document.getElementById('depotCount');
+        depotEl.innerHTML = '';
+        countEl.textContent = depotPhotos.length;
+        
+        if(depotPhotos.length === 0) {
+            depotEl.innerHTML = '<div class="empty-msg">Dra bilder hit for å spare dem</div>';
+            return;
+        }
+        
+        depotPhotos.forEach(photo => {
+            const div = document.createElement('div');
+            div.className = 'depot-item';
+            div.draggable = true;
+            div.ondragstart = (e) => handleDragStart(e, photo.id, null, 'depot');
+            
+            const img = document.createElement('img');
+            img.src = photo.previewSrc;
+            
+            const btn = document.createElement('button');
+            btn.className = 'remove-btn';
+            btn.innerHTML = '×';
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                if(confirm("Slette bildet permanent?")) {
+                    pushHistory();
+                    depotPhotos = depotPhotos.filter(p => p.id !== photo.id);
+                    deletePhotoFromDB(photo.id);
+                    photos = photos.filter(p => p.id !== photo.id);
+                    renderGrid(true);
+                }
+            };
+            
+            div.appendChild(img);
+            div.appendChild(btn);
+            depotEl.appendChild(div);
+        });
+    }
 
-            if(dest) {
-                this.state.movePhoto(draggedId, source, dest);
-            }
-            draggedId = null;
-        });
-    }
+    function handleFileUpload(e) { handleFiles(Array.from(e.target.files)); }
 
-    export() {
-        if(this.state.photos.size === 0) return alert("Ingen bilder å eksportere");
-        
-        const btn = document.getElementById('exportBtn');
-        btn.disabled = true;
-        btn.textContent = "Forbereder...";
-        
-        const s = this.state.settings;
-        const size = CONFIG.PAPER[s.paperSize];
-        const isPort = s.orientation === 'portrait';
-        const mmW = isPort ? size.w : size.h;
-        const mmH = isPort ? size.h : size.w;
-        
-        const dpi = parseInt(document.getElementById('dpi').value);
-        const pxW = Math.round((mmW / 25.4) * dpi);
-        const pxH = Math.round((mmH / 25.4) * dpi);
-        const gapPx = (s.gap / 25.4) * dpi;
-        const marginPx = (s.margin / 25.4) * dpi;
+    async function handleFiles(files) {
+      const imageFiles = files.filter(file => file.type.startsWith('image/'));
+      if (imageFiles.length === 0) return;
+      pushHistory();
+      
+      // Show loading
+      const btn = document.querySelector('.btn-primary');
+      const originalText = btn.textContent;
+      btn.textContent = "Laster...";
+      btn.disabled = true;
 
-        // Prepare data for worker (Coordinate calculations must happen here or be duplicated)
-        // We calculate layout again using the print dimensions
-        const pagesPayload = this.state.pages.map(pageIds => {
-             const layout = LayoutEngine.calculate(pageIds, this.state.photos, pxW - (2*marginPx), gapPx);
-             // Adjust coordinates for margin and center vertical
-             const offsetY = (pxH - (2*marginPx) - layout.height) / 2;
-             
-             return {
-                 cells: layout.cells.map(c => ({
-                     blob: this.state.photos.get(c.id).file,
-                     x: Math.round(c.x + marginPx),
-                     y: Math.round(c.y + marginPx + offsetY),
-                     w: Math.round(c.width),
-                     h: Math.round(c.height)
-                 }))
-             };
-        });
+      const processingPromises = imageFiles.map(async (file) => {
+            const originalUrl = URL.createObjectURL(file);
+            const thumbData = await createThumbnail(file);
+            const photoObj = {
+                id: Date.now() + Math.random(), originalFile: file, originalSrc: originalUrl,
+                previewSrc: thumbData.src, name: file.name, width: thumbData.width,
+                height: thumbData.height, aspectRatio: thumbData.width / thumbData.height, hue: thumbData.hue || 0
+            };
+            await savePhotoToDB(photoObj);
+            return photoObj;
+        });
+      
+      const newPhotos = await Promise.all(processingPromises);
+      newPhotos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+      
+      photos.push(...newPhotos);
+      
+      // Hvor skal nye bilder?
+      // Alternativ 1: Inn på nåværende side (standard)
+      // Alternativ 2: Inn i depot
+      
+      if (pages.length === 0) pages.push([]);
+      pages[currentPageIndex].push(...newPhotos);
+      
+      btn.textContent = originalText;
+      btn.disabled = false;
+      renderGrid(true);
+    }
 
-        this.worker.postMessage({
-            type: 'EXPORT',
-            payload: {
-                pages: pagesPayload,
-                width: pxW, height: pxH,
-                bgColor: s.bgColor,
-                dpi: dpi
-            }
-        });
-    }
+    function setOrientation(ori) {
+      orientation = ori;
+      document.getElementById('portraitBtn').className = ori === 'portrait' ? 'active' : '';
+      document.getElementById('landscapeBtn').className = ori === 'landscape' ? 'active' : '';
+      renderGrid(true);
+    }
+    
+    async function clearAll() {
+      if(!confirm("Er du sikker på at du vil fjerne ALLE bilder og sider?")) return;
+      photos.forEach(p => { URL.revokeObjectURL(p.originalSrc); URL.revokeObjectURL(p.previewSrc); });
+      photos = []; pages = [[]]; depotPhotos = [];
+      await clearDBForLayout(); 
+      historyStack = []; updateUndoBtn(); 
+      currentPageIndex = 0; 
+      renderGrid(true);
+    }
 
-    handleWorkerMsg(e) {
-        const { type, blobs, current, total } = e.data;
-        const btn = document.getElementById('exportBtn');
-        const toast = document.getElementById('toast');
+    function getPaperDimensions() {
+      const paperSize = document.getElementById('paperSize').value;
+      let size = PAPER_SIZES[paperSize];
+      if (paperSize === 'CUSTOM') size = customDimensions;
+      return orientation === 'landscape' ? { width: size.height, height: size.width } : { width: size.width, height: size.height };
+    }
 
-        if (type === 'PROGRESS') {
-            btn.textContent = `Genererer ${current}/${total}...`;
-        } else if (type === 'COMPLETE') {
-            btn.textContent = "Last ned JPG";
-            btn.disabled = false;
-            
-            // Show toast
-            toast.textContent = "Eksport fullført!";
-            toast.style.transform = "translateY(0)";
-            setTimeout(() => toast.style.transform = "translateY(-100px)", 3000);
+    // --- GRID CALCULATION ALGORITHM (Beholdes uendret) ---
+    function calculateOptimalGrid(pagePhotos, width, height, gap) {
+      if (!pagePhotos || pagePhotos.length === 0) return { cells: [], totalHeight: 0, fitScore: Infinity };
+      function createLayout(targetRows) {
+        const rows = [];
+        const baseCount = Math.floor(pagePhotos.length / targetRows);
+        const extras = pagePhotos.length % targetRows;
+        let photoIdx = 0;
+        for (let r = 0; r < targetRows; r++) {
+          const count = baseCount + (r < extras ? 1 : 0);
+          const rowPhotos = [];
+          let aspectSum = 0;
+          for (let i = 0; i < count; i++) {
+            if (photoIdx < pagePhotos.length) { rowPhotos.push(pagePhotos[photoIdx]); aspectSum += pagePhotos[photoIdx].aspectRatio; photoIdx++; }
+          }
+          if (rowPhotos.length > 0) {
+            const gaps = (rowPhotos.length - 1) * gap;
+            const rowHeight = (width - gaps) / aspectSum; 
+            rows.push({ photos: rowPhotos, height: rowHeight, aspectSum });
+          }
+        }
+        const totalGapHeight = (rows.length - 1) * gap;
+        const naturalHeight = rows.reduce((sum, r) => sum + r.height, 0) + totalGapHeight;
+        return { rows, naturalHeight, totalGapHeight };
+      }
 
-            // Zip or Single
-            if (blobs.length === 1) {
-                this.download(blobs[0], `${this.state.settings.projectName || 'Grid'}.jpg`);
-            } else {
-                const zip = new JSZip();
-                blobs.forEach((b, i) => zip.file(`Side-${i+1}.jpg`, b));
-                zip.generateAsync({type:"blob"}).then(content => {
-                    this.download(content, "Fotogrid-Export.zip");
-                });
-            }
-        }
-    }
+      let bestLayout = null; let bestScore = Infinity; 
+      for (let r = 1; r <= pagePhotos.length; r++) {
+        const layout = createLayout(r);
+        const contentHeight = layout.naturalHeight - layout.totalGapHeight;
+        const requiredContentHeight = height - layout.totalGapHeight;
+        if (requiredContentHeight <= 0) continue;
+        const scale = requiredContentHeight / contentHeight;
+        let score;
+        if (scale >= 0.9 && scale <= 1.1) { score = Math.abs(1 - scale); } 
+        else { if (scale < 0.9) score = 100 + (0.9 - scale); else score = 100 + (scale - 1.1); }
+        if (score < bestScore) { bestScore = score; bestLayout = { ...layout, optimalScale: scale }; }
+      }
+      if (!bestLayout) return { cells: [], totalHeight: 0, fitScore: Infinity };
 
-    download(blob, name) {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = name;
-        a.click();
-        URL.revokeObjectURL(a.href);
-    }
-}
+      const rows = bestLayout.rows;
+      let finalScale = bestLayout.optimalScale;
+      if (finalScale < 0.9) finalScale = 0.9;
+      if (finalScale > 1.1) finalScale = 1.1;
 
-// Start App
-const app = new App();
+      let currentTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
+      let fitScale = 1;
+      if (currentTotalHeight > height) { fitScale = height / currentTotalHeight; currentTotalHeight = height; }
 
+      const cells = [];
+      let yPos = (currentTotalHeight < height) ? (height - currentTotalHeight) / 2 : 0;
+      const finalTotalWidth = width * fitScale;
+      const xOffset = (width - finalTotalWidth) / 2;
+
+      rows.forEach(row => {
+        const finalRowHeight = row.height * finalScale * fitScale;
+        const rowGapTotal = (row.photos.length - 1) * gap * fitScale;
+        const availableRowWidth = finalTotalWidth - rowGapTotal;
+        let xPos = xOffset;
+        row.photos.forEach(photo => {
+          const cellWidth = (photo.aspectRatio / row.aspectSum) * availableRowWidth;
+          cells.push({ x: xPos, y: yPos, width: cellWidth, height: finalRowHeight, photo: photo });
+          xPos += cellWidth + (gap * fitScale);
+        });
+        yPos += finalRowHeight + (gap * fitScale);
+      });
+      return { cells, totalHeight: currentTotalHeight, fitScore: bestScore };
+    }
+
+    function partitionPhotosIntoPages(allPhotos, target, tolerance, width, height, gap) {
+      const resultPages = [];
+      let currentIndex = 0;
+      while (currentIndex < allPhotos.length) {
+        let bestCount = target; let bestChunkScore = Infinity;
+        const minCount = Math.max(1, target - tolerance);
+        const maxCount = target + tolerance;
+        const remaining = allPhotos.length - currentIndex;
+        if (remaining <= maxCount) { resultPages.push(allPhotos.slice(currentIndex)); break; }
+        for (let c = minCount; c <= maxCount; c++) {
+          if (c > remaining) break;
+          const chunk = allPhotos.slice(currentIndex, currentIndex + c);
+          const result = calculateOptimalGrid(chunk, width, height, gap);
+          const targetDeviation = Math.abs(target - c) * 0.05; 
+          const totalScore = result.fitScore + targetDeviation;
+          if (totalScore < bestChunkScore) { bestChunkScore = totalScore; bestCount = c; }
+        }
+        resultPages.push(allPhotos.slice(currentIndex, currentIndex + bestCount));
+        currentIndex += bestCount;
+      }
+      return resultPages;
+    }
+
+    function getProjectName() {
+        let name = document.getElementById('projectName').value.trim();
+        if(!name) name = `prosjekt-${currentLayoutId}`;
+        return name.replace(/[^a-z0-9æøå]/gi, '-'); 
+    }
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image(); img.crossOrigin = "Anonymous";
+        img.onload = () => resolve(img); img.onerror = (e) => reject(e); img.src = src;
+      });
+    }
+    function createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, bgColor) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const canvas = document.createElement('canvas'); canvas.width = exportWidth; canvas.height = exportHeight;
+          const ctx = canvas.getContext('2d'); ctx.fillStyle = bgColor; ctx.fillRect(0, 0, exportWidth, exportHeight);
+          const availableWidth = exportWidth - 2 * marginPx; const availableHeight = exportHeight - 2 * marginPx;
+          const grid = calculateOptimalGrid(pagePhotos, availableWidth, availableHeight, gapPx);
+          for (let i = 0; i < grid.cells.length; i++) {
+            const cell = grid.cells[i]; const photo = cell.photo;
+            const img = await loadImage(photo.originalSrc); 
+            const cellAspect = cell.width / cell.height; const photoAspect = photo.aspectRatio;
+            let drawWidth, drawHeight, offsetX, offsetY;
+            if (photoAspect > cellAspect) { drawHeight = cell.height; drawWidth = drawHeight * photoAspect; offsetX = (cell.width - drawWidth) / 2; offsetY = 0; } 
+            else { drawWidth = cell.width; drawHeight = drawWidth / photoAspect; offsetX = 0; offsetY = (cell.height - drawHeight) / 2; }
+            const x = Math.round(marginPx + cell.x + offsetX); const y = Math.round(marginPx + cell.y + offsetY);
+            ctx.save(); ctx.beginPath(); ctx.rect(Math.round(marginPx + cell.x), Math.round(marginPx + cell.y), Math.round(cell.width), Math.round(cell.height)); ctx.clip();
+            ctx.drawImage(img, x, y, Math.round(drawWidth), Math.round(drawHeight)); ctx.restore();
+          }
+          canvas.toBlob((blob) => { if (blob) resolve(blob); else reject(new Error('Failed to create blob')); }, 'image/jpeg', 0.95);
+        } catch (err) { reject(err); }
+      });
+    }
+
+    async function exportGrid() {
+      if (photos.length === 0) return;
+      const paper = getPaperDimensions(); const dpi = parseInt(document.getElementById('dpi').value);
+      const mmToPixels = dpi / 25.4; const exportWidth = Math.round(paper.width * mmToPixels); const exportHeight = Math.round(paper.height * mmToPixels);
+      const margin = parseFloat(document.getElementById('margin').value); const gap = parseFloat(document.getElementById('gap').value);
+      const marginPx = Math.round(margin * mmToPixels); const gapPx = Math.round(gap * mmToPixels);
+      const pagesToExport = pages; 
+      const baseName = getProjectName(); const btn = document.getElementById('exportBtn');
+      btn.disabled = true; btn.textContent = "Genererer...";
+      try {
+        for (let pageIndex = 0; pageIndex < pagesToExport.length; pageIndex++) {
+          const pagePhotos = pagesToExport[pageIndex];
+          // Skip empty pages? No, keep index.
+          const blob = await createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, document.getElementById('bgColorText').value);
+          const url = URL.createObjectURL(blob); const a = document.createElement('a');
+          const fileName = pagesToExport.length > 1 ? `${baseName}-side${pageIndex + 1}-${dpi}dpi.jpg` : `${baseName}-${dpi}dpi.jpg`;
+          a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+          await new Promise(r => setTimeout(r, 200));
+        }
+      } catch (err) { alert('Feil ved eksport: ' + err.message); } 
+      finally { btn.disabled = false; btn.textContent = "Lagre som JPG"; }
+    }
+
+    async function downloadAllZip() {
+      if (photos.length === 0) return;
+      const paper = getPaperDimensions(); const dpi = parseInt(document.getElementById('dpi').value);
+      const mmToPixels = dpi / 25.4; const exportWidth = Math.round(paper.width * mmToPixels); const exportHeight = Math.round(paper.height * mmToPixels);
+      const margin = parseFloat(document.getElementById('margin').value); const gap = parseFloat(document.getElementById('gap').value);
+      const marginPx = Math.round(margin * mmToPixels); const gapPx = Math.round(gap * mmToPixels);
+      const pagesToExport = pages;
+      const zip = new JSZip(); const baseName = getProjectName(); const btn = document.getElementById('downloadAllBtn');
+      btn.disabled = true; btn.textContent = "Pakker zip...";
+      try {
+        for (let pageIndex = 0; pageIndex < pagesToExport.length; pageIndex++) {
+          const pagePhotos = pagesToExport[pageIndex];
+          const blob = await createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, document.getElementById('bgColorText').value);
+          const fileName = pagesToExport.length > 1 ? `${baseName}-side${pageIndex + 1}-${dpi}dpi.jpg` : `${baseName}-${dpi}dpi.jpg`;
+          zip.file(fileName, blob); await new Promise(r => setTimeout(r, 100));
+        }
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob); const a = document.createElement('a');
+        a.href = url; a.download = `${baseName}-${dpi}dpi.zip`;
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      } catch (err) { alert('Feil ved zip: ' + err.message); } 
+      finally { btn.disabled = false; btn.textContent = "Last ned zip"; }
+    }
+
+    (async function startApp() {
+        try {
+            await initDB();
+            const loadedPhotos = await loadPhotosFromDB();
+            const savedSettings = await loadSettings();
+            applyLoadedState(loadedPhotos, savedSettings);
+        } catch (e) {
+            console.error("Database init failed", e);
+        }
+    })();
+
+    window.addEventListener('resize', () => debouncedRender());
 </script>
 </body>
 </html>
