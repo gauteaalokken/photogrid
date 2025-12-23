@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro - Ny Side Dialog & Angre Fix</title>
+  <title>Fotogrid Pro V071 - Page Sort & Slider Fix</title>
   
   <link rel="icon" type="image/png" href="icon.png">
+  <link rel="manifest" href='data:application/manifest+json;base64,ewogICJuYW1lIjogIkZvdG9ncmlkIFBybyIsCiAgInNob3J0X25hbWUiOiAiRm90b2dyaWQiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAiYnJvd3NlciIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiMyNTYzZWIiLAogICJpY29ucyI6IFt7CiAgICAic3JjIjogImljb24ucG5nIiwKICAgICJzaXplcyI6ICI1MTJ4NTEyIiwKICAgICJ0eXBlIjogImltYWdlL3BuZyIKICB9XQp9' />
   <meta name="theme-color" content="#2563eb">
 
   <style>
@@ -32,6 +33,16 @@
     .sidebar-content { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
     .sidebar-footer { padding: 24px; border-top: 1px solid #e5e7eb; }
     
+    /* Layout Tabs */
+    .layout-tabs { display: flex; gap: 8px; margin-top: 16px; }
+    .layout-tab {
+      flex: 1; padding: 8px; font-size: 14px; font-weight: 600;
+      background-color: #f3f4f6; border: 1px solid #e5e7eb;
+      color: #6b7280; border-radius: 8px; cursor: pointer; transition: all 0.2s;
+    }
+    .layout-tab:hover { background-color: #e5e7eb; color: #374151; }
+    .layout-tab.active { background-color: #eff6ff; border-color: #2563eb; color: #2563eb; }
+
     /* Controls */
     .control-group { display: flex; flex-direction: column; gap: 8px; }
     .control-group label { font-size: 14px; font-weight: 500; color: #374151; }
@@ -78,9 +89,13 @@
         opacity: 0.4; transition: all 0.3s ease; transform: scale(0.9);
     }
     .page-container.active { opacity: 1; transform: scale(1); z-index: 10; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
-    .page-container:hover { opacity: 0.9; transform: scale(0.95); }
+    .page-container:hover, .page-container.drag-active { opacity: 0.9; transform: scale(0.95); }
     .page-container.active:hover { transform: scale(1); opacity: 1; }
 
+    /* Visual for page drag */
+    .page-container.page-dragging { opacity: 0.2; transform: scale(0.8); border: 2px dashed #2563eb; border-radius: 8px; }
+    .page-container.page-drop-target { border-left: 4px solid #2563eb; padding-left: 10px; transition: all 0.2s; }
+    
     .page-header {
       display: flex; align-items: center; justify-content: space-between; width: 100%;
       margin-bottom: 12px; 
@@ -90,6 +105,10 @@
       background: white; padding: 4px 8px; border-radius: 12px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
+    .page-drag-handle {
+      cursor: grab; color: #9ca3af; display: flex; align-items: center;
+    }
+    .page-drag-handle:hover { color: #374151; }
     .page-label { font-size: 14px; font-weight: 600; color: #4b5563; user-select: none; }
     
     .delete-page-btn {
@@ -103,17 +122,30 @@
     .canvas { 
       position: relative; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); flex-shrink: 0; 
       border: 1px solid #d1d5db; overflow: hidden; background-color: white;
-      transition: width 0.3s, height 0.3s;
     }
     
-    .photo-cell { position: absolute; overflow: hidden; background-color: #f3f4f6; transition: all 0.2s ease; cursor: grab; }
-    .photo-cell:active { cursor: grabbing; }
+    /* Nav & Drag */
+    .page-nav-controls { 
+        position: absolute; bottom: 24px; display: flex; align-items: center; gap: 16px; 
+        background: white; padding: 8px 16px; border-radius: 50px; 
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border: 1px solid #e5e7eb; z-index: 40; 
+    }
+    .nav-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #e5e7eb; background: white; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #374151; transition: all 0.15s; }
+    .nav-btn:hover:not(:disabled) { background-color: #eff6ff; border-color: #2563eb; color: #2563eb; }
+    .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; background-color: #f3f4f6; }
+    .nav-info { font-size: 14px; font-weight: 600; color: #374151; min-width: 90px; text-align: center; user-select: none; }
+    
+    .dropzone { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; border: 2px dashed #d1d5db; border-radius: 8px; pointer-events: none; }
+    .grid-container { position: absolute; transition: top 0.3s ease; pointer-events: none; }
+    .photo-cell { position: absolute; overflow: hidden; background-color: #f3f4f6; transition: all 0.2s ease; cursor: grab; pointer-events: auto; }
+    .photo-cell.dragging { opacity: 0.4; cursor: grabbing; border: 2px dashed #2563eb; }
+    .photo-cell.drag-over { outline: 3px solid #2563eb; z-index: 10; transform: scale(1.02); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
     .photo-cell img { width: 100%; height: 100%; object-fit: cover; object-position: center; pointer-events: none; }
     .photo-cell:hover .remove-btn { opacity: 1; }
     .remove-btn { position: absolute; top: 4px; right: 4px; padding: 4px; background-color: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; transition: all 0.15s; z-index: 5; }
     .remove-btn:hover { background-color: #dc2626; }
 
-    /* Modals */
+    /* Modal */
     .modal-overlay { position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; }
     .modal-overlay.open { display: flex; }
     .modal-box { background: white; width: 300px; padding: 24px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 16px; }
@@ -121,7 +153,7 @@
     .modal-inputs { display: flex; gap: 12px; }
     .modal-input-grp { flex: 1; }
     .modal-input-grp label { display: block; font-size: 12px; font-weight: 500; margin-bottom: 4px; color: #4b5563; }
-    .modal-input-grp input, .modal-input-grp select { width: 100%; }
+    .modal-input-grp input { width: 100%; }
     .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 
     @media (max-width: 900px) {
@@ -135,7 +167,7 @@
 </head>
 <body>
   
-  <div class="version-label">V072 - New Page Dialog</div>
+  <div class="version-label">V071 Page Sort</div>
 
   <div id="customSizeModal" class="modal-overlay">
     <div class="modal-box">
@@ -145,25 +177,8 @@
         <div class="modal-input-grp"><label>Høyde (mm)</label><input type="number" id="customHeight" value="297"></div>
       </div>
       <div class="modal-actions">
-        <button class="btn-secondary" onclick="document.getElementById('customSizeModal').classList.remove('open')">Avbryt</button>
+        <button class="btn-secondary" onclick="closeCustomModal()">Avbryt</button>
         <button class="btn-primary" onclick="applyCustomSize()">Bruk</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="addPageModal" class="modal-overlay">
-    <div class="modal-box">
-      <h3 class="modal-title">Legg til ny side</h3>
-      <div class="modal-inputs">
-        <div class="modal-input-grp">
-          <label>Hvor vil du sette inn siden?</label>
-          <select id="pageInsertSelect">
-            </select>
-        </div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn-secondary" onclick="document.getElementById('addPageModal').classList.remove('open')">Avbryt</button>
-        <button class="btn-primary" onclick="confirmAddPage()">Legg til</button>
       </div>
     </div>
   </div>
@@ -173,49 +188,87 @@
       <div class="sidebar-header">
         <h1>Fotogrid</h1>
         <p>Print-klare layouter</p>
+        <label style="font-size:12px; font-weight:600; color:#6b7280; margin-top:12px; display:block;">AKTIVT PROSJEKT</label>
+        <div class="layout-tabs">
+            <button class="layout-tab active" onclick="switchLayout(1)" id="tab-1">1</button>
+            <button class="layout-tab" onclick="switchLayout(2)" id="tab-2">2</button>
+            <button class="layout-tab" onclick="switchLayout(3)" id="tab-3">3</button>
+            <button class="layout-tab" onclick="switchLayout(4)" id="tab-4">4</button>
+            <button class="layout-tab" onclick="switchLayout(5)" id="tab-5">5</button>
+        </div>
       </div>
 
       <div class="sidebar-content">
         <div class="control-group">
+            <label>Prosjektnavn</label>
+            <input type="text" id="projectName" placeholder="Navn på dette prosjektet" onchange="saveSettings()">
+        </div>
+
+        <div class="control-group">
           <label>Bilder</label>
           <div style="display:flex; flex-wrap: wrap; gap:8px;">
-            <button class="btn-primary" onclick="document.getElementById('fileInput').click()" style="flex:2;">
-                Legg til
+            <button class="btn-primary" onclick="document.getElementById('fileInput').click()" style="flex:2; min-width: 90px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> Legg til
+            </button>
+            <button class="btn-secondary" onclick="sortByColor()" title="Sortér" style="flex:1">
+               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>
             </button>
             <button class="btn-secondary" id="undoBtn" onclick="undo()" disabled title="Angre" style="flex:1">
-                Angre
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
             </button>
           </div>
-          <input type="file" id="fileInput" accept="image/*" multiple style="display: none" onchange="handleFiles(this.files)">
-          <p class="photo-count"><span id="photoCount">0</span> bilder</p>
+          <input type="file" id="fileInput" accept="image/*" multiple style="display: none">
+          <p class="photo-count"><span id="photoCount">0</span> bilder <span id="saveStatus" style="float:right; color:#2563eb; display:none;">Lagret</span></p>
         </div>
         
         <div class="control-group">
             <label>Sider</label>
             <div style="display: flex; gap: 8px;">
-                <button class="btn-secondary" onclick="openAddPageModal()" style="flex:1">
+                <button class="btn-secondary" onclick="addEmptyPage()" style="flex:1">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
                     Ny side
                 </button>
                 <button class="btn-secondary" onclick="autoFlow()" title="Tilbakestill layout" style="flex:1">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                     Autoflyt
                 </button>
             </div>
         </div>
 
         <div class="control-group">
+            <label>Visningskvalitet</label>
+            <select id="previewQuality" onchange="togglePreviewQuality(this.value)">
+              <option value="low" selected>Rask (Lav oppløsning)</option>
+              <option value="high">Original (Høy oppløsning)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
           <label>Bilder per side</label>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="range" id="photosPerPage" min="1" max="36" value="4" oninput="updateSetting('photosPerPage', this.value)">
-            <input type="number" id="photosPerPageInput" min="1" max="36" value="4" oninput="updateSetting('photosPerPage', this.value)" style="width: 60px;">
+            <input type="range" id="photosPerPage" min="1" max="36" value="36" oninput="handleSliderChange('photosPerPage', this.value)" style="flex: 1;">
+            <input type="number" id="photosPerPageInput" min="1" max="36" value="36" oninput="handleInputChange('photosPerPage', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
           </div>
         </div>
 
         <div class="control-group">
+            <label>Toleranse: +/- <span id="toleranceValue">0</span></label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="range" id="pageTolerance" min="0" max="5" value="0" oninput="handleSliderChange('tolerance', this.value)">
+              <input type="number" id="pageToleranceInput" min="0" max="5" value="0" oninput="handleInputChange('tolerance', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            </div>
+        </div>
+
+        <div class="control-group">
           <label>Papirstørrelse</label>
-          <select id="paperSize" onchange="setPaperSize(this.value)">
-            <option value="A4" selected>A4 (210×297mm)</option>
+          <select id="paperSize" onchange="checkPaperSize(this)">
+            <option value="A4">A4 (210×297mm)</option>
             <option value="A3">A3 (297×420mm)</option>
+            <option value="A2">A2 (420×594mm)</option>
+            <option value="LETTER">Letter (8.5×11")</option>
             <option value="PHOTO_10X15">10×15 cm</option>
+            <option value="INSTASTORY">Instagram Story</option>
+            <option value="INSTAINLEGG">Instagram Post</option>
             <option value="CUSTOM">Spesial...</option>
           </select>
         </div>
@@ -230,468 +283,919 @@
 
         <div class="control-group">
           <label>Marg: <span id="marginValue">2</span>mm</label>
-          <input type="range" id="margin" min="0" max="50" step="0.5" value="2" oninput="updateSetting('margin', this.value)">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="range" id="margin" min="0" max="50" step="0.5" value="2" oninput="handleSliderChange('margin', this.value)">
+            <input type="number" id="marginInput" min="0" max="50" step="0.5" value="2" oninput="handleInputChange('margin', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+          </div>
         </div>
 
         <div class="control-group">
           <label>Avstand: <span id="gapValue">2</span>mm</label>
-          <input type="range" id="gap" min="0" max="20" step="0.5" value="2" oninput="updateSetting('gap', this.value)">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="range" id="gap" min="0" max="20" step="0.5" value="2" oninput="handleSliderChange('gap', this.value)">
+            <input type="number" id="gapInput" min="0" max="20" step="0.5" value="2" oninput="handleInputChange('gap', this.value)" style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+          </div>
         </div>
 
         <div class="control-group">
           <label>Bakgrunn</label>
           <div class="color-input-group">
-            <input type="color" id="bgColorPicker" value="#FFFFFF" oninput="updateSetting('bgColor', this.value)">
-            <input type="text" id="bgColorText" value="#FFFFFF" oninput="updateSetting('bgColor', this.value)">
+            <input type="color" id="bgColorPicker" value="#FFFFFF" oninput="document.getElementById('bgColorText').value = this.value; document.getElementById('canvas').style.backgroundColor = this.value; saveSettings();">
+            <input type="text" id="bgColorText" value="#FFFFFF" oninput="document.getElementById('bgColorPicker').value = this.value; document.getElementById('canvas').style.backgroundColor = this.value; saveSettings();">
           </div>
         </div>
 
         <div class="control-group">
-            <label>Eksport DPI</label>
-            <select id="dpi">
-              <option value="150">150 DPI (Rask)</option>
-              <option value="300" selected>300 DPI (Print)</option>
-            </select>
+          <label>Eksport DPI: <span id="dpiValue">300</span></label>
+          <select id="dpi" onchange="document.getElementById('dpiValue').textContent = this.value">
+            <option value="150">150 DPI (Utkast)</option>
+            <option value="300" selected>300 DPI (Standard)</option>
+            <option value="600">600 DPI (Høy kvalitet)</option>
+          </select>
         </div>
+
+        <button id="clearBtn" class="btn-danger" onclick="clearAll()" style="display:none">Tøm dette prosjektet</button>
       </div>
 
       <div class="sidebar-footer">
-        <button id="exportBtn" class="btn-export" onclick="exportGrid()">
-           Last ned ZIP
+        <button id="exportBtn" class="btn-export" onclick="exportGrid()" disabled>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Eksporter grid
         </button>
+        <button id="downloadAllBtn" class="btn-primary" onclick="downloadAllZip()" style="margin-top:8px; display:none">Last ned zip</button>
       </div>
     </div>
 
     <div class="main-canvas">
-      <div class="canvas-wrapper" id="canvasWrapper">
-        </div>
+      <div id="canvasWrapper" class="canvas-wrapper"></div>
+      
+      <div id="pageNav" class="page-nav-controls" style="display: none;">
+        <button class="nav-btn" id="prevBtn" onclick="changePage(-1)" title="Forrige side"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+        <span id="pageIndicator" class="nav-info">Side 1 av 1</span>
+        <button class="nav-btn" id="nextBtn" onclick="changePage(1)" title="Neste side"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+      </div>
     </div>
   </div>
 
-<script>
-/**
- * FOTOGRID LOGIKK - REVIDERT VERSJON
- * Inkluderer: Deep Undo, New Page Dialog, IndexedDB
- */
+  <script>
+    // --- KONFIGURASJON ---
+    const PAPER_SIZES = {
+      A4: { width: 210, height: 297 },
+      A3: { width: 297, height: 420 },
+      A2: { width: 420, height: 594 },
+      LETTER: { width: 216, height: 279 },
+      PHOTO_10X15: { width: 100, height: 150 },
+      INSTASTORY: { width: 108, height: 192 },
+      INSTAINLEGG: { width: 108, height: 135 },
+      CUSTOM: { width: 0, height: 0 } 
+    };
+    
+    let customDimensions = { width: 200, height: 200 };
+    let previousPaperSize = 'A4';
 
-// --- STATE ---
-let pages = []; // Array av Arrays med bilde-objekter: [[img1, img2], [img3]]
-let historyStack = [];
-const MAX_HISTORY = 50;
+    let photos = []; 
+    let pages = []; 
+    
+    let orientation = 'portrait';
+    let currentPageIndex = 0;
+    let previewQuality = 'low'; 
+    let historyStack = [];
+    const MAX_HISTORY = 20;
+    let currentLayoutId = 1;
 
-let settings = {
-    photosPerPage: 4,
-    paperSize: 'A4',
-    customWidth: 210,
-    customHeight: 297,
-    orientation: 'portrait',
-    margin: 2,
-    gap: 2,
-    bgColor: '#FFFFFF'
-};
+    // --- DATABASE ---
+    const dbName = 'PhotoGridDB_Multi_V2'; 
+    const storeName = 'photos';
+    const settingsStore = 'settings';
+    let db;
 
-const PAPER_SIZES = {
-    'A4': { w: 210, h: 297 },
-    'A3': { w: 297, h: 420 },
-    'PHOTO_10X15': { w: 100, h: 150 }
-};
-
-// --- DB SETUP (For å lagre store bilder) ---
-let db;
-async function initDB() {
-    return new Promise((resolve, reject) => {
-        const req = indexedDB.open('FotoGridDB', 1);
-        req.onupgradeneeded = (e) => {
-            db = e.target.result;
-            if (!db.objectStoreNames.contains('images')) {
-                db.createObjectStore('images', { keyPath: 'id' });
-            }
+    async function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(dbName, 1);
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains(storeName)) { db.createObjectStore(storeName, { keyPath: 'id' }); }
+          if (!db.objectStoreNames.contains(settingsStore)) { db.createObjectStore(settingsStore, { keyPath: 'key' }); }
         };
-        req.onsuccess = (e) => {
-            db = e.target.result;
-            resolve(db);
+        request.onsuccess = (event) => { db = event.target.result; resolve(db); };
+        request.onerror = (event) => reject(event.target.error);
+      });
+    }
+
+    async function savePhotoToDB(photo) {
+      if (!db) return;
+      const tx = db.transaction([storeName], 'readwrite');
+      tx.objectStore(storeName).put({
+        id: photo.id, layoutId: currentLayoutId, name: photo.name,
+        width: photo.width, height: photo.height, aspectRatio: photo.aspectRatio,
+        file: photo.originalFile 
+      });
+    }
+
+    async function loadPhotosFromDB() {
+      if (!db) return [];
+      return new Promise((resolve) => {
+        const tx = db.transaction([storeName], 'readonly');
+        const req = tx.objectStore(storeName).getAll();
+        req.onsuccess = async () => {
+          const layoutRecords = req.result.filter(r => r.layoutId === currentLayoutId);
+          const loadedPhotos = [];
+          for (const rec of layoutRecords) {
+            const thumbData = await createThumbnail(rec.file);
+            loadedPhotos.push({
+              id: rec.id, name: rec.name, width: rec.width, height: rec.height, aspectRatio: rec.aspectRatio,
+              originalFile: rec.file, originalSrc: URL.createObjectURL(rec.file),
+              previewSrc: thumbData.src, hue: thumbData.hue || 0
+            });
+          }
+          resolve(loadedPhotos);
         };
-        req.onerror = (e) => reject(e);
-    });
-}
-
-async function storeImage(file) {
-    const id = Date.now() + Math.random().toString();
-    const blob = file; 
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction('images', 'readwrite');
-        const store = tx.objectStore('images');
-        store.put({ id, blob });
-        tx.oncomplete = () => resolve(id);
-        tx.onerror = () => reject(tx.error);
-    });
-}
-
-async function getImageBlob(id) {
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction('images', 'readonly');
-        const store = tx.objectStore('images');
-        const req = store.get(id);
-        req.onsuccess = () => resolve(req.result ? req.result.blob : null);
-        req.onerror = () => reject(req.error);
-    });
-}
-
-// --- UNDO SYSTEM ---
-function saveState() {
-    const state = JSON.stringify(pages);
-    historyStack.push(state);
-    if (historyStack.length > MAX_HISTORY) historyStack.shift();
-    updateUndoButton();
-}
-
-function undo() {
-    if (historyStack.length === 0) return;
-    const previousState = historyStack.pop();
-    pages = JSON.parse(previousState);
-    updateUndoButton();
-    updateUI();
-}
-
-function updateUndoButton() {
-    const btn = document.getElementById('undoBtn');
-    btn.disabled = historyStack.length === 0;
-    btn.style.opacity = historyStack.length === 0 ? "0.5" : "1";
-}
-
-// --- ACTIONS ---
-
-// Åpne dialogboks for ny side
-function openAddPageModal() {
-    const modal = document.getElementById('addPageModal');
-    const select = document.getElementById('pageInsertSelect');
-    select.innerHTML = '';
-
-    pages.forEach((_, i) => {
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.text = `Før side ${i + 1}`;
-        select.appendChild(opt);
-    });
-
-    const lastOpt = document.createElement('option');
-    lastOpt.value = pages.length;
-    lastOpt.text = `Til slutt (Side ${pages.length + 1})`;
-    lastOpt.selected = true;
-    select.appendChild(lastOpt);
-
-    modal.classList.add('open');
-}
-
-function confirmAddPage() {
-    saveState();
-    const select = document.getElementById('pageInsertSelect');
-    const index = parseInt(select.value);
-    pages.splice(index, 0, []); // Sett inn tom side
-    document.getElementById('addPageModal').classList.remove('open');
-    updateUI();
-    
-    // Scroll til ny side
-    setTimeout(() => {
-        const els = document.querySelectorAll('.page-container');
-        if(els[index]) els[index].scrollIntoView({behavior:'smooth', inline:'center'});
-    }, 100);
-}
-
-// Legg til bilder
-async function handleFiles(fileList) {
-    if (!fileList.length) return;
-    saveState();
-    
-    // Hvis vi ikke har sider, lag en
-    if (pages.length === 0) pages.push([]);
-
-    for (let file of fileList) {
-        try {
-            const id = await storeImage(file);
-            // Finn første side med plass, eller legg til sist
-            let added = false;
-            for (let page of pages) {
-                if (page.length < settings.photosPerPage) {
-                    page.push({ id });
-                    added = true;
-                    break;
-                }
-            }
-            if (!added) {
-                // Legg til på siste side selv om den er full, eller lag ny? 
-                // Logikk: Fyll siste side hvis mulig, ellers lag ny.
-                // Her: Fyller siste side for enkelhets skyld, AutoFlow kan fikse senere
-                pages[pages.length-1].push({ id });
-            }
-        } catch (e) {
-            console.error("Feil ved lagring av bilde", e);
-        }
-    }
-    updateUI();
-}
-
-function autoFlow() {
-    saveState();
-    // Samle alle bilder
-    let allPhotos = [];
-    pages.forEach(p => allPhotos = allPhotos.concat(p));
-    
-    // Fordel på nytt basert på settings.photosPerPage
-    pages = [];
-    while(allPhotos.length > 0) {
-        pages.push(allPhotos.splice(0, settings.photosPerPage));
-    }
-    if (pages.length === 0) pages.push([]);
-    updateUI();
-}
-
-function deletePage(index) {
-    saveState();
-    // Flytt bilder til "Unsorted" eller bare slett? 
-    // Vanligvis sletter man bildene også i en grid-app, eller flytter dem til forrige side.
-    // Her sletter vi siden og innholdet for enkelhets skyld, siden vi har Angre-knapp.
-    pages.splice(index, 1);
-    if(pages.length === 0) pages.push([]);
-    updateUI();
-}
-
-function deletePhoto(pageIndex, photoIndex) {
-    saveState();
-    pages[pageIndex].splice(photoIndex, 1);
-    updateUI();
-}
-
-// --- SETTINGS ---
-function updateSetting(key, value) {
-    if (key === 'photosPerPage' || key === 'margin' || key === 'gap') value = parseFloat(value);
-    
-    // Oppdater UI verdier
-    if(key === 'photosPerPage') {
-        document.getElementById('photosPerPage').value = value;
-        document.getElementById('photosPerPageInput').value = value;
-    }
-    if(key === 'margin') document.getElementById('marginValue').innerText = value;
-    if(key === 'gap') document.getElementById('gapValue').innerText = value;
-    if(key === 'bgColor') {
-        document.getElementById('bgColorPicker').value = value;
-        document.getElementById('bgColorText').value = value;
+      });
     }
 
-    settings[key] = value;
-    
-    // Hvis antall per side endres, kjør autoflow? 
-    // Mange brukere foretrekker at bildene blir stående, men rutenettet endres.
-    updateUI();
-}
+    async function saveSettings() {
+      if(!db) return;
+      const pagesStructure = pages.map(page => page.map(p => p.id));
+      const tx = db.transaction([settingsStore], 'readwrite');
+      const store = tx.objectStore(settingsStore);
+      const settings = {
+        key: 'settings_layout_' + currentLayoutId,
+        pagesStructure: pagesStructure, 
+        projectName: document.getElementById('projectName').value,
+        photosPerPage: document.getElementById('photosPerPage').value,
+        paperSize: document.getElementById('paperSize').value,
+        customDimensions: customDimensions,
+        orientation: orientation,
+        margin: document.getElementById('margin').value,
+        gap: document.getElementById('gap').value,
+        bgColor: document.getElementById('bgColorText').value
+      };
+      store.put(settings);
+      const status = document.getElementById('saveStatus');
+      status.style.display = 'inline'; setTimeout(() => status.style.display = 'none', 1000);
+    }
 
-function setPaperSize(val) {
-    if (val === 'CUSTOM') {
-        document.getElementById('customSizeModal').classList.add('open');
-    } else {
-        settings.paperSize = val;
+    async function loadSettings() {
+      if(!db) return null;
+      return new Promise(resolve => {
+        const tx = db.transaction([settingsStore], 'readonly');
+        const req = tx.objectStore(settingsStore).get('settings_layout_' + currentLayoutId);
+        req.onsuccess = () => resolve(req.result);
+      });
+    }
+    
+    async function deletePhotoFromDB(id) {
+        if(!db) return;
+        db.transaction([storeName], 'readwrite').objectStore(storeName).delete(id);
+    }
+    
+    async function clearDBForLayout() {
+      if(!db) return;
+      const tx = db.transaction([storeName], 'readwrite');
+      const store = tx.objectStore(storeName);
+      store.getAll().onsuccess = (e) => {
+          e.target.result.forEach(r => { if (r.layoutId === currentLayoutId) store.delete(r.id); });
+      };
+      db.transaction([settingsStore], 'readwrite').objectStore(settingsStore).delete('settings_layout_' + currentLayoutId);
+    }
+
+    function addEmptyPage() {
+        pushHistory();
+        pages.push([]); 
+        currentPageIndex = pages.length - 1;
+        renderGrid(true);
         updateUI();
     }
-}
 
-function applyCustomSize() {
-    settings.customWidth = parseFloat(document.getElementById('customWidth').value);
-    settings.customHeight = parseFloat(document.getElementById('customHeight').value);
-    settings.paperSize = 'CUSTOM';
-    document.getElementById('customSizeModal').classList.remove('open');
-    updateUI();
-}
-
-function setOrientation(ori) {
-    settings.orientation = ori;
-    document.getElementById('portraitBtn').className = ori === 'portrait' ? 'active' : '';
-    document.getElementById('landscapeBtn').className = ori === 'landscape' ? 'active' : '';
-    updateUI();
-}
-
-// --- RENDERING ---
-function getPageDims() {
-    let w, h;
-    if (settings.paperSize === 'CUSTOM') {
-        w = settings.customWidth; h = settings.customHeight;
-    } else {
-        const s = PAPER_SIZES[settings.paperSize] || PAPER_SIZES['A4'];
-        w = s.w; h = s.h;
+    function removePage(pageIndex) {
+        if (pages.length <= 1) return; 
+        if (!confirm("Vil du slette denne siden og bildene på den?")) return;
+        pushHistory();
+        const photosToRemove = pages[pageIndex];
+        photosToRemove.forEach(p => deletePhotoFromDB(p.id));
+        const idsToRemove = new Set(photosToRemove.map(p => p.id));
+        photos = photos.filter(p => !idsToRemove.has(p.id));
+        pages.splice(pageIndex, 1);
+        if (currentPageIndex >= pages.length) currentPageIndex = pages.length - 1;
+        renderGrid(true);
+        updateUI();
     }
-    if (settings.orientation === 'landscape') return [Math.max(w,h), Math.min(w,h)];
-    return [Math.min(w,h), Math.max(w,h)];
-}
 
-function updateUI() {
-    const wrapper = document.getElementById('canvasWrapper');
-    wrapper.innerHTML = '';
-    
-    // Oppdater teller
-    let count = 0;
-    pages.forEach(p => count += p.length);
-    document.getElementById('photoCount').innerText = count;
-
-    const [pageW, pageH] = getPageDims();
-    // Skaler ned for visning (konverter mm til px grovt, men hold ratio)
-    const displayScale = 1.5; // Pixels per mm for skjermvisning
-    const cssW = pageW * displayScale;
-    const cssH = pageH * displayScale;
-
-    pages.forEach((page, pIndex) => {
-        const pageEl = document.createElement('div');
-        pageEl.className = 'page-container';
-        pageEl.innerHTML = `
-            <div class="page-header">
-                <div class="page-label-group">
-                    <span class="page-label">Side ${pIndex + 1}</span>
-                </div>
-                <button class="delete-page-btn" onclick="deletePage(${pIndex})" title="Slett side">×</button>
-            </div>
-            <div class="canvas" style="width:${cssW}px; height:${cssH}px; background:${settings.bgColor};" 
-                 ondrop="handleDrop(event, ${pIndex})" ondragover="allowDrop(event)">
-                </div>
-        `;
-
-        const canvas = pageEl.querySelector('.canvas');
-        renderGrid(canvas, page, cssW, cssH, pIndex);
-        wrapper.appendChild(pageEl);
-    });
-}
-
-function renderGrid(container, photos, w, h, pIndex) {
-    if (!photos.length) return;
-
-    // Enkel rutenett-kalkulator
-    const cols = Math.ceil(Math.sqrt(photos.length));
-    const rows = Math.ceil(photos.length / cols);
-    
-    const cellW = (w - (settings.margin*2*1.5) - (settings.gap*(cols-1)*1.5)) / cols;
-    const cellH = (h - (settings.margin*2*1.5) - (settings.gap*(rows-1)*1.5)) / rows;
-    
-    photos.forEach((photo, i) => {
-        const r = Math.floor(i / cols);
-        const c = i % cols;
-        
-        const x = (settings.margin*1.5) + c * (cellW + settings.gap*1.5);
-        const y = (settings.margin*1.5) + r * (cellH + settings.gap*1.5);
-
-        const cell = document.createElement('div');
-        cell.className = 'photo-cell';
-        cell.style.left = `${x}px`;
-        cell.style.top = `${y}px`;
-        cell.style.width = `${cellW}px`;
-        cell.style.height = `${cellH}px`;
-        
-        // Hent bildet asynkront
-        const img = document.createElement('img');
-        getImageBlob(photo.id).then(blob => {
-            if(blob) img.src = URL.createObjectURL(blob);
-        });
-        
-        cell.innerHTML = `<button class="remove-btn" onclick="deletePhoto(${pIndex}, ${i})">×</button>`;
-        cell.appendChild(img);
-        container.appendChild(cell);
-    });
-}
-
-// --- DRAG AND DROP ---
-function allowDrop(ev) { ev.preventDefault(); }
-function handleDrop(ev, pageIndex) {
-    ev.preventDefault();
-    // Her kan man implementere flytting mellom sider hvis man vil
-    // For nå støtter vi fil-drop rett på siden
-    if (ev.dataTransfer.files && ev.dataTransfer.files.length > 0) {
-        handleFiles(ev.dataTransfer.files);
+    function autoFlow() {
+        pushHistory();
+        const photosPerPage = parseInt(document.getElementById('photosPerPage').value) || 10;
+        const tolerance = parseInt(document.getElementById('pageTolerance').value) || 0;
+        const paper = getPaperDimensions();
+        const margin = parseFloat(document.getElementById('margin').value) || 0;
+        const gap = parseFloat(document.getElementById('gap').value) || 0;
+        const availableWidth = paper.width - (2*margin); 
+        const availableHeight = paper.height - (2*margin);
+        const allPhotos = [];
+        pages.forEach(p => allPhotos.push(...p));
+        const usedIds = new Set(allPhotos.map(p=>p.id));
+        photos.forEach(p => { if(!usedIds.has(p.id)) allPhotos.push(p); });
+        pages = partitionPhotosIntoPages(allPhotos, photosPerPage, tolerance, availableWidth, availableHeight, gap);
+        if (pages.length === 0) pages = [[]]; 
+        renderGrid(true);
+        updateUI();
     }
-}
 
-// --- EXPORT ---
-async function exportGrid() {
-    const btn = document.getElementById('exportBtn');
-    btn.textContent = "Genererer...";
-    btn.disabled = true;
+    function checkPaperSize(select) {
+        if (select.value === 'CUSTOM') {
+            document.getElementById('customSizeModal').classList.add('open');
+            document.getElementById('customWidth').focus();
+        } else { previousPaperSize = select.value; resetAndRender(); }
+    }
+    function closeCustomModal() { document.getElementById('customSizeModal').classList.remove('open'); document.getElementById('paperSize').value = previousPaperSize; }
+    function applyCustomSize() {
+        const w = parseFloat(document.getElementById('customWidth').value);
+        const h = parseFloat(document.getElementById('customHeight').value);
+        if (w > 0 && h > 0) { customDimensions = { width: w, height: h }; updateCustomOptionText(); document.getElementById('customSizeModal').classList.remove('open'); previousPaperSize = 'CUSTOM'; resetAndRender(); } 
+        else { alert("Ugyldige dimensjoner"); }
+    }
+    function updateCustomOptionText() { const opt = document.querySelector('option[value="CUSTOM"]'); if(opt) opt.textContent = `Spesial (${customDimensions.width}×${customDimensions.height}mm)`; }
 
-    try {
-        const zip = new JSZip();
-        const dpi = parseInt(document.getElementById('dpi').value);
-        const scale = dpi / 25.4; // px per mm
-        const [mmW, mmH] = getPageDims();
-        const pxW = mmW * scale;
-        const pxH = mmH * scale;
-
-        for (let i = 0; i < pages.length; i++) {
-            if (pages[i].length === 0) continue;
-            
-            // Tegn til canvas for eksport
-            const canvas = document.createElement('canvas');
-            canvas.width = pxW;
-            canvas.height = pxH;
-            const ctx = canvas.getContext('2d');
-            
-            // Bakgrunn
-            ctx.fillStyle = settings.bgColor;
-            ctx.fillRect(0,0, pxW, pxH);
-
-            // Grid logikk (samme som renderGrid men med canvas ctx)
-            const photos = pages[i];
-            const cols = Math.ceil(Math.sqrt(photos.length));
-            const rows = Math.ceil(photos.length / cols);
-            const m = settings.margin * scale;
-            const g = settings.gap * scale;
-            const cellW = (pxW - (m*2) - (g*(cols-1))) / cols;
-            const cellH = (pxH - (m*2) - (g*(rows-1))) / rows;
-
-            for (let j=0; j<photos.length; j++) {
-                const blob = await getImageBlob(photos[j].id);
-                if (!blob) continue;
-                const imgBitmap = await createImageBitmap(blob);
-                
-                const r = Math.floor(j / cols);
-                const c = j % cols;
-                const x = m + c * (cellW + g);
-                const y = m + r * (cellH + g);
-                
-                // Tegn bilde (crop/fit center)
-                // Enkel draw for nå: strekk til boks (object-fit:cover er mer complex i canvas)
-                // Vi lager en enkel "cover" simulering:
-                const ratio = imgBitmap.width / imgBitmap.height;
-                const boxRatio = cellW / cellH;
-                let dw = cellW, dh = cellH, dx = x, dy = y;
-                let sx=0, sy=0, sw=imgBitmap.width, sh=imgBitmap.height;
-
-                if (ratio > boxRatio) { // Bildet er bredere enn boksen
-                     sw = sh * boxRatio;
-                     sx = (imgBitmap.width - sw) / 2;
-                } else { // Bildet er høyere
-                     sh = sw / boxRatio;
-                     sy = (imgBitmap.height - sh) / 2;
-                }
-                ctx.drawImage(imgBitmap, sx, sy, sw, sh, x, y, cellW, cellH);
+    async function switchLayout(newId) {
+        if (newId === currentLayoutId) return;
+        await saveSettings();
+        photos.forEach(p => { URL.revokeObjectURL(p.originalSrc); URL.revokeObjectURL(p.previewSrc); });
+        photos = []; pages = []; historyStack = [];
+        currentLayoutId = newId;
+        document.querySelectorAll('.layout-tab').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + newId).classList.add('active');
+        document.getElementById('projectName').value = '';
+        orientation = 'portrait';
+        const loadedPhotos = await loadPhotosFromDB();
+        const savedSettings = await loadSettings();
+        applyLoadedState(loadedPhotos, savedSettings);
+        updateUI();
+    }
+    
+    function applyLoadedState(loadedPhotos, savedSettings) {
+        photos = loadedPhotos; 
+        if (savedSettings) {
+            document.getElementById('projectName').value = savedSettings.projectName || '';
+            document.getElementById('photosPerPage').value = savedSettings.photosPerPage;
+            document.getElementById('paperSize').value = savedSettings.paperSize;
+            if (savedSettings.customDimensions) {
+                customDimensions = savedSettings.customDimensions;
+                document.getElementById('customWidth').value = customDimensions.width;
+                document.getElementById('customHeight').value = customDimensions.height;
+                updateCustomOptionText();
             }
-            
-            const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
-            zip.file(`side-${i+1}.jpg`, blob);
+            previousPaperSize = savedSettings.paperSize;
+            orientation = savedSettings.orientation || 'portrait';
+            setOrientation(orientation); 
+            document.getElementById('margin').value = savedSettings.margin;
+            document.getElementById('gap').value = savedSettings.gap;
+            const bg = savedSettings.bgColor || '#FFFFFF';
+            document.getElementById('bgColorText').value = bg;
+            document.getElementById('bgColorPicker').value = bg;
+            if (savedSettings.pagesStructure) {
+                const photoMap = new Map(loadedPhotos.map(p => [p.id, p]));
+                pages = savedSettings.pagesStructure.map(pageIds => {
+                    return pageIds.map(id => photoMap.get(id)).filter(p => p); 
+                });
+            } else {
+                pages = [loadedPhotos];
+                setTimeout(autoFlow, 100);
+            }
+        } else {
+            document.getElementById('projectName').value = "Prosjekt " + currentLayoutId;
+            document.getElementById('paperSize').value = 'A4';
+            previousPaperSize = 'A4';
+            pages = [loadedPhotos]; 
+            setTimeout(autoFlow, 100);
         }
-
-        const zipContent = await zip.generateAsync({type:"blob"});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(zipContent);
-        a.download = "fotogrid-export.zip";
-        a.click();
-    } catch (err) {
-        alert("Feil ved eksport: " + err);
-    } finally {
-        btn.textContent = "Last ned ZIP";
-        btn.disabled = false;
+        renderGrid(false);
     }
-}
 
-// Start
-initDB().then(() => {
-    pages = [[]]; // Start med en tom side
-    updateUI();
-});
+    function rgbToHsl(r, g, b) {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+        if (max === min) { h = s = 0; } 
+        else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+        return { h: h * 360, s: s, l: l };
+    }
 
-</script>
+    function createThumbnail(file, maxWidth = 600) {
+      return new Promise((resolve) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, maxWidth / img.width);
+          const w = img.width * scale;
+          const h = img.height * scale;
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const imageData = ctx.getImageData(0, 0, w, h);
+          const data = imageData.data;
+          let r = 0, g = 0, b = 0, count = 0;
+          for (let i = 0; i < data.length; i += 40) { r += data[i]; g += data[i + 1]; b += data[i + 2]; count++; }
+          r = Math.floor(r/count); g = Math.floor(g/count); b = Math.floor(b/count);
+          const hsl = rgbToHsl(r, g, b);
+          canvas.toBlob((blob) => {
+            URL.revokeObjectURL(url);
+            resolve({ src: URL.createObjectURL(blob), width: img.width, height: img.height, hue: hsl.h });
+          }, 'image/jpeg', 0.7);
+        };
+        img.onerror = () => resolve({ src: url, width: 1000, height: 1000, hue: 0 });
+        img.src = url;
+      });
+    }
+
+    function sortByColor() {
+        if (photos.length < 2) return;
+        pushHistory();
+        const allPhotos = [];
+        pages.forEach(p => allPhotos.push(...p));
+        allPhotos.sort((a, b) => a.hue - b.hue);
+        pages = [allPhotos];
+        autoFlow();
+    }
+
+    function pushHistory() {
+        const state = pages.map(page => page.map(p => p.id));
+        historyStack.push(state);
+        if (historyStack.length > MAX_HISTORY) historyStack.shift();
+        updateUndoBtn();
+    }
+    
+    function undo() {
+        if (historyStack.length === 0) return;
+        const previousState = historyStack.pop();
+        const photoMap = new Map(photos.map(p => [p.id, p]));
+        pages = previousState.map(pageIds => {
+            return pageIds.map(id => photoMap.get(id)).filter(p => p);
+        });
+        renderGrid(false);
+        updateUndoBtn();
+    }
+    function updateUndoBtn() { document.getElementById('undoBtn').disabled = historyStack.length === 0; }
+
+    function debounce(func, wait) {
+      let timeout;
+      return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), wait); };
+    }
+    const debouncedRender = debounce(() => { renderGrid(true); }, 50);
+    const debouncedAutoFlow = debounce(() => { autoFlow(); }, 200);
+
+    function handleSliderChange(type, value) {
+      const val = parseFloat(value) || 0;
+      if (type === 'photosPerPage') { 
+          document.getElementById('photosPerPageInput').value = parseInt(value); 
+          // FIX: Nå trigger vi autoflow automatisk når slideren endres
+          debouncedAutoFlow();
+      }
+      else if (type === 'tolerance') { document.getElementById('pageToleranceInput').value = parseInt(value); document.getElementById('toleranceValue').textContent = parseInt(value); debouncedRender(); }
+      else if (type === 'margin') { document.getElementById('marginInput').value = val; document.getElementById('marginValue').textContent = val; debouncedRender(); }
+      else if (type === 'gap') { document.getElementById('gapInput').value = val; document.getElementById('gapValue').textContent = val; debouncedRender(); }
+    }
+    
+    function handleInputChange(type, value) {
+      const val = parseFloat(value) || 0;
+      if (type === 'photosPerPage') {
+          document.getElementById('photosPerPage').value = parseInt(value);
+          debouncedAutoFlow();
+      }
+      else if (type === 'tolerance') { document.getElementById('pageTolerance').value = parseInt(value); document.getElementById('toleranceValue').textContent = parseInt(value); debouncedRender(); }
+      else if (type === 'margin') { document.getElementById('margin').value = val; document.getElementById('marginValue').textContent = val; debouncedRender(); }
+      else if (type === 'gap') { document.getElementById('gap').value = val; document.getElementById('gapValue').textContent = val; debouncedRender(); }
+    }
+    function resetAndRender(save = true) { renderGrid(save); }
+    function togglePreviewQuality(quality) { previewQuality = quality; renderGrid(false); }
+
+    // --- DRAG & DROP UTILS ---
+    let draggedPhotoId = null;
+    let draggedPageIdx = null;
+    let dragSourcePageIndex = null;
+    let dragType = null; // 'photo' or 'page'
+
+    // PHOTO DRAG
+    function handleDragStart(e, id, pageIndex) { 
+        e.stopPropagation();
+        draggedPhotoId = id; dragSourcePageIndex = pageIndex;
+        dragType = 'photo';
+        e.target.classList.add('dragging'); 
+        e.dataTransfer.effectAllowed = 'move'; 
+    }
+
+    // PAGE DRAG
+    function handlePageDragStart(e, pageIndex) {
+        draggedPageIdx = pageIndex;
+        dragType = 'page';
+        const pageContainer = document.getElementById(`page-${pageIndex}`);
+        if(pageContainer) {
+            pageContainer.classList.add('page-dragging');
+        }
+        e.dataTransfer.effectAllowed = 'move';
+        // Hack for blank image if needed, but default ghost is usually ok for divs
+    }
+
+    function handleDragOver(e) { 
+        e.preventDefault(); 
+        e.dataTransfer.dropEffect = 'move';
+        
+        // Handle visual cues depending on what we are dragging
+        if (dragType === 'page') {
+             const pageContainer = e.target.closest('.page-container');
+             if (pageContainer && pageContainer.dataset.index != draggedPageIdx) {
+                 pageContainer.classList.add('page-drop-target');
+             }
+        } else if (dragType === 'photo') {
+             const page = e.target.closest('.page-container');
+             if (page) page.classList.add('drag-active');
+        }
+        return false; 
+    }
+
+    function handleDragEnter(e) { 
+        e.preventDefault(); 
+        if (dragType === 'photo') {
+            const target = e.target.closest('.photo-cell'); 
+            if (target && target.dataset.id !== String(draggedPhotoId)) target.classList.add('drag-over'); 
+        }
+    }
+
+    function handleDragLeave(e) { 
+        if (dragType === 'photo') {
+            const target = e.target.closest('.photo-cell'); if (target) target.classList.remove('drag-over');
+            const page = e.target.closest('.page-container'); if (page && !page.contains(e.relatedTarget)) page.classList.remove('drag-active');
+        }
+        if (dragType === 'page') {
+            const pageContainer = e.target.closest('.page-container');
+            if (pageContainer) pageContainer.classList.remove('page-drop-target');
+        }
+    }
+
+    function handleDrop(e, targetId) {
+      e.stopPropagation(); e.preventDefault();
+      
+      // Cleanup visuals
+      document.querySelectorAll('.photo-cell').forEach(el => { el.classList.remove('dragging'); el.classList.remove('drag-over'); });
+      document.querySelectorAll('.page-container').forEach(el => {
+          el.classList.remove('drag-active');
+          el.classList.remove('page-dragging');
+          el.classList.remove('page-drop-target');
+      });
+
+      // --- HANDLE PAGE REORDER ---
+      if (dragType === 'page') {
+          const targetPageEl = e.target.closest('.page-container');
+          if (!targetPageEl) return;
+          const targetIdx = parseInt(targetPageEl.dataset.index);
+          
+          if (draggedPageIdx !== null && draggedPageIdx !== targetIdx) {
+              pushHistory();
+              const pageToMove = pages[draggedPageIdx];
+              // Remove
+              pages.splice(draggedPageIdx, 1);
+              // Insert
+              pages.splice(targetIdx, 0, pageToMove);
+              // Update index to follow the page
+              currentPageIndex = targetIdx;
+              renderGrid(true);
+          }
+          draggedPageIdx = null;
+          dragType = null;
+          return;
+      }
+
+      // --- HANDLE PHOTO DROP ---
+      if (dragType === 'photo' && draggedPhotoId !== null) {
+          const pageEl = e.target.closest('.page-container');
+          if (!pageEl) return; 
+          const targetPageIndex = parseInt(pageEl.dataset.index);
+          
+          pushHistory();
+          const photoItem = pages[dragSourcePageIndex].find(p => p.id === draggedPhotoId);
+          if (!photoItem) return;
+          pages[dragSourcePageIndex] = pages[dragSourcePageIndex].filter(p => p.id !== draggedPhotoId);
+          if (targetId) {
+              const targetIndex = pages[targetPageIndex].findIndex(p => p.id === targetId);
+              if (targetIndex > -1) { pages[targetPageIndex].splice(targetIndex, 0, photoItem); } 
+              else { pages[targetPageIndex].push(photoItem); }
+          } else { pages[targetPageIndex].push(photoItem); }
+          
+          draggedPhotoId = null; dragSourcePageIndex = null; dragType = null;
+          renderGrid(true); 
+      }
+      return false;
+    }
+    
+    function handleDragEnd(e) { 
+        // Global cleanup
+        document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        document.querySelectorAll('.page-drop-target').forEach(el => el.classList.remove('page-drop-target'));
+        document.querySelectorAll('.page-dragging').forEach(el => el.classList.remove('page-dragging'));
+        document.querySelectorAll('.page-container').forEach(el => el.classList.remove('drag-active')); 
+        draggedPhotoId = null; draggedPageIdx = null; dragType = null;
+    }
+
+    function changePage(delta) {
+      const totalPages = pages.length || 1;
+      let newIndex = currentPageIndex + delta;
+      if (newIndex >= 0 && newIndex < totalPages) { currentPageIndex = newIndex; renderGrid(false); }
+    }
+    document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+    const canvasWrapper = document.getElementById('canvasWrapper');
+    canvasWrapper.addEventListener('dragover', (e) => e.preventDefault());
+    canvasWrapper.addEventListener('drop', (e) => { 
+        if(e.dataTransfer.files.length > 0) { e.preventDefault(); handleFiles(Array.from(e.dataTransfer.files)); } 
+    });
+    function handleFileUpload(e) { handleFiles(Array.from(e.target.files)); }
+
+    async function handleFiles(files) {
+      const imageFiles = files.filter(file => file.type.startsWith('image/'));
+      if (imageFiles.length === 0) return;
+      pushHistory();
+      const processingPromises = imageFiles.map(async (file) => {
+            const originalUrl = URL.createObjectURL(file);
+            const thumbData = await createThumbnail(file);
+            const photoObj = {
+                id: Date.now() + Math.random(), originalFile: file, originalSrc: originalUrl,
+                previewSrc: thumbData.src, name: file.name, width: thumbData.width,
+                height: thumbData.height, aspectRatio: thumbData.width / thumbData.height, hue: thumbData.hue || 0
+            };
+            await savePhotoToDB(photoObj);
+            return photoObj;
+        });
+      const newPhotos = await Promise.all(processingPromises);
+      newPhotos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+      photos.push(...newPhotos);
+      if (pages.length === 0) pages.push([]);
+      pages[currentPageIndex].push(...newPhotos);
+      renderGrid(true); updateUI();
+    }
+
+    function setOrientation(ori) {
+      orientation = ori;
+      document.getElementById('portraitBtn').className = ori === 'portrait' ? 'active' : '';
+      document.getElementById('landscapeBtn').className = ori === 'landscape' ? 'active' : '';
+      renderGrid(true);
+    }
+    async function clearAll() {
+      if(!confirm("Er du sikker på at du vil fjerne alle bilder i dette prosjektet?")) return;
+      photos.forEach(p => { URL.revokeObjectURL(p.originalSrc); URL.revokeObjectURL(p.previewSrc); });
+      photos = []; pages = [[]]; await clearDBForLayout(); historyStack = []; updateUndoBtn(); currentPageIndex = 0; renderGrid(true); updateUI();
+    }
+    function updateUI() {
+      document.getElementById('photoCount').textContent = photos.length;
+      document.getElementById('exportBtn').disabled = photos.length === 0;
+      document.getElementById('downloadAllBtn').style.display = photos.length > 0 ? 'block' : 'none';
+      document.getElementById('clearBtn').style.display = photos.length > 0 ? 'block' : 'none';
+    }
+
+    function getPaperDimensions() {
+      const paperSize = document.getElementById('paperSize').value;
+      let size = PAPER_SIZES[paperSize];
+      if (paperSize === 'CUSTOM') size = customDimensions;
+      return orientation === 'landscape' ? { width: size.height, height: size.width } : { width: size.width, height: size.height };
+    }
+
+    function calculateOptimalGrid(pagePhotos, width, height, gap) {
+      if (pagePhotos.length === 0) return { cells: [], totalHeight: 0, fitScore: Infinity };
+      function createLayout(targetRows) {
+        const rows = [];
+        const baseCount = Math.floor(pagePhotos.length / targetRows);
+        const extras = pagePhotos.length % targetRows;
+        let photoIdx = 0;
+        for (let r = 0; r < targetRows; r++) {
+          const count = baseCount + (r < extras ? 1 : 0);
+          const rowPhotos = [];
+          let aspectSum = 0;
+          for (let i = 0; i < count; i++) {
+            if (photoIdx < pagePhotos.length) { rowPhotos.push(pagePhotos[photoIdx]); aspectSum += pagePhotos[photoIdx].aspectRatio; photoIdx++; }
+          }
+          if (rowPhotos.length > 0) {
+            const gaps = (rowPhotos.length - 1) * gap;
+            const rowHeight = (width - gaps) / aspectSum; 
+            rows.push({ photos: rowPhotos, height: rowHeight, aspectSum });
+          }
+        }
+        const totalGapHeight = (rows.length - 1) * gap;
+        const naturalHeight = rows.reduce((sum, r) => sum + r.height, 0) + totalGapHeight;
+        return { rows, naturalHeight, totalGapHeight };
+      }
+
+      let bestLayout = null; let bestScore = Infinity; 
+      for (let r = 1; r <= pagePhotos.length; r++) {
+        const layout = createLayout(r);
+        const contentHeight = layout.naturalHeight - layout.totalGapHeight;
+        const requiredContentHeight = height - layout.totalGapHeight;
+        if (requiredContentHeight <= 0) continue;
+        const scale = requiredContentHeight / contentHeight;
+        let score;
+        if (scale >= 0.9 && scale <= 1.1) { score = Math.abs(1 - scale); } 
+        else { if (scale < 0.9) score = 100 + (0.9 - scale); else score = 100 + (scale - 1.1); }
+        if (score < bestScore) { bestScore = score; bestLayout = { ...layout, optimalScale: scale }; }
+      }
+      if (!bestLayout) return { cells: [], totalHeight: 0, fitScore: Infinity };
+
+      const rows = bestLayout.rows;
+      let finalScale = bestLayout.optimalScale;
+      if (finalScale < 0.9) finalScale = 0.9;
+      if (finalScale > 1.1) finalScale = 1.1;
+
+      let currentTotalHeight = rows.reduce((sum, r) => sum + (r.height * finalScale), 0) + bestLayout.totalGapHeight;
+      let fitScale = 1;
+      if (currentTotalHeight > height) { fitScale = height / currentTotalHeight; currentTotalHeight = height; }
+
+      const cells = [];
+      let yPos = (currentTotalHeight < height) ? (height - currentTotalHeight) / 2 : 0;
+      const finalTotalWidth = width * fitScale;
+      const xOffset = (width - finalTotalWidth) / 2;
+
+      rows.forEach(row => {
+        const finalRowHeight = row.height * finalScale * fitScale;
+        const rowGapTotal = (row.photos.length - 1) * gap * fitScale;
+        const availableRowWidth = finalTotalWidth - rowGapTotal;
+        let xPos = xOffset;
+        row.photos.forEach(photo => {
+          const cellWidth = (photo.aspectRatio / row.aspectSum) * availableRowWidth;
+          cells.push({ x: xPos, y: yPos, width: cellWidth, height: finalRowHeight, photo: photo });
+          xPos += cellWidth + (gap * fitScale);
+        });
+        yPos += finalRowHeight + (gap * fitScale);
+      });
+      return { cells, totalHeight: currentTotalHeight, fitScore: bestScore };
+    }
+
+    function partitionPhotosIntoPages(allPhotos, target, tolerance, width, height, gap) {
+      const pages = [];
+      let currentIndex = 0;
+      while (currentIndex < allPhotos.length) {
+        let bestCount = target; let bestChunkScore = Infinity;
+        const minCount = Math.max(1, target - tolerance);
+        const maxCount = target + tolerance;
+        const remaining = allPhotos.length - currentIndex;
+        if (remaining <= maxCount) { pages.push(allPhotos.slice(currentIndex)); break; }
+        for (let c = minCount; c <= maxCount; c++) {
+          if (c > remaining) break;
+          const chunk = allPhotos.slice(currentIndex, currentIndex + c);
+          const result = calculateOptimalGrid(chunk, width, height, gap);
+          const targetDeviation = Math.abs(target - c) * 0.05; 
+          const totalScore = result.fitScore + targetDeviation;
+          if (totalScore < bestChunkScore) { bestChunkScore = totalScore; bestCount = c; }
+        }
+        pages.push(allPhotos.slice(currentIndex, currentIndex + bestCount));
+        currentIndex += bestCount;
+      }
+      return pages;
+    }
+
+    function renderGrid(save = true) {
+      if (save) saveSettings();
+      
+      const paper = getPaperDimensions();
+      const aspectRatio = paper.width / paper.height;
+      const isMobile = window.innerWidth <= 900;
+      const padding = 80; 
+      const sidebarWidth = isMobile ? 0 : 340;
+      const maxWidth = window.innerWidth - sidebarWidth - (padding * 2);
+      const maxHeight = window.innerHeight - 150; 
+
+      let displayWidth = maxWidth;
+      let displayHeight = displayWidth / aspectRatio;
+      if (displayHeight > maxHeight) { displayHeight = maxHeight; displayWidth = displayHeight * aspectRatio; }
+      displayWidth = Math.max(100, displayWidth); displayHeight = Math.max(100, displayHeight);
+
+      const margin = parseFloat(document.getElementById('margin').value) || 0;
+      const gap = parseFloat(document.getElementById('gap').value) || 0;
+      
+      const marginPx = (margin / paper.width) * displayWidth;
+      const gapPx = (gap / paper.width) * displayWidth;
+      const availableWidth = displayWidth - (2 * marginPx);
+      const availableHeight = displayHeight - (2 * marginPx);
+
+      const canvasWrapper = document.getElementById('canvasWrapper');
+      canvasWrapper.innerHTML = ''; 
+
+      if (pages.length === 0 && photos.length === 0) { pages = [[]]; }
+
+      const totalPages = pages.length;
+      if (currentPageIndex >= totalPages) currentPageIndex = totalPages - 1;
+      if (currentPageIndex < 0) currentPageIndex = 0;
+
+      document.getElementById('pageNav').style.display = 'flex';
+      document.getElementById('pageIndicator').textContent = `Side ${currentPageIndex + 1} av ${totalPages}`;
+      document.getElementById('prevBtn').disabled = currentPageIndex === 0;
+      document.getElementById('nextBtn').disabled = currentPageIndex === totalPages - 1;
+
+      let startRender = Math.max(0, currentPageIndex - 1);
+      let endRender = Math.min(totalPages - 1, currentPageIndex + 1);
+
+      for (let i = startRender; i <= endRender; i++) {
+          const pagePhotos = pages[i];
+          const pageContainer = document.createElement('div');
+          pageContainer.className = 'page-container';
+          if (i === currentPageIndex) pageContainer.classList.add('active');
+          pageContainer.id = `page-${i}`;
+          pageContainer.dataset.index = i; 
+          
+          const header = document.createElement('div');
+          header.className = 'page-header';
+          
+          // Labels & Drag Handle
+          const labelGroup = document.createElement('div');
+          labelGroup.className = 'page-label-group';
+          
+          const dragHandle = document.createElement('div');
+          dragHandle.className = 'page-drag-handle';
+          dragHandle.title = 'Dra for å flytte side';
+          // Icon for drag handle (dots)
+          dragHandle.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px; cursor: grab;"><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>';
+          // PAGE DRAG EVENT LISTENERS (On Handle)
+          dragHandle.draggable = true;
+          dragHandle.ondragstart = (e) => handlePageDragStart(e, i);
+          dragHandle.ondragend = handleDragEnd;
+
+          const label = document.createElement('div');
+          label.className = 'page-label';
+          label.textContent = `Side ${i + 1}`;
+          
+          labelGroup.appendChild(dragHandle);
+          labelGroup.appendChild(label);
+
+          const delBtn = document.createElement('button');
+          delBtn.className = 'delete-page-btn';
+          delBtn.innerHTML = '×';
+          delBtn.title = 'Slett side';
+          delBtn.onclick = (e) => { e.stopPropagation(); removePage(i); };
+
+          header.appendChild(labelGroup);
+          header.appendChild(delBtn);
+          pageContainer.appendChild(header);
+
+          const canvasEl = document.createElement('div');
+          canvasEl.className = 'canvas';
+          canvasEl.style.width = displayWidth + 'px';
+          canvasEl.style.height = displayHeight + 'px';
+          canvasEl.style.backgroundColor = document.getElementById('bgColorText').value;
+          canvasEl.ondragover = handleDragOver;
+          canvasEl.ondrop = (e) => handleDrop(e, null);
+
+          const gridEl = document.createElement('div');
+          gridEl.className = 'grid-container';
+          gridEl.style.width = availableWidth + 'px';
+          gridEl.style.height = availableHeight + 'px';
+          gridEl.style.left = marginPx + 'px';
+          gridEl.style.top = marginPx + 'px';
+
+          const grid = calculateOptimalGrid(pagePhotos, availableWidth, availableHeight, gapPx);
+
+          grid.cells.forEach((cell) => {
+            const div = document.createElement('div');
+            div.className = 'photo-cell';
+            div.style.left = cell.x + 'px'; div.style.top = cell.y + 'px';
+            div.style.width = cell.width + 'px'; div.style.height = cell.height + 'px';
+            div.draggable = true;
+            div.dataset.id = cell.photo.id;
+            div.ondragstart = (e) => handleDragStart(e, cell.photo.id, i);
+            div.ondragover = handleDragOver;
+            div.ondragenter = handleDragEnter;
+            div.ondragleave = handleDragLeave;
+            div.ondrop = (e) => handleDrop(e, cell.photo.id);
+            div.ondragend = handleDragEnd;
+
+            const img = document.createElement('img');
+            img.src = previewQuality === 'low' ? cell.photo.previewSrc : cell.photo.originalSrc;
+            
+            const btn = document.createElement('button');
+            btn.className = 'remove-btn';
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+            btn.onclick = (e) => {
+              e.stopPropagation();
+              pushHistory();
+              pages[i] = pages[i].filter(p => p.id !== cell.photo.id);
+              photos = photos.filter(p => p.id !== cell.photo.id);
+              deletePhotoFromDB(cell.photo.id);
+              renderGrid(true);
+              updateUI();
+            };
+
+            div.appendChild(img);
+            div.appendChild(btn);
+            gridEl.appendChild(div);
+          });
+          
+          canvasEl.appendChild(gridEl);
+          pageContainer.appendChild(canvasEl);
+          canvasWrapper.appendChild(pageContainer);
+      }
+      
+      setTimeout(() => {
+          const activeEl = document.getElementById(`page-${currentPageIndex}`);
+          if(activeEl) { activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }
+      }, 0);
+    }
+
+    function getProjectName() {
+        let name = document.getElementById('projectName').value.trim();
+        if(!name) name = `prosjekt-${currentLayoutId}`;
+        return name.replace(/[^a-z0-9æøå]/gi, '-'); 
+    }
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image(); img.crossOrigin = "Anonymous";
+        img.onload = () => resolve(img); img.onerror = (e) => reject(e); img.src = src;
+      });
+    }
+    function createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, bgColor) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const canvas = document.createElement('canvas'); canvas.width = exportWidth; canvas.height = exportHeight;
+          const ctx = canvas.getContext('2d'); ctx.fillStyle = bgColor; ctx.fillRect(0, 0, exportWidth, exportHeight);
+          const availableWidth = exportWidth - 2 * marginPx; const availableHeight = exportHeight - 2 * marginPx;
+          const grid = calculateOptimalGrid(pagePhotos, availableWidth, availableHeight, gapPx);
+          for (let i = 0; i < grid.cells.length; i++) {
+            const cell = grid.cells[i]; const photo = cell.photo;
+            const img = await loadImage(photo.originalSrc); 
+            const cellAspect = cell.width / cell.height; const photoAspect = photo.aspectRatio;
+            let drawWidth, drawHeight, offsetX, offsetY;
+            if (photoAspect > cellAspect) { drawHeight = cell.height; drawWidth = drawHeight * photoAspect; offsetX = (cell.width - drawWidth) / 2; offsetY = 0; } 
+            else { drawWidth = cell.width; drawHeight = drawWidth / photoAspect; offsetX = 0; offsetY = (cell.height - drawHeight) / 2; }
+            const x = Math.round(marginPx + cell.x + offsetX); const y = Math.round(marginPx + cell.y + offsetY);
+            ctx.save(); ctx.beginPath(); ctx.rect(Math.round(marginPx + cell.x), Math.round(marginPx + cell.y), Math.round(cell.width), Math.round(cell.height)); ctx.clip();
+            ctx.drawImage(img, x, y, Math.round(drawWidth), Math.round(drawHeight)); ctx.restore();
+          }
+          canvas.toBlob((blob) => { if (blob) resolve(blob); else reject(new Error('Failed to create blob')); }, 'image/jpeg', 0.95);
+        } catch (err) { reject(err); }
+      });
+    }
+
+    async function exportGrid() {
+      if (photos.length === 0) return;
+      const paper = getPaperDimensions(); const dpi = parseInt(document.getElementById('dpi').value);
+      const mmToPixels = dpi / 25.4; const exportWidth = Math.round(paper.width * mmToPixels); const exportHeight = Math.round(paper.height * mmToPixels);
+      const margin = parseFloat(document.getElementById('margin').value); const gap = parseFloat(document.getElementById('gap').value);
+      const marginPx = Math.round(margin * mmToPixels); const gapPx = Math.round(gap * mmToPixels);
+      const pagesToExport = pages; 
+      const baseName = getProjectName(); const btn = document.getElementById('exportBtn');
+      btn.disabled = true; btn.textContent = "Genererer...";
+      try {
+        for (let pageIndex = 0; pageIndex < pagesToExport.length; pageIndex++) {
+          const pagePhotos = pagesToExport[pageIndex];
+          const blob = await createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, document.getElementById('bgColorText').value);
+          const url = URL.createObjectURL(blob); const a = document.createElement('a');
+          const fileName = pagesToExport.length > 1 ? `${baseName}-side${pageIndex + 1}-${dpi}dpi.jpg` : `${baseName}-${dpi}dpi.jpg`;
+          a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+          await new Promise(r => setTimeout(r, 200));
+        }
+      } catch (err) { alert('Feil ved eksport: ' + err.message); } 
+      finally { btn.disabled = false; btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Eksporter grid`; }
+    }
+
+    async function downloadAllZip() {
+      if (photos.length === 0) return;
+      const paper = getPaperDimensions(); const dpi = parseInt(document.getElementById('dpi').value);
+      const mmToPixels = dpi / 25.4; const exportWidth = Math.round(paper.width * mmToPixels); const exportHeight = Math.round(paper.height * mmToPixels);
+      const margin = parseFloat(document.getElementById('margin').value); const gap = parseFloat(document.getElementById('gap').value);
+      const marginPx = Math.round(margin * mmToPixels); const gapPx = Math.round(gap * mmToPixels);
+      const pagesToExport = pages;
+      const zip = new JSZip(); const baseName = getProjectName(); const btn = document.getElementById('downloadAllBtn');
+      btn.disabled = true; btn.textContent = "Pakker zip...";
+      try {
+        for (let pageIndex = 0; pageIndex < pagesToExport.length; pageIndex++) {
+          const pagePhotos = pagesToExport[pageIndex];
+          const blob = await createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, document.getElementById('bgColorText').value);
+          const fileName = pagesToExport.length > 1 ? `${baseName}-side${pageIndex + 1}-${dpi}dpi.jpg` : `${baseName}-${dpi}dpi.jpg`;
+          zip.file(fileName, blob); await new Promise(r => setTimeout(r, 100));
+        }
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob); const a = document.createElement('a');
+        a.href = url; a.download = `${baseName}-${dpi}dpi.zip`;
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      } catch (err) { alert('Feil ved zip: ' + err.message); } 
+      finally { btn.disabled = false; btn.textContent = "Last ned zip"; }
+    }
+
+    (async function startApp() {
+        try {
+            await initDB();
+            const loadedPhotos = await loadPhotosFromDB();
+            const savedSettings = await loadSettings();
+            applyLoadedState(loadedPhotos, savedSettings);
+            updateUI();
+        } catch (e) {
+            console.error("Database init failed", e);
+        }
+    })();
+
+    window.addEventListener('resize', () => debouncedRender());
+  </script>
 </body>
 </html>
