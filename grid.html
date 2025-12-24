@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro V0.8 - Depot & Insert</title>
+  <title>Fotogrid Pro V0.8.1 - Orphan Fix</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   
   <style>
@@ -12,7 +12,7 @@
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; height: 100vh; overflow: hidden; }
     
     .app-container { height: 100vh; background-color: #e5e7eb; display: flex; flex-direction: column; }
-    .main-area { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 140px); /* Plass til depot */ }
+    .main-area { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 150px); }
 
     /* Sidebar */
     .sidebar { width: 340px; background-color: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; z-index: 30; flex-shrink: 0; overflow-y: auto; }
@@ -47,7 +47,7 @@
       display: flex; 
       align-items: center; 
       padding: 40px; 
-      gap: 0; /* Gap håndteres av insert-zones */
+      gap: 0; 
     }
 
     /* Page styles */
@@ -61,9 +61,9 @@
     .page-drop-target .canvas { border: 3px solid #2563eb; box-shadow: 0 0 15px rgba(37, 99, 235, 0.3); }
 
     /* Insert Zone (The + buttons) */
-    .insert-zone { width: 40px; height: 80%; display: flex; align-items: center; justify-content: center; z-index: 20; flex-shrink: 0; opacity: 0; transition: opacity 0.2s; }
+    .insert-zone { width: 50px; height: 80%; display: flex; align-items: center; justify-content: center; z-index: 20; flex-shrink: 0; opacity: 0; transition: opacity 0.2s; }
     .insert-zone:hover { opacity: 1; }
-    .btn-insert { width: 32px; height: 32px; border-radius: 50%; background: #2563eb; color: white; border: none; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.15); transform: scale(0.8); transition: transform 0.2s; }
+    .btn-insert { width: 36px; height: 36px; border-radius: 50%; background: #2563eb; color: white; border: none; cursor: pointer; font-size: 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.15); transform: scale(0.8); transition: transform 0.2s; }
     .btn-insert:hover { transform: scale(1.1); background: #1d4ed8; }
 
     /* Grid & Photos */
@@ -74,7 +74,7 @@
     
     /* Depot (Bottom Bar) */
     .depot-area {
-      height: 140px; background: white; border-top: 2px solid #e5e7eb; 
+      height: 150px; background: white; border-top: 2px solid #e5e7eb; 
       display: flex; flex-direction: column; z-index: 50; flex-shrink: 0;
       box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
     }
@@ -85,17 +85,18 @@
     .depot-content { 
       flex: 1; overflow-x: auto; padding: 10px 20px; display: flex; gap: 10px; align-items: center; 
     }
-    .depot-content.drag-over { background-color: #eff6ff; }
+    .depot-content.drag-over { background-color: #dbeafe; border: 2px dashed #2563eb; }
     
     .depot-item { 
-      width: 80px; height: 80px; flex-shrink: 0; position: relative; 
+      width: 90px; height: 90px; flex-shrink: 0; position: relative; 
       border-radius: 6px; overflow: hidden; border: 1px solid #d1d5db; cursor: grab; 
-      background: #f3f4f6; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      background: #f3f4f6; box-shadow: 0 1px 2px rgba(0,0,0,0.1); transition: transform 0.1s;
     }
+    .depot-item:hover { transform: scale(1.05); }
     .depot-item img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
     .depot-item:hover .remove-btn { opacity: 1; }
     
-    .empty-msg { font-size: 13px; color: #9ca3af; font-style: italic; width: 100%; text-align: center; }
+    .empty-msg { font-size: 13px; color: #9ca3af; font-style: italic; width: 100%; text-align: center; pointer-events: none; }
 
     /* Modals */
     .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; }
@@ -186,8 +187,8 @@
           <button class="btn-secondary" onclick="sortByColor()">Sorter etter farge</button>
           <button class="btn-secondary" id="undoBtn" onclick="undo()" disabled>Angre (Ctrl+Z)</button>
           <button class="btn-secondary" id="exportBtn" onclick="exportGrid()">Lagre som JPG</button>
-          <button class="btn-secondary" id="downloadAllBtn" onclick="downloadAllZip()" style="display:none">Last ned ZIP</button>
-          <button class="btn-secondary" id="clearBtn" onclick="clearAll()" style="color:red; border-color:red; display:none;">Slett alt</button>
+          <button class="btn-secondary" id="downloadAllBtn" onclick="downloadAllZip()">Last ned ZIP</button>
+          <button class="btn-secondary" id="clearBtn" onclick="clearAll()" style="color:red; border-color:red; margin-top:5px;">Slett alt</button>
         </div>
         
         <div style="font-size:10px; color:#aaa; margin-top:10px;">DPI for eksport: <select id="dpi" style="width:60px; padding:2px;"><option value="150">150</option><option value="300" selected>300</option></select></div>
@@ -198,7 +199,7 @@
       <div id="saveStatus" style="position:absolute; top:10px; right:10px; background:white; padding:5px 10px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.1); display:none; font-size:12px; z-index:100;">Lagret</div>
       
       <div class="canvas-scroller" id="canvasWrapper">
-        </div>
+      </div>
       
       <div id="pageNav" style="display:flex; justify-content:center; align-items:center; gap:15px; padding:10px; background:white; border-top:1px solid #ddd; position:absolute; bottom:10px; left:50%; transform:translateX(-50%); border-radius:20px; box-shadow:0 2px 10px rgba(0,0,0,0.1); z-index:40;">
         <button onclick="changePage(-1)" id="prevBtn" style="border:none; background:none; cursor:pointer;">◀</button>
@@ -256,7 +257,7 @@
 
     let photos = []; 
     let pages = []; 
-    let depotPhotos = []; // NY: Array for bilder i depotet
+    let depotPhotos = []; 
     
     let orientation = 'portrait';
     let currentPageIndex = 0;
@@ -266,7 +267,7 @@
     let currentLayoutId = 1;
 
     // --- DATABASE ---
-    const dbName = 'PhotoGridDB_Multi_V3'; // Oppdatert versjon for ny struktur
+    const dbName = 'PhotoGridDB_Multi_V3'; 
     const storeName = 'photos';
     const settingsStore = 'settings';
     let db;
@@ -318,14 +319,14 @@
     async function saveSettings() {
       if(!db) return;
       const pagesStructure = pages.map(page => page.map(p => p.id));
-      const depotStructure = depotPhotos.map(p => p.id); // Lagre depot
+      const depotStructure = depotPhotos.map(p => p.id); 
 
       const tx = db.transaction([settingsStore], 'readwrite');
       const store = tx.objectStore(settingsStore);
       const settings = {
         key: 'settings_layout_' + currentLayoutId,
         pagesStructure: pagesStructure,
-        depotStructure: depotStructure, // NY
+        depotStructure: depotStructure, 
         projectName: document.getElementById('projectName').value,
         photosPerPage: document.getElementById('photosPerPage').value,
         paperSize: document.getElementById('paperSize').value,
@@ -364,20 +365,15 @@
       db.transaction([settingsStore], 'readwrite').objectStore(settingsStore).delete('settings_layout_' + currentLayoutId);
     }
 
-    // --- NEW: Insert Page Logic ---
+    // --- Page & Insert Logic ---
     function insertPageAt(index) {
         pushHistory();
-        pages.splice(index, 0, []); // Sett inn tom array (ny side)
-        // Oppdater hvilken side vi ser på hvis vi setter inn før nåværende
+        pages.splice(index, 0, []); 
         if (index <= currentPageIndex) currentPageIndex++;
-        
         saveSettings();
-        renderGrid(false); // UI update without resaving immediately
-        
-        // Scroll to the newly inserted page
+        renderGrid(false); 
         setTimeout(() => {
             const wrapper = document.getElementById('canvasWrapper');
-            // index * 2 + 1 fordi vi har insert-zones mellom hver side
             const targetChild = wrapper.children[(index * 2) + 1]; 
             if(targetChild) {
                 targetChild.scrollIntoView({behavior: 'smooth', inline: 'center'});
@@ -392,14 +388,11 @@
         return div;
     }
 
-    // --- OLD Page Logic (Updated) ---
     function removePage(pageIndex) {
         if (pages.length <= 1) {
              if(confirm("Dette er siste side. Vil du tømme den?")) {
                  pushHistory();
-                 // Flytt bildene til depot i stedet for å slette? Nei, slett for nå, eller legg til depot.
-                 // La oss slette fra side, men beholde i minnet (sletting fra DB skjer manuelt).
-                 // For konsistens med gammel kode:
+                 // Move photos to depot instead of deleting? For now, standard delete logic as requested
                  const photosToRemove = pages[pageIndex];
                  photosToRemove.forEach(p => deletePhotoFromDB(p.id));
                  photos = photos.filter(p => !photosToRemove.includes(p));
@@ -431,10 +424,7 @@
         const availableWidth = paper.width - (2*margin); 
         const availableHeight = paper.height - (2*margin);
         
-        // Samle alle bilder fra sider OG depot for en full reset?
-        // Nei, autoflow bør gjelde "aktive" bilder. La oss beholde depot separat, 
-        // eller spørre brukeren. Standard: Autoflow kun sidene.
-        
+        // Only autoflow photos currently on pages (keep depot as is)
         const allPagePhotos = [];
         pages.forEach(p => allPagePhotos.push(...p));
         
@@ -478,8 +468,8 @@
         applyLoadedState(loadedPhotos, savedSettings);
     }
     
+    // --- UPDATED: Ensures all photos are accounted for ---
     function applyLoadedState(loadedPhotos, savedSettings) {
-        // Build map for lookup
         const photoMap = new Map(loadedPhotos.map(p => [p.id, p]));
         
         if (savedSettings) {
@@ -501,17 +491,17 @@
             document.getElementById('bgColorText').value = bg;
             document.getElementById('bgColorPicker').value = bg;
             
-            // Gjenopprett sider
+            // 1. Reconstruct Pages
             if (savedSettings.pagesStructure) {
                 pages = savedSettings.pagesStructure.map(pageIds => {
                     return pageIds.map(id => photoMap.get(id)).filter(p => p); 
                 });
             } else {
-                pages = [loadedPhotos]; // Fallback
+                pages = [loadedPhotos]; 
                 setTimeout(autoFlow, 100);
             }
             
-            // Gjenopprett depot
+            // 2. Reconstruct Depot
             depotPhotos = [];
             if (savedSettings.depotStructure) {
                 savedSettings.depotStructure.forEach(id => {
@@ -519,12 +509,24 @@
                     if(p) depotPhotos.push(p);
                 });
             }
-            // Add photos currently not in pages or depot (orphans) to depot
-            // (Optional safety check)
 
-            photos = loadedPhotos; // Keep reference to all
+            // 3. ORPHAN CHECK (Sikkerhet: Alle bilder må være et sted)
+            // Samle alle ID-er som nå er plassert (enten side eller depot)
+            const placedIds = new Set();
+            pages.forEach(page => page.forEach(p => placedIds.add(p.id)));
+            depotPhotos.forEach(p => placedIds.add(p.id));
+
+            // Sjekk master-listen. Hvis et bilde ikke er plassert, legg det i depotet.
+            loadedPhotos.forEach(p => {
+                if (!placedIds.has(p.id)) {
+                    console.log("Reddet forsvunnet bilde til depot:", p.name);
+                    depotPhotos.push(p);
+                }
+            });
+
+            photos = loadedPhotos; 
         } else {
-            // New project default
+            // New project
             document.getElementById('projectName').value = "Prosjekt " + currentLayoutId;
             document.getElementById('paperSize').value = 'A4';
             previousPaperSize = 'A4';
@@ -600,13 +602,10 @@
             pages: pages.map(page => page.map(p => p.id)),
             depot: depotPhotos.map(p => p.id)
         };
-        
-        // Unngå duplikater (enkel sjekk)
         if(historyStack.length > 0) {
             const last = historyStack[historyStack.length - 1];
             if(JSON.stringify(last) === JSON.stringify(currentState)) return;
         }
-
         historyStack.push(currentState);
         if (historyStack.length > MAX_HISTORY) historyStack.shift();
         updateUndoBtn();
@@ -615,7 +614,6 @@
     function undo() {
         if (historyStack.length === 0) return;
         const previousState = historyStack.pop();
-        
         const photoMap = new Map(photos.map(p => [p.id, p]));
         
         // Restore Pages
@@ -632,7 +630,7 @@
             });
         }
         
-        renderGrid(false); // No save on undo, wait for next action or manual
+        renderGrid(false); 
         updateUndoBtn();
     }
     
@@ -642,12 +640,8 @@
         btn.textContent = `Angre (${historyStack.length})`;
     }
 
-    // Keyboard Shortcut for Undo
     document.addEventListener('keydown', function(e) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-            e.preventDefault();
-            undo();
-        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
     });
 
     // --- DEBOUNCE & HANDLERS ---
@@ -681,11 +675,11 @@
     }
     function resetAndRender(save = true) { renderGrid(save); }
     
-    // --- DRAG & DROP UTILS (Updated for Depot) ---
+    // --- DRAG & DROP UTILS ---
     let draggedPhotoId = null;
-    let draggedPageIdx = null; // Source page index for photo, or index of page being moved
-    let dragSourceType = null; // 'page', 'depot'
-    let dragType = null; // 'photo', 'page-move'
+    let draggedPageIdx = null; 
+    let dragSourceType = null; 
+    let dragType = null; 
 
     // PHOTO DRAG
     function handleDragStart(e, id, sourcePageIndex, sourceType = 'page') { 
@@ -698,7 +692,7 @@
         e.dataTransfer.effectAllowed = 'move'; 
     }
 
-    // PAGE DRAG (Reordering pages)
+    // PAGE DRAG
     function handlePageDragStart(e, pageIndex) {
         draggedPageIdx = pageIndex;
         dragType = 'page-move';
@@ -731,9 +725,7 @@
         return false; 
     }
 
-    function handleDragEnter(e) { 
-        e.preventDefault(); 
-    }
+    function handleDragEnter(e) { e.preventDefault(); }
 
     function handleDragLeave(e) { 
         if (dragType === 'photo') {
@@ -750,7 +742,6 @@
     function handleDrop(e, targetId) {
       e.stopPropagation(); e.preventDefault();
       
-      // Cleanup visuals
       document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
       document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
       document.querySelectorAll('.page-drop-target').forEach(el => el.classList.remove('page-drop-target'));
@@ -790,16 +781,15 @@
               pages[draggedPageIdx] = pages[draggedPageIdx].filter(p => p.id !== draggedPhotoId);
           }
           
-          if (!photoItem) return; // Error safety
+          if (!photoItem) return; 
 
           // 2. Add to Target
           if (targetId === 'depot') {
               depotPhotos.push(photoItem);
           } else {
-              // Dropped on a Page
               const pageEl = e.target.closest('.page-container');
               if (!pageEl) {
-                  // Dropped in void, return to source (undo remove)
+                  // Void drop -> return to source
                   if(dragSourceType === 'depot') depotPhotos.push(photoItem);
                   else pages[draggedPageIdx].push(photoItem);
                   renderGrid(true); return;
@@ -807,7 +797,7 @@
               
               const targetPageIndex = parseInt(pageEl.dataset.index);
               
-              if (targetId && targetId !== 'depot') { // Dropped on specific photo
+              if (targetId && targetId !== 'depot') { 
                   const targetIndex = pages[targetPageIndex].findIndex(p => p.id === targetId);
                   if (targetIndex > -1) { pages[targetPageIndex].splice(targetIndex, 0, photoItem); } 
                   else { pages[targetPageIndex].push(photoItem); }
@@ -823,7 +813,6 @@
     }
     
     function handleDragEnd(e) { 
-        // Global cleanup safety
         document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
         document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
         document.querySelectorAll('.page-drop-target').forEach(el => el.classList.remove('page-drop-target'));
@@ -838,7 +827,7 @@
     
     document.getElementById('fileInput').addEventListener('change', handleFileUpload);
     
-    // --- MAIN RENDER FUNCTION (Aggregates UI updates) ---
+    // --- MAIN RENDER FUNCTION ---
     function renderGrid(save = true) {
       if (save) saveSettings();
       
@@ -848,7 +837,7 @@
       const padding = 80; 
       const sidebarWidth = isMobile ? 0 : 340;
       const maxWidth = window.innerWidth - sidebarWidth - (padding * 2);
-      const maxHeight = window.innerHeight - 200; // Justert for depot
+      const maxHeight = window.innerHeight - 200; 
 
       let displayWidth = maxWidth;
       let displayHeight = displayWidth / aspectRatio;
@@ -872,21 +861,14 @@
       if (currentPageIndex >= totalPages) currentPageIndex = totalPages - 1;
       if (currentPageIndex < 0) currentPageIndex = 0;
 
-      // Update Nav Info
       document.getElementById('photoCount').textContent = photos.length;
       document.getElementById('pageNav').style.display = totalPages > 0 ? 'flex' : 'none';
       document.getElementById('pageIndicator').textContent = `Side ${currentPageIndex + 1} av ${Math.max(1, totalPages)}`;
       document.getElementById('prevBtn').disabled = currentPageIndex <= 0;
       document.getElementById('nextBtn').disabled = currentPageIndex >= totalPages - 1;
 
-      // Render Insert Zone Start
       canvasWrapper.appendChild(createInsertZone(0));
 
-      // Loop all pages (Vis alle sider side-ved-side i denne versjonen for bedre oversikt?)
-      // Original script viste kun 1 (eller 3 i karusell). La oss vise alle for enklere "Insert".
-      // MEN: for ytelse, hvis vi har 100 sider, bør vi kanskje ikke rende alle. 
-      // La oss rende alle nå for å få "Insert" knapper til å virke overalt.
-      
       pages.forEach((pagePhotos, i) => {
           const pageContainer = document.createElement('div');
           pageContainer.className = 'page-container';
@@ -894,7 +876,6 @@
           pageContainer.id = `page-${i}`;
           pageContainer.dataset.index = i; 
           
-          // Click to set active
           pageContainer.onclick = () => { currentPageIndex = i; renderGrid(false); };
           
           // Header
@@ -904,7 +885,6 @@
           const labelGroup = document.createElement('div');
           labelGroup.className = 'page-label-group';
           
-          // Drag Handle for PAGE
           const dragHandle = document.createElement('div');
           dragHandle.className = 'page-drag-handle';
           dragHandle.title = 'Dra for å flytte side';
@@ -966,17 +946,16 @@
             const btn = document.createElement('button');
             btn.className = 'remove-btn';
             btn.innerHTML = '×';
-            btn.title = "Fjern (flytt til depot?)"; 
-            // Endre slett-knapp til å slette fra side (men beholde i DB/Depot hvis ønskelig? Standard: Slett helt)
-            // Vi holder det som "Slett helt" for nå, men brukeren kan dra til depot.
+            btn.title = "Slett bilde (permanent)"; 
             btn.onclick = (e) => {
               e.stopPropagation();
-              pushHistory();
-              pages[i] = pages[i].filter(p => p.id !== cell.photo.id);
-              // photos = photos.filter(p => p.id !== cell.photo.id); // Beholdes i DB? Ja, tryggere.
-              deletePhotoFromDB(cell.photo.id); // Sletter faktisk.
-              photos = photos.filter(p => p.id !== cell.photo.id);
-              renderGrid(true);
+              if(confirm("Slette bildet permanent?")) {
+                  pushHistory();
+                  pages[i] = pages[i].filter(p => p.id !== cell.photo.id);
+                  deletePhotoFromDB(cell.photo.id);
+                  photos = photos.filter(p => p.id !== cell.photo.id);
+                  renderGrid(true);
+              }
             };
 
             div.appendChild(img);
@@ -987,16 +966,10 @@
           canvasEl.appendChild(gridEl);
           pageContainer.appendChild(canvasEl);
           canvasWrapper.appendChild(pageContainer);
-          
-          // Insert Zone After
           canvasWrapper.appendChild(createInsertZone(i + 1));
       });
       
-      // Render Depot UI
       renderDepot();
-
-      // Scroll to active page only on specific triggers, otherwise annoying on redraw
-      // (Disabled auto-scroll on every render to allow smooth editing)
     }
     
     function renderDepot() {
@@ -1046,7 +1019,6 @@
       if (imageFiles.length === 0) return;
       pushHistory();
       
-      // Show loading
       const btn = document.querySelector('.btn-primary');
       const originalText = btn.textContent;
       btn.textContent = "Laster...";
@@ -1068,10 +1040,6 @@
       newPhotos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
       
       photos.push(...newPhotos);
-      
-      // Hvor skal nye bilder?
-      // Alternativ 1: Inn på nåværende side (standard)
-      // Alternativ 2: Inn i depot
       
       if (pages.length === 0) pages.push([]);
       pages[currentPageIndex].push(...newPhotos);
@@ -1105,7 +1073,7 @@
       return orientation === 'landscape' ? { width: size.height, height: size.width } : { width: size.width, height: size.height };
     }
 
-    // --- GRID CALCULATION ALGORITHM (Beholdes uendret) ---
+    // --- GRID CALCULATION ALGORITHM ---
     function calculateOptimalGrid(pagePhotos, width, height, gap) {
       if (!pagePhotos || pagePhotos.length === 0) return { cells: [], totalHeight: 0, fitScore: Infinity };
       function createLayout(targetRows) {
@@ -1243,7 +1211,6 @@
       try {
         for (let pageIndex = 0; pageIndex < pagesToExport.length; pageIndex++) {
           const pagePhotos = pagesToExport[pageIndex];
-          // Skip empty pages? No, keep index.
           const blob = await createPageBlob(pagePhotos, exportWidth, exportHeight, marginPx, gapPx, document.getElementById('bgColorText').value);
           const url = URL.createObjectURL(blob); const a = document.createElement('a');
           const fileName = pagesToExport.length > 1 ? `${baseName}-side${pageIndex + 1}-${dpi}dpi.jpg` : `${baseName}-${dpi}dpi.jpg`;
