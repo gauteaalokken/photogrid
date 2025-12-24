@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro V0.8.1 - Orphan Fix</title>
+  <title>Fotogrid Pro V0.9 - Smart Sort & Depot Fix</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   
   <style>
@@ -60,7 +60,7 @@
     .canvas { background: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden; transition: all 0.2s; }
     .page-drop-target .canvas { border: 3px solid #2563eb; box-shadow: 0 0 15px rgba(37, 99, 235, 0.3); }
 
-    /* Insert Zone (The + buttons) */
+    /* Insert Zone */
     .insert-zone { width: 50px; height: 80%; display: flex; align-items: center; justify-content: center; z-index: 20; flex-shrink: 0; opacity: 0; transition: opacity 0.2s; }
     .insert-zone:hover { opacity: 1; }
     .btn-insert { width: 36px; height: 36px; border-radius: 50%; background: #2563eb; color: white; border: none; cursor: pointer; font-size: 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.15); transform: scale(0.8); transition: transform 0.2s; }
@@ -82,6 +82,10 @@
       padding: 8px 20px; font-size: 12px; font-weight: bold; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; 
       display: flex; justify-content: space-between; align-items: center; background: #f9fafb; border-bottom: 1px solid #f3f4f6;
     }
+    .depot-actions { display: flex; gap: 10px; align-items: center; }
+    .btn-xs { padding: 4px 8px; font-size: 11px; background: #2563eb; color: white; border-radius: 4px; border: none; cursor: pointer; text-transform: none; font-weight: 600; }
+    .btn-xs:hover { background: #1d4ed8; }
+
     .depot-content { 
       flex: 1; overflow-x: auto; padding: 10px 20px; display: flex; gap: 10px; align-items: center; 
     }
@@ -183,8 +187,8 @@
         </div>
         
         <div class="control-group" style="margin-top:auto;">
-          <button class="btn-secondary" onclick="autoFlow()">Autoflow (Nullstill)</button>
-          <button class="btn-secondary" onclick="sortByColor()">Sorter etter farge</button>
+          <button class="btn-secondary" onclick="autoFlow(false)">Autoflow (Nullstill)</button>
+          <button class="btn-secondary" onclick="sortByColor()">Sorter etter farge (Smart)</button>
           <button class="btn-secondary" id="undoBtn" onclick="undo()" disabled>Angre (Ctrl+Z)</button>
           <button class="btn-secondary" id="exportBtn" onclick="exportGrid()">Lagre som JPG</button>
           <button class="btn-secondary" id="downloadAllBtn" onclick="downloadAllZip()">Last ned ZIP</button>
@@ -211,8 +215,13 @@
 
   <div class="depot-area">
     <div class="depot-header">
-      <span>Bilde-depot (Dra bilder hit for å lagre midlertidig)</span>
-      <span id="depotCount" style="background:#e5e7eb; padding:2px 6px; border-radius:4px;">0</span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span>Bilde-depot</span>
+        <span id="depotCount" style="background:#e5e7eb; padding:2px 6px; border-radius:4px; font-size:11px;">0</span>
+      </div>
+      <div class="depot-actions">
+          <button class="btn-xs" onclick="moveDepotToPages()" title="Flytt alle bilder fra depotet opp til sidene">▲ Flytt alt til sider</button>
+      </div>
     </div>
     <div class="depot-content" id="depotContainer" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'depot')">
        <div class="empty-msg">Depotet er tomt</div>
@@ -308,7 +317,10 @@
             loadedPhotos.push({
               id: rec.id, name: rec.name, width: rec.width, height: rec.height, aspectRatio: rec.aspectRatio,
               originalFile: rec.file, originalSrc: URL.createObjectURL(rec.file),
-              previewSrc: thumbData.src, hue: thumbData.hue || 0
+              previewSrc: thumbData.src, 
+              hue: thumbData.hue || 0,
+              sat: thumbData.sat || 0,
+              light: thumbData.light || 0.5
             });
           }
           resolve(loadedPhotos);
@@ -392,7 +404,6 @@
         if (pages.length <= 1) {
              if(confirm("Dette er siste side. Vil du tømme den?")) {
                  pushHistory();
-                 // Move photos to depot instead of deleting? For now, standard delete logic as requested
                  const photosToRemove = pages[pageIndex];
                  photosToRemove.forEach(p => deletePhotoFromDB(p.id));
                  photos = photos.filter(p => !photosToRemove.includes(p));
@@ -414,7 +425,32 @@
         renderGrid(true);
     }
 
-    function autoFlow() {
+    // --- NEW: Empty Depot to Pages ---
+    function moveDepotToPages() {
+        if (depotPhotos.length === 0) return;
+        pushHistory();
+        // Collect everything
+        const allPhotos = [];
+        pages.forEach(p => allPhotos.push(...p));
+        allPhotos.push(...depotPhotos);
+        depotPhotos = []; // Clear depot
+        
+        // Use partition logic to redistribute everything
+        const photosPerPage = parseInt(document.getElementById('photosPerPage').value) || 10;
+        const tolerance = parseInt(document.getElementById('pageTolerance').value) || 0;
+        const paper = getPaperDimensions();
+        const margin = parseFloat(document.getElementById('margin').value) || 0;
+        const gap = parseFloat(document.getElementById('gap').value) || 0;
+        const availableWidth = paper.width - (2*margin); 
+        const availableHeight = paper.height - (2*margin);
+
+        pages = partitionPhotosIntoPages(allPhotos, photosPerPage, tolerance, availableWidth, availableHeight, gap);
+        if (pages.length === 0) pages = [[]];
+        currentPageIndex = 0;
+        renderGrid(true);
+    }
+
+    function autoFlow(includeDepot = false) {
         pushHistory();
         const photosPerPage = parseInt(document.getElementById('photosPerPage').value) || 10;
         const tolerance = parseInt(document.getElementById('pageTolerance').value) || 0;
@@ -424,9 +460,13 @@
         const availableWidth = paper.width - (2*margin); 
         const availableHeight = paper.height - (2*margin);
         
-        // Only autoflow photos currently on pages (keep depot as is)
         const allPagePhotos = [];
         pages.forEach(p => allPagePhotos.push(...p));
+        
+        if (includeDepot) {
+            allPagePhotos.push(...depotPhotos);
+            depotPhotos = [];
+        }
         
         pages = partitionPhotosIntoPages(allPagePhotos, photosPerPage, tolerance, availableWidth, availableHeight, gap);
         if (pages.length === 0) pages = [[]]; 
@@ -437,13 +477,23 @@
         if (select.value === 'CUSTOM') {
             document.getElementById('customSizeModal').classList.add('open');
             document.getElementById('customWidth').focus();
-        } else { previousPaperSize = select.value; resetAndRender(); }
+        } else { 
+            previousPaperSize = select.value; 
+            // When paper size changes, we SHOULD trigger autoflow to avoid photos going to depot
+            autoFlow(false); 
+        }
     }
     function closeCustomModal() { document.getElementById('customSizeModal').classList.remove('open'); document.getElementById('paperSize').value = previousPaperSize; }
     function applyCustomSize() {
         const w = parseFloat(document.getElementById('customWidth').value);
         const h = parseFloat(document.getElementById('customHeight').value);
-        if (w > 0 && h > 0) { customDimensions = { width: w, height: h }; updateCustomOptionText(); document.getElementById('customSizeModal').classList.remove('open'); previousPaperSize = 'CUSTOM'; resetAndRender(); } 
+        if (w > 0 && h > 0) { 
+            customDimensions = { width: w, height: h }; 
+            updateCustomOptionText(); 
+            document.getElementById('customSizeModal').classList.remove('open'); 
+            previousPaperSize = 'CUSTOM'; 
+            autoFlow(false); // Trigger flow on change
+        } 
         else { alert("Ugyldige dimensjoner"); }
     }
     function updateCustomOptionText() { const opt = document.querySelector('option[value="CUSTOM"]'); if(opt) opt.textContent = `Spesial (${customDimensions.width}×${customDimensions.height}mm)`; }
@@ -484,7 +534,10 @@
             }
             previousPaperSize = savedSettings.paperSize;
             orientation = savedSettings.orientation || 'portrait';
-            setOrientation(orientation); 
+            // Update buttons visually but don't trigger render yet
+            document.getElementById('portraitBtn').className = orientation === 'portrait' ? 'active' : '';
+            document.getElementById('landscapeBtn').className = orientation === 'landscape' ? 'active' : '';
+
             document.getElementById('margin').value = savedSettings.margin;
             document.getElementById('gap').value = savedSettings.gap;
             const bg = savedSettings.bgColor || '#FFFFFF';
@@ -498,7 +551,7 @@
                 });
             } else {
                 pages = [loadedPhotos]; 
-                setTimeout(autoFlow, 100);
+                setTimeout(() => autoFlow(false), 100);
             }
             
             // 2. Reconstruct Depot
@@ -510,13 +563,11 @@
                 });
             }
 
-            // 3. ORPHAN CHECK (Sikkerhet: Alle bilder må være et sted)
-            // Samle alle ID-er som nå er plassert (enten side eller depot)
+            // 3. ORPHAN CHECK
             const placedIds = new Set();
             pages.forEach(page => page.forEach(p => placedIds.add(p.id)));
             depotPhotos.forEach(p => placedIds.add(p.id));
 
-            // Sjekk master-listen. Hvis et bilde ikke er plassert, legg det i depotet.
             loadedPhotos.forEach(p => {
                 if (!placedIds.has(p.id)) {
                     console.log("Reddet forsvunnet bilde til depot:", p.name);
@@ -533,12 +584,12 @@
             pages = [loadedPhotos]; 
             depotPhotos = [];
             photos = loadedPhotos;
-            setTimeout(autoFlow, 100);
+            setTimeout(() => autoFlow(false), 100);
         }
         renderGrid(false);
     }
 
-    // --- Graphics Helpers ---
+    // --- OPTIMIZED COLOR CALCULATION ---
     function rgbToHsl(r, g, b) {
         r /= 255; g /= 255; b /= 255;
         const max = Math.max(r, g, b), min = Math.min(r, g, b);
@@ -578,25 +629,71 @@
           const hsl = rgbToHsl(r, g, b);
           canvas.toBlob((blob) => {
             URL.revokeObjectURL(url);
-            resolve({ src: URL.createObjectURL(blob), width: img.width, height: img.height, hue: hsl.h });
+            resolve({ src: URL.createObjectURL(blob), width: img.width, height: img.height, hue: hsl.h, sat: hsl.s, light: hsl.l });
           }, 'image/jpeg', 0.7);
         };
-        img.onerror = () => resolve({ src: url, width: 1000, height: 1000, hue: 0 });
+        img.onerror = () => resolve({ src: url, width: 1000, height: 1000, hue: 0, sat: 0, light: 0.5 });
         img.src = url;
       });
     }
 
+    // --- IMPROVED SORT (Includes Depot + B/W Check) ---
     function sortByColor() {
         if (photos.length < 2) return;
         pushHistory();
-        const allPhotos = [];
+        
+        let allPhotos = [];
         pages.forEach(p => allPhotos.push(...p));
-        allPhotos.sort((a, b) => a.hue - b.hue);
-        pages = [allPhotos];
-        autoFlow();
+        // Include depot photos in sort? Yes, usually desired.
+        allPhotos.push(...depotPhotos);
+        depotPhotos = [];
+
+        const grayscale = [];
+        const colored = [];
+        
+        // Threshold for saturation to be considered "Color"
+        const SAT_THRESHOLD = 0.15; 
+
+        allPhotos.forEach(p => {
+             // Backward compatibility for old photos in DB
+             const s = (p.sat !== undefined) ? p.sat : 0.5; 
+             const l = (p.light !== undefined) ? p.light : 0.5;
+             
+             if (s < SAT_THRESHOLD) {
+                 grayscale.push(p);
+             } else {
+                 colored.push(p);
+             }
+        });
+
+        // Sort Grayscale by Lightness (Dark -> Light)
+        grayscale.sort((a, b) => {
+             const la = (a.light !== undefined) ? a.light : 0.5;
+             const lb = (b.light !== undefined) ? b.light : 0.5;
+             return la - lb;
+        });
+
+        // Sort Colored by Hue
+        colored.sort((a, b) => a.hue - b.hue);
+
+        allPhotos = [...grayscale, ...colored];
+
+        // Reflow
+        const photosPerPage = parseInt(document.getElementById('photosPerPage').value) || 10;
+        const tolerance = parseInt(document.getElementById('pageTolerance').value) || 0;
+        const paper = getPaperDimensions();
+        const margin = parseFloat(document.getElementById('margin').value) || 0;
+        const gap = parseFloat(document.getElementById('gap').value) || 0;
+        const availableWidth = paper.width - (2*margin); 
+        const availableHeight = paper.height - (2*margin);
+        
+        pages = partitionPhotosIntoPages(allPhotos, photosPerPage, tolerance, availableWidth, availableHeight, gap);
+        if (pages.length === 0) pages = [[]]; 
+        
+        renderGrid(true);
     }
 
-    // --- OPTIMIZED HISTORY (UNDO) ---
+    // --- HISTORY (UNDO) ---
     function pushHistory() {
         const currentState = {
             pages: pages.map(page => page.map(p => p.id)),
@@ -650,7 +747,7 @@
       return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), wait); };
     }
     const debouncedRender = debounce(() => { renderGrid(true); }, 50);
-    const debouncedAutoFlow = debounce(() => { autoFlow(); }, 200);
+    const debouncedAutoFlow = debounce(() => { autoFlow(false); }, 200);
 
     function handleSliderChange(type, value) {
       const val = parseFloat(value) || 0;
@@ -789,7 +886,6 @@
           } else {
               const pageEl = e.target.closest('.page-container');
               if (!pageEl) {
-                  // Void drop -> return to source
                   if(dragSourceType === 'depot') depotPhotos.push(photoItem);
                   else pages[draggedPageIdx].push(photoItem);
                   renderGrid(true); return;
@@ -1030,7 +1126,10 @@
             const photoObj = {
                 id: Date.now() + Math.random(), originalFile: file, originalSrc: originalUrl,
                 previewSrc: thumbData.src, name: file.name, width: thumbData.width,
-                height: thumbData.height, aspectRatio: thumbData.width / thumbData.height, hue: thumbData.hue || 0
+                height: thumbData.height, aspectRatio: thumbData.width / thumbData.height, 
+                hue: thumbData.hue || 0,
+                sat: thumbData.sat || 0,
+                light: thumbData.light || 0.5
             };
             await savePhotoToDB(photoObj);
             return photoObj;
@@ -1053,7 +1152,8 @@
       orientation = ori;
       document.getElementById('portraitBtn').className = ori === 'portrait' ? 'active' : '';
       document.getElementById('landscapeBtn').className = ori === 'landscape' ? 'active' : '';
-      renderGrid(true);
+      // Trigger flow on change
+      autoFlow(false);
     }
     
     async function clearAll() {
