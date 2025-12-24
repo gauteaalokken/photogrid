@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotogrid Pro V0.9 - Smart Sort & Depot Fix</title>
+  <title>Fotogrid Pro V0.9.2 - Layout Fix</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   
   <style>
@@ -274,6 +274,9 @@
     let historyStack = [];
     const MAX_HISTORY = 20;
     let currentLayoutId = 1;
+    
+    // Safety lock to prevent saving while switching layouts
+    let isRestoring = false;
 
     // --- DATABASE ---
     const dbName = 'PhotoGridDB_Multi_V3'; 
@@ -328,8 +331,10 @@
       });
     }
 
+    // --- CRITICAL FIX: PREVENT SAVE DURING RESTORE ---
     async function saveSettings() {
-      if(!db) return;
+      if(!db || isRestoring) return; // Dont save if we are restoring!
+      
       const pagesStructure = pages.map(page => page.map(p => p.id));
       const depotStructure = depotPhotos.map(p => p.id); 
 
@@ -479,7 +484,6 @@
             document.getElementById('customWidth').focus();
         } else { 
             previousPaperSize = select.value; 
-            // When paper size changes, we SHOULD trigger autoflow to avoid photos going to depot
             autoFlow(false); 
         }
     }
@@ -492,7 +496,7 @@
             updateCustomOptionText(); 
             document.getElementById('customSizeModal').classList.remove('open'); 
             previousPaperSize = 'CUSTOM'; 
-            autoFlow(false); // Trigger flow on change
+            autoFlow(false); 
         } 
         else { alert("Ugyldige dimensjoner"); }
     }
@@ -500,7 +504,13 @@
 
     async function switchLayout(newId) {
         if (newId === currentLayoutId) return;
+        
+        // Save current before switching
         await saveSettings();
+        
+        // SET LOCK: DO NOT SAVE while switching!
+        isRestoring = true;
+
         // Revoke URLs to free memory
         photos.forEach(p => { URL.revokeObjectURL(p.originalSrc); URL.revokeObjectURL(p.previewSrc); });
         depotPhotos.forEach(p => { URL.revokeObjectURL(p.originalSrc); URL.revokeObjectURL(p.previewSrc); });
@@ -516,12 +526,17 @@
         const loadedPhotos = await loadPhotosFromDB();
         const savedSettings = await loadSettings();
         applyLoadedState(loadedPhotos, savedSettings);
+        
+        // UNLOCK will happen inside applyLoadedState when done
     }
     
     // --- UPDATED: Ensures all photos are accounted for ---
     function applyLoadedState(loadedPhotos, savedSettings) {
         const photoMap = new Map(loadedPhotos.map(p => [p.id, p]));
         
+        // Ensure lock is ON (it should be, but just in case)
+        isRestoring = true;
+
         if (savedSettings) {
             document.getElementById('projectName').value = savedSettings.projectName || '';
             document.getElementById('photosPerPage').value = savedSettings.photosPerPage;
@@ -551,7 +566,7 @@
                 });
             } else {
                 pages = [loadedPhotos]; 
-                setTimeout(() => autoFlow(false), 100);
+                // Dont autoflow here if we are just loading empty state, wait.
             }
             
             // 2. Reconstruct Depot
@@ -570,6 +585,8 @@
 
             loadedPhotos.forEach(p => {
                 if (!placedIds.has(p.id)) {
+                    // Only dump to depot if we actually had settings to begin with
+                    // Otherwise it might just be a fresh load
                     console.log("Reddet forsvunnet bilde til depot:", p.name);
                     depotPhotos.push(p);
                 }
@@ -586,7 +603,10 @@
             photos = loadedPhotos;
             setTimeout(() => autoFlow(false), 100);
         }
-        renderGrid(false);
+        
+        // RELEASE LOCK and Render ONE time
+        isRestoring = false;
+        renderGrid(false); // Render visual but dont save immediately
     }
 
     // --- OPTIMIZED COLOR CALCULATION ---
@@ -637,48 +657,36 @@
       });
     }
 
-    // --- IMPROVED SORT (Includes Depot + B/W Check) ---
+    // --- IMPROVED SORT ---
     function sortByColor() {
         if (photos.length < 2) return;
         pushHistory();
         
         let allPhotos = [];
         pages.forEach(p => allPhotos.push(...p));
-        // Include depot photos in sort? Yes, usually desired.
         allPhotos.push(...depotPhotos);
         depotPhotos = [];
 
         const grayscale = [];
         const colored = [];
-        
-        // Threshold for saturation to be considered "Color"
         const SAT_THRESHOLD = 0.15; 
 
         allPhotos.forEach(p => {
-             // Backward compatibility for old photos in DB
              const s = (p.sat !== undefined) ? p.sat : 0.5; 
              const l = (p.light !== undefined) ? p.light : 0.5;
-             
-             if (s < SAT_THRESHOLD) {
-                 grayscale.push(p);
-             } else {
-                 colored.push(p);
-             }
+             if (s < SAT_THRESHOLD) { grayscale.push(p); } else { colored.push(p); }
         });
 
-        // Sort Grayscale by Lightness (Dark -> Light)
         grayscale.sort((a, b) => {
              const la = (a.light !== undefined) ? a.light : 0.5;
              const lb = (b.light !== undefined) ? b.light : 0.5;
              return la - lb;
         });
 
-        // Sort Colored by Hue
         colored.sort((a, b) => a.hue - b.hue);
 
         allPhotos = [...grayscale, ...colored];
-
-        // Reflow
+        
         const photosPerPage = parseInt(document.getElementById('photosPerPage').value) || 10;
         const tolerance = parseInt(document.getElementById('pageTolerance').value) || 0;
         const paper = getPaperDimensions();
